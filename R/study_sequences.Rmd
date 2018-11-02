@@ -47,9 +47,71 @@ two arrays.
 
 ```{r load_common_markers}
 common <- data.table::fread("../GeneSeek/common_markers.csv", data.table=FALSE)
+common_markers <- common[-1,1]
 ```
 
-- are the marker names unique?  77,808 MM; 143,446 GM
+## Numbers of markers
+
+The GigaMUGA array contains `r add_commas(nrow(gm))` markers, which
+the MegaMUGA has `r add_commas(nrow(mm))` markers.
+The marker names in each file
+`r ifelse(length(unique(mm$Name)) == nrow(mm) && length(unique(gm$Name)) == nrow(gm), "are", "are not")`
+all distinct.
+There are `r add_commas(sum(mm$Name %in% gm$Name))` markers in common between
+the two arrays.
+
+The Excel file that I received from GeneSeek has three worksheets;
+the second and third worksheets contain annotation information, including probe
+sequences, for the GigaMUGA and MegaMUGA files, respectively. The first worksheet
+indicates which markers are in common between the GigaMUGA and MegaMUGA arrays,
+but it's a bit odd. It has counts of markers on each array, which
+`r ifelse(common[1,4] == nrow(gm) && common[2,4] == nrow(mm), "are", "are not")`
+correct, but there's a count that says "`On Both`",
+but it's `r add_commas(common[3,4])`, which is different that what you get in a
+direct check of the marker names. Also it has a list of names,
+presumably the ones that are in common, and it does have
+`r add_commas(nrow(common)-1)` markers, but only there are only
+`r add_commas(length(unique(common_markers)))` distinct names, and only
+`r add_commas(sum(common_markers %in% gm$Name))` are present in the GigaMUGA
+array (`r ifelse(sum(common_markers %in% gm$Name) == sum(common_markers %in% mm$Name), "The same", "A different")`,
+number of markers are in the MegaMUGA array.)
+The other `r sum(common_markers %nin% gm$Name)` markers contain all
+the duplicates and look like control stuff and not real marker names:
+`r vec2string(unique(common_markers %wnin% gm$Name))`.
+It seems like those came from the `[Control]` section of the other two
+worksheets.
+
+The key summaries here:
+
+- GigaMUGA has `r add_commas(nrow(gm))` SNPs
+- MegaMUGA has `r add_commas(nrow(mm))` SNPs
+- There are `r add_commas(sum(mm$Name %in% gm$Name))` in common
+
+
+## Basic sequence info
+
+The GeneSeek annotation files contain four sets of sequences.
+`AlleleA_ProbeSeq`, `AlleleB_ProbeSeq`, `SourceSeq`, and `TopGenomicSeq`.
+
+The `AlleleA_ProbeSeq` sequences are
+`r ifelse(all(nchar(c(gm$AlleleA_ProbeSeq, mm$AlleleA_ProbeSeq))==50), "all", "*not* all")`
+length 50.
+
+The `AlleleB_ProbeSeq` sequences are mostly missing. In the GigaMUGA file there
+are `r sum(gm$AlleleB_ProbeSeq != "")` that are not missing; in the MegaMUGA file there
+are `r sum(mm$AlleleB_ProbeSeq != "")` that are not missing.
+
+The `SourceSeq` and `TopGenomicSeq` sequences are the same
+information. They're identical when the `IlmnStrand` column is `TOP`.
+The latter is the reverse complement of the former when the
+`IlmnStrand` column is `BOT`.
+
+The `SourceSeq` all seem to contain text like `[A/C]` that indicates
+the SNP. This is absent from the `AlleleA_ProbeSeq` which are all
+strictly ACGT characters.
+
+## extra stuff
+
 - lengths of the sequences
 - is it obvious which base is the SNP?
 - markers with identical sequences
