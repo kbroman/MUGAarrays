@@ -35,11 +35,13 @@ gm <- data.table::fread("../GeneSeek/gigamuga_geneseek.csv",
                         skip=7, data.table=FALSE)
 wh <- which(gm[,1]=="[Controls]")
 gm <- gm[1:(wh-1),]
+rownames(gm) <- gm$Name
 
 mm <- data.table::fread("../GeneSeek/megamuga_geneseek.csv",
                         skip=7, data.table=FALSE)
 wh <- which(mm[,1]=="[Controls]")
 mm <- mm[1:(wh-1),]
+rownames(mm) <- mm$Name
 ```
 
 I'll also load the file with the names that are in common between the
@@ -88,7 +90,7 @@ The key summaries here:
 - There are `r add_commas(sum(mm$Name %in% gm$Name))` in common
 
 
-## Basic sequence info
+## Available sequences
 
 The GeneSeek annotation files contain four sets of sequences.
 `AlleleA_ProbeSeq`, `AlleleB_ProbeSeq`, `SourceSeq`, and `TopGenomicSeq`.
@@ -110,12 +112,40 @@ The `SourceSeq` all seem to contain text like `[A/C]` that indicates
 the SNP. This is absent from the `AlleleA_ProbeSeq` which are all
 strictly ACGT characters.
 
+## Duplicate probe sequences
+
+There probe sequences are not all distinct. On the GigaMUGA array,
+there are `r add_commas(sum(table(gm$AlleleA_ProbeSeq)==2))` that
+appear twice, `r sum(table(gm$AlleleA_ProbeSeq)==3)` that appear three
+times, `r sum(table(gm$AlleleA_ProbeSeq)==4)` that appear four times.
+
+On the MegaMUGA array,
+there are `r add_commas(sum(table(mm$AlleleA_ProbeSeq)==2))` that
+appear twice, `r sum(table(mm$AlleleA_ProbeSeq)==3)` that appear three
+times, `r sum(table(mm$AlleleA_ProbeSeq)==4)` that appears four times.
+
+## Probe sequences for common markers
+
+Of the `r add_commas(length(common <- mm$Name %win% gm$Name))` markers
+that are in common between the two arrays, there are
+`r sum(mm[common,"AlleleA_ProbeSeq"] != gm[common, "AlleleA_ProbeSeq"])`
+markers that have different probe sequences.
+
+- All cases where one is top strand and other is bottom strand?
+- And so one takes sourceseq to left of snp and other to right of snp?
+  (because in all cases the snp allele is at end or just after the
+  probe sequence?)
+
+## AlleleB probe sequences
+
+- are they the same except for the last base, in all cases?
+
+
 ## extra stuff
 
-- lengths of the sequences
-- is it obvious which base is the SNP?
 - markers with identical sequences
 - markers in common between the two arrays ... are the sequences the same?
+- is it obvious which base is the SNP? And how they match the SourceSeq?
 - relationship between probe sequence and source sequence
 - what to do with the "IlmnStrand" and the SNP allele?
 - seems like snp is just *after* the probe sequence
