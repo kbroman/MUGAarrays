@@ -1,0 +1,66 @@
+---
+title:  "Study SNP sequences on MegaMUGA and GigaMUGA arrays"
+author: "Karl Broman"
+date:   "`r Sys.Date()`"
+output:
+    html_document:
+        code_folding: hide
+        toc: true
+        toc_float: true
+        toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width=11, fig.height=6.5,
+                      message=FALSE, warning=FALSE)
+options(width=110)
+```
+
+
+## Preliminaries
+
+I'll first load some R packages.
+
+```{r load_packages}
+library(data.table)
+library(broman)
+```
+
+I'll now load the GeneSeek annotation files for the MegaMUGA and
+GigaMUGA arrays. There are a few rows above the header, and then some control
+rows at the bottom, that need to be clipped out.
+
+```{r load_geneseek_files}
+gm <- data.table::fread("../GeneSeek/gigamuga_geneseek.csv",
+                        skip=7, data.table=FALSE)
+wh <- which(gm[,1]=="[Controls]")
+gm <- gm[1:(wh-1),]
+
+mm <- data.table::fread("../GeneSeek/megamuga_geneseek.csv",
+                        skip=7, data.table=FALSE)
+wh <- which(mm[,1]=="[Controls]")
+mm <- mm[1:(wh-1),]
+```
+
+I'll also load the file with the names that are in common between the
+two arrays.
+
+```{r load_common_markers}
+common <- data.table::fread("../GeneSeek/common_markers.csv", data.table=FALSE)
+```
+
+- are the marker names unique?  77,808 MM; 143,446 GM
+- lengths of the sequences
+- is it obvious which base is the SNP?
+- markers with identical sequences
+- markers in common between the two arrays ... are the sequences the same?
+- relationship between probe sequence and source sequence
+- what to do with the "IlmnStrand" and the SNP allele?
+- seems like snp is just *after* the probe sequence
+  sometimes probe B has sequence; seems like then the probe sequence includes the snp
+  probe sequences are always 50 bp
+
+I guess check:
+- always SourceSeq == TopGenomicSeq?
+- when allele B probe sequence present, the sequences are identical except for last base,
+  (and that last base is the SNP allele)
