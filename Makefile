@@ -1,8 +1,13 @@
 R_OPTS=--no-save --no-restore --no-init-file --no-site-file
 
+all: docs/study_sequences.html Sequences/gm_seq.csv
+
 docs/study_sequences.html: R/study_sequences.Rmd geneseek unc
 	cd R;R $(R_OPTS) -e "rmarkdown::render('$(<F)')"
 	mv R/$(@F) $@
+
+Sequences/gm_seq.csv: R/grab_sequences.R GeneSeek/gigamuga_geneseek.csv GeneSeek/megamuga_geneseek.csv
+	cd R;R $(R_OPTS) -e "source('$(<F)')"
 
 geneseek: GeneSeek/common_markers.csv \
 		  GeneSeek/gigamuga_geneseek.csv \

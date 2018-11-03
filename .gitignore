@@ -1,5 +1,4 @@
 GeneSeek/common_markers.csv
-GeneSeek/megamuga_geneseek.csv
-GeneSeek/gigamuga_geneseek.csv
-UNC/snps.megamuga.Rdata
-UNC/snps.gigamuga.Rdata
+GeneSeek/*muga_geneseek.csv
+UNC/snps.*muga.Rdata
+Sequences/*.csv
