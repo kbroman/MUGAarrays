@@ -350,6 +350,76 @@ is just after the sequence when `IlmnStrand` is the same as
 `SourceStrand`, and is just before the reverse-complement of the
 sequence when the strands are different.
 
+## Do the sequences match the UNC files?
+
+We should do a quick check of whether the probe sequences match those in the UNC files.
+
+```{r load_unc_files}
+load("../UNC/snps.gigamuga.Rdata")
+gm_unc <- snps
+load("../UNC/snps.megamuga.Rdata")
+mm_unc <- snps
+rm(snps)
+```
+
+The UNC files for the GigaMUGA and MegaMUGA arrays have
+`r add_commas(nrow(gm_unc))` and `r add_commas(nrow(mm_unc))`
+rows, respectively. So the MegaMUGA file has the same number of rows
+as the file from GeneSeek, but the GigaMUGA file seems to be missing
+`r nrow(gm) - nrow(gm_unc)` rows. The missing markers are all have
+names that start `CTRL` or `CTRL2`. So control probes, I suppose.
+
+```{r check_same_markers}
+stopifnot( all(gm_unc$marker %in% gm$Name) )
+stopifnot( all(sort(mm_unc$marker) == sort(mm$Name)) )
+```
+
+Otherwise, all of the marker names are the same.
+
+Let's look to see if the sequences are the same.
+
+```{r compare_sequences_geneseek_to_unc}
+# sequences in MM files match?
+stopifnot( all(mm_unc[mm$Name, "seq.A"] ==  mm$AlleleA_ProbeSeq) )
+
+# subset GeneSeek GM file to those in the UNC file
+gm_sub <- gm[gm$Name %in% gm_unc$marker,]
+# sequences in GM files match?
+stopifnot( all(gm_unc[gm_sub$Name, "seq.A"] ==  gm_sub$AlleleA_ProbeSeq) )
+```
+
+Yes, the sequences all match exactly.
+
+I should also compare the chromosome assignments between the GeneSeek
+and UNC files.
+
+For the MegaMUGA array, they are the same except some of Y in GeneSeek
+are P in UNC, and most of the P and M in UNC are 0 in GeneSeek.
+
+Here's a table just of the markers where they differ.
+The rows are the UNC assignments; the columns are the GeneSeek ones.
+
+```{r compare_chr_mm}
+chr_lev <- c(0:19,"X","Y","P","M")
+mm_unc_chr <- factor(sub("chr", "", mm_unc[mm$Name, "chr"]), chr_lev)
+mm_gs_chr <- factor(mm$Chr, chr_lev)
+mm_chr_mismatch <- mm_unc_chr != mm_gs_chr
+table(mm_unc_chr[mm_chr_mismatch], mm_gs_chr[mm_chr_mismatch])
+```
+
+For GM, on the other hand, there are a whole bunch of markers with
+disagreement. Also note that the UNC file for the GigaMUGA also has a
+bunch of markers with `NA` in the chromosome column. I think they
+should be "P", so I'll call them that for now.
+
+```{r compare_chr_gm}
+gm_unc_chr <- factor(sub("chr", "", gm_unc[gm_sub$Name, "chr"]), chr_lev)
+gm_unc_chr[is.na(gm_unc_chr)] <- "P"
+gm_gs_chr <- factor(gm_sub$Chr, chr_lev)
+gm_chr_mismatch <- gm_unc_chr != gm_gs_chr
+table(gm_unc_chr[gm_chr_mismatch], gm_gs_chr[gm_chr_mismatch])
+```
+
 
 ## BLASTn results
 

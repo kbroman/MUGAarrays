@@ -464,6 +464,94 @@ stopifnot( all((mm_after_sub == mm_probe_rev &amp; mm$IlmnStrand != mm$SourceStr
                (mm_before_sub == mm_probe &amp; mm$IlmnStrand == mm$SourceStrand)) )</code></pre>
 <p>Having gotten here, the probes match the source sequences exactly. SNP is just after the sequence when <code>IlmnStrand</code> is the same as <code>SourceStrand</code>, and is just before the reverse-complement of the sequence when the strands are different.</p>
 </div>
+<div id="do-the-sequences-match-the-unc-files" class="section level2">
+<h2>Do the sequences match the UNC files?</h2>
+<p>We should do a quick check of whether the probe sequences match those in the UNC files.</p>
+<pre class="r"><code>load(&quot;../UNC/snps.gigamuga.Rdata&quot;)
+gm_unc &lt;- snps
+load(&quot;../UNC/snps.megamuga.Rdata&quot;)
+mm_unc &lt;- snps
+rm(snps)</code></pre>
+<p>The UNC files for the GigaMUGA and MegaMUGA arrays have 143,259 and 77,808 rows, respectively. So the MegaMUGA file has the same number of rows as the file from GeneSeek, but the GigaMUGA file seems to be missing 187 rows. The missing markers are all have names that start <code>CTRL</code> or <code>CTRL2</code>. So control probes, I suppose.</p>
+<pre class="r"><code>stopifnot( all(gm_unc$marker %in% gm$Name) )
+stopifnot( all(sort(mm_unc$marker) == sort(mm$Name)) )</code></pre>
+<p>Otherwise, all of the marker names are the same.</p>
+<p>Let’s look to see if the sequences are the same.</p>
+<pre class="r"><code># sequences in MM files match?
+stopifnot( all(mm_unc[mm$Name, &quot;seq.A&quot;] ==  mm$AlleleA_ProbeSeq) )
+
+# subset GeneSeek GM file to those in the UNC file
+gm_sub &lt;- gm[gm$Name %in% gm_unc$marker,]
+# sequences in GM files match?
+stopifnot( all(gm_unc[gm_sub$Name, &quot;seq.A&quot;] ==  gm_sub$AlleleA_ProbeSeq) )</code></pre>
+<p>Yes, the sequences all match exactly.</p>
+<p>I should also compare the chromosome assignments between the GeneSeek and UNC files.</p>
+<p>For the MegaMUGA array, they are the same except some of Y in GeneSeek are P in UNC, and most of the P and M in UNC are 0 in GeneSeek.</p>
+<p>Here’s a table just of the markers where they differ. The rows are the UNC assignments; the columns are the GeneSeek ones.</p>
+<pre class="r"><code>chr_lev &lt;- c(0:19,&quot;X&quot;,&quot;Y&quot;,&quot;P&quot;,&quot;M&quot;)
+mm_unc_chr &lt;- factor(sub(&quot;chr&quot;, &quot;&quot;, mm_unc[mm$Name, &quot;chr&quot;]), chr_lev)
+mm_gs_chr &lt;- factor(mm$Chr, chr_lev)
+mm_chr_mismatch &lt;- mm_unc_chr != mm_gs_chr
+table(mm_unc_chr[mm_chr_mismatch], mm_gs_chr[mm_chr_mismatch])</code></pre>
+<pre><code>##     
+##       0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19  X  Y  P  M
+##   0   0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   1   0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   2   0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   3   0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   4   0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   5   0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   6   0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   7   1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   8   0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   9   0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   10  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   11  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   12  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   13  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   14  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   15  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   16  5  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   17  5  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   18  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   19  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   X   0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   Y   0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   P  14  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0 69  0  0
+##   M  46  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0</code></pre>
+<p>For GM, on the other hand, there are a whole bunch of markers with disagreement. Also note that the UNC file for the GigaMUGA also has a bunch of markers with <code>NA</code> in the chromosome column. I think they should be “P”, so I’ll call them that for now.</p>
+<pre class="r"><code>gm_unc_chr &lt;- factor(sub(&quot;chr&quot;, &quot;&quot;, gm_unc[gm_sub$Name, &quot;chr&quot;]), chr_lev)
+gm_unc_chr[is.na(gm_unc_chr)] &lt;- &quot;P&quot;
+gm_gs_chr &lt;- factor(gm_sub$Chr, chr_lev)
+gm_chr_mismatch &lt;- gm_unc_chr != gm_gs_chr
+table(gm_unc_chr[gm_chr_mismatch], gm_gs_chr[gm_chr_mismatch])</code></pre>
+<pre><code>##     
+##       0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19  X  Y  P  M
+##   0   0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+##   1   8  0 11  9 13  3  3  6  1  1  1  5  2  2  5  4  0  4  4  1  1  0  0  0
+##   2  14  5  0  6 11 19  6  7  4  3  2  6  2  5  5  5  1  5  0  3  3  0  0  0
+##   3   0  8  2  0  3  6  6  6  5  5  6  3  2  1  4  2  1  4  2  3  5  0  0  0
+##   4   0  5  2  5  0  4  4  2  2  3  2  8  4  8 10  9  3  4  1  2  7  0  0  0
+##   5   0  7  3  2  1  0  4  3  5  1  6  5  0  6  3  7  8  8  3  1  4  1  0  0
+##   6   0  2  2  5  6  5  0  4  3  3  0  1  2  3  4  1  3  1  4  4 16  0  0  0
+##   7   1  8  7  1  7  2  2  0  4  4  5  0  2  4  2  0  3  2  1  2  2  0  0  0
+##   8   0  3  4  3  1  4  1  3  0  3  5  1  3  1  0  0  1  3  3  3  1  0  0  0
+##   9   0  6  8  6  2  4  6  4  4  0  1  2  2  3  1  2  2  4  1  0  1  0  0  0
+##   10  0  4  4  7  3  1  3  3  1  1  0  2  2  2  1  4  1  3  1  4  0  0  0  0
+##   11  1  4  5  2  3  2  0  2  4  1  6  0  3  0  2  5  2  3  0  3  2  0  0  0
+##   12  1  1  2  7  2  3  0  2  3  2  2  0  0  3  1  1  0  1  2  3  3  0  0  0
+##   13  2  6  3  4  2  5  1  1  1  2  4  2  1  0  4  2  2  6  4  4  7  0  0  0
+##   14  0  5  7  4  2  3  3  5  2  2  1  1  2  1  0  5  0  2  0  1  1  0  0  0
+##   15  0  5  4  3  3  2  1  4  3  1  2  1  4  0  3  0  1  3  2  2  3  0  0  0
+##   16  2  1  1  3  5  3  2  2  1  2  0  1  2  5  1  2  0  3  1  2  1  0  0  0
+##   17  3  3  5  0  0  2  1  3  0  1  2  4  3  0  2  1  2  0  2  2  1  0  0  0
+##   18  0  4  2  3  3  1  2  4  1  1  1  0  2  2  3  2  3  1  0  5  1  0  0  0
+##   19  0  1  3  1  2  1  1  2  1  0  1  0  1  0  0  2  2  2  2  0  2  0  0  0
+##   X   0  6 10  5  6  2  6  5  1  2  6  6  1  4  6  5  0  3  4  4  0  0  0  0
+##   Y   0  1  0  2  2  1  1  2  1  1  0  1  1  0  1  2  0  0  0  0 33  0  0  0
+##   P  11  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  5  0  0 64  0  0
+##   M  32  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0</code></pre>
+</div>
 <div id="blastn-results" class="section level2">
 <h2>BLASTn results</h2>
 </div>

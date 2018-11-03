@@ -1,6 +1,6 @@
 R_OPTS=--no-save --no-restore --no-init-file --no-site-file
 
-docs/study_sequences.html: R/study_sequences.Rmd geneseek
+docs/study_sequences.html: R/study_sequences.Rmd geneseek unc
 	cd R;R $(R_OPTS) -e "rmarkdown::render('$(<F)')"
 	mv R/$(@F) $@
 
