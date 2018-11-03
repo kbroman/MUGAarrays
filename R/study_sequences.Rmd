@@ -138,21 +138,140 @@ markers that have different probe sequences.
 
 ## AlleleB probe sequences
 
-- are they the same except for the last base, in all cases?
+For the small number of cases where there's an `AlleleB_ProbeSeq`, in
+addition to `AlleleA_ProbeSeq`, I think the last base on the two is
+the SNP. They should match at the other 49 bases. Here's a quick check
+of that:
+
+```{r check_alleleb_probes}
+# cases with AlleleB probe sequence
+wh_gm <- which(gm$AlleleB_ProbeSeq != "")
+# grab the two sequences
+probeA <- gm$AlleleA_ProbeSeq[wh_gm]
+probeB <- gm$AlleleB_ProbeSeq[wh_gm]
+# first 49 characters are the same
+stopifnot( all(substr(probeA, 1, 49) == substr(probeB, 1, 49)) )
+# grab the last base from each, which should be the alleles
+alleleA <- substr(probeA, 50, 50)
+alleleB <- substr(probeB, 50, 50)
+# the alleles are different
+stopifnot( all( alleleA != alleleB ) )
+# the alleles match the SNP column
+stopifnot( all( gm$SNP[wh_gm] == paste0("[", alleleA, "/", alleleB, "]") ) )
+
+# now all that for the MegaMUGA array...
+# cases with AlleleB probe sequence
+wh_mm <- which(mm$AlleleB_ProbeSeq != "")
+# grab the two sequences
+probeA <- mm$AlleleA_ProbeSeq[wh_mm]
+probeB <- mm$AlleleB_ProbeSeq[wh_mm]
+# first 49 characters are the same
+stopifnot( all(substr(probeA, 1, 49) == substr(probeB, 1, 49)) )
+# grab the last base from each, which should be the alleles
+alleleA <- substr(probeA, 50, 50)
+alleleB <- substr(probeB, 50, 50)
+# the alleles are different
+stopifnot( all( alleleA != alleleB ) )
+# the alleles match the SNP column
+stopifnot( all( mm$SNP[wh_mm] == paste0("[", alleleA, "/", alleleB, "]") ) )
+```
+
+The code aboved checked that for the cases where there's an AlleleB
+probe sequence, the first 49 bases are the same, between the two
+alleles, while the 50th base is the SNP
+
+For the remaining probes, I believe that the SNPs is just after the
+probe sequence. We'll check that by comparing it to the source
+sequences, next.
+
+## Compare probes to source sequences
+
+I'm presuming that the probe sequences match the part of the source
+sequence from just before the `[A/T]` snp part.
+
+I'll first split the source sequences into the bits before and after
+the snp. I'll also compare the SNP part of the source sequence to the
+SNP column. Then I'll compare the parts of the source sequence to
+AlleleA probes.
+
+```{r compare_probe_and_source}
+# function to do reverse complement
+revcomp <- function(txt, swap_snp_alleles=TRUE) {
+    comp <- function(a) {
+        b <- a
+        b[a=="A"] <- "T"
+        b[a=="C"] <- "G"
+        b[a=="G"] <- "C"
+        b[a=="T"] <- "A"
+        b[a=="a"] <- "t"
+        b[a=="c"] <- "g"
+        b[a=="g"] <- "c"
+        b[a=="t"] <- "a"
+        b[a=="["] <- "]"
+        b[a=="]"] <- "["
+        b }
+
+    result <- sapply(strsplit(txt, ""), function(a) paste(rev(comp(a)), collapse=""))
+
+    if(swap_snp_alleles) {
+        snps <- c("A/C", "A/G", "A/T",
+                  "C/A", "C/G", "C/T",
+                  "G/A", "G/C", "G/T",
+                  "T/A", "T/C", "T/G")
+        snps_rev <- snps[c(4,7,10,1,8,11,2,5,12,3,6,9)]
+        for(i in seq_along(snps)) result <- sub(snps[i], snps_rev[i], result, fixed=TRUE)
+    }
+    result
+}
+
+# grab SNP info from SourceSeq, with alleles in both orders
+gm_source_snp <- t(sapply(strsplit(gm$SourceSeq, "/"), function(a) {
+    n <- nchar(a[1])
+    alle1 <- substr(a[1], n, n)
+    alle2 <- substr(a[2], 1, 1)
+    c(paste0("[", alle1, "/", alle2, "]"), paste0("[", revcomp(alle1), "/", revcomp(alle2), "]")) }))
+
+# SNP column is the same as the source sequence, or is the complement of that
+stopifnot( all(gm$SNP == gm_source_snp[,1] | gm$SNP == gm_source_snp[,2]) )
+
+## repeat for MegaMUGA
+# grab SNP info from SourceSeq, with alleles in both orders
+mm_source_snp <- t(sapply(strsplit(mm$SourceSeq, "/"), function(a) {
+    n <- nchar(a[1])
+    alle1 <- substr(a[1], n, n)
+    alle2 <- substr(a[2], 1, 1)
+    c(paste0("[", alle1, "/", alle2, "]"), paste0("[", revcomp(alle1), "/", revcomp(alle2), "]")) }))
+
+# SNP column is the same as the source sequence, or is the complement of that
+#    ...but this has no relationship to TOP/BOT in the IlmnStrand column
+#    ...need to consider both IlmnStrand and SourceStrand columns
+stopifnot( all(mm$SNP == mm_source_snp[,1] | mm$SNP == mm_source_snp[,2]) )
+
+# when SourceStrand=="TOP", the SourceSeq and TopGenomicSeq match
+# when SourceStrand=="BOT", the TopGenomicSeq is the reverse complement
+#    ...a few cases of lower case letters in the latter
+#    ...and it's tricky handling the SNP alleles, b/c they shouldn't be swapped
+
+# grab the sequence before and after the SNP
+gm_source_spl <- strsplit(gm$SourceSeq, "\\[[ACGT]/[ACGT]\\]")
+gm_before_snp <- sapply(gm_source_spl, "[", 1) # a bunch of these have length 0
+gm_after_snp <- sapply(gm_source_spl, "[", 2) # a bunch of these are NA
+
+
+
+```
+
+
 
 
 ## extra stuff
 
-- markers with identical sequences
-- markers in common between the two arrays ... are the sequences the same?
 - is it obvious which base is the SNP? And how they match the SourceSeq?
-- relationship between probe sequence and source sequence
-- what to do with the "IlmnStrand" and the SNP allele?
+
 - seems like snp is just *after* the probe sequence
   sometimes probe B has sequence; seems like then the probe sequence includes the snp
   probe sequences are always 50 bp
 
 I guess check:
-- always SourceSeq == TopGenomicSeq?
 - when allele B probe sequence present, the sequences are identical except for last base,
   (and that last base is the SNP allele)
