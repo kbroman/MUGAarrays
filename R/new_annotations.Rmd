@@ -56,6 +56,14 @@ A summary of my findings:
 - The "unique" column in the GigaMUGA annotation file is messed up.
 
 
+## Procedures
+
+The key thing here was to run blastn to map all array probe sequences
+to the mouse genome (build mm10). There is some trickiness in
+trimming SNP alleles off some problems, and in identifying the SNP
+position from the blast results.
+
+
 ## Preliminaries
 
 I'll first load some R packages.
@@ -66,6 +74,60 @@ library(broman)
 library(devtools)
 ```
 
+I'll now load various data sets: the GeneSeek and UNC annotation
+files, and the blast results.
+
+```{r load_data}
+# GeneSeek files
+gm_gs <- data.table::fread("../GeneSeek/gigamuga_geneseek.csv",
+                           skip=7, data.table=FALSE)
+wh <- which(gm_gs[,1]=="[Controls]")
+gm_gs <- gm_gs[1:(wh-1),]
+rownames(gm_gs) <- gm_gs$Name
+
+mm_gs <- data.table::fread("../GeneSeek/megamuga_geneseek.csv",
+                           skip=7, data.table=FALSE)
+wh <- which(mm_gs[,1]=="[Controls]")
+mm_gs <- mm_gs[1:(wh-1),]
+rownames(mm_gs) <- mm_gs$Name
+
+# UNC files
+load("../UNC/snps.gigamuga.Rdata")
+gm_unc <- snps
+
+load("../UNC/snps.megamuga.Rdata")
+mm_unc <- snps
+
+# Blast results; keep just the perfect matches(?)
+mm_blast <- readRDS("../Blast/results_mm/mm_blastn_results.rds")
+mm_blast <- mm_blast[mm_blast$n_mismatch==0,]
+gm_blast <- readRDS("../Blast/results_gm/gm_blastn_results.rds")
+gm_blast <- gm_blast[gm_blast$n_mismatch==0,]
+```
+
+
+## Study blast results
+
+```{r summarize_blast_results}
+# no. blast hits
+gm_tab <- table(gm_blast$query)
+gm_nchr <- gm_nhits <- setNames(rep(0, nrow(gm_gs)), rownames(gm_gs))
+gm_nhits[names(gm_tab)] <- gm_tab
+
+# no. chromosomes hit
+gm_tab_chr <- table(gm_blast$query, gm_blast$chr)
+gm_nchr[rownames(gm_tab_chr)] <- rowSums(gm_tab_chr > 0)
+
+## Same for MegaMUGA
+# no. blast hits
+mm_tab <- table(mm_blast$query)
+mm_nchr <- mm_nhits <- setNames(rep(0, nrow(mm_gs)), rownames(mm_gs))
+mm_nhits[names(mm_tab)] <- mm_tab
+
+# no. chromosomes hit
+mm_tab_chr <- table(mm_blast$query, mm_blast$chr)
+mm_nchr[rownames(mm_tab_chr)] <- rowSums(mm_tab_chr > 0)
+```
 
 
 ## Session info
