@@ -6,13 +6,13 @@
 
 # input <- "wrong_location.fa"
 input <- "megamuga.fa"
-output_dir <- "results_mm"
+output_dir <- "../results_mm"
 
 # create indexes
 for(chr in c(1:19,"X","Y","M")) {
-    if(file.exists(paste0("MouseFasta/chr", chr, ".fa.nsq"))) next
+    if(file.exists(paste0("../MouseFasta/chr", chr, ".fa.nsq"))) next
     cat(chr, "\n")
-    system(paste0("makeblastdb -in MouseFasta/chr", chr, ".fa -dbtype nucl"))
+    system(paste0("makeblastdb -in ../MouseFasta/chr", chr, ".fa -dbtype nucl"))
 }
 
 # blast the sequences
@@ -22,10 +22,14 @@ cores <- parallel::detectCores()
 
 for(chr in rev(c(1:19,"X","Y","M"))) {
     cat(chr, "\n")
-    system(paste0("blastn -db MouseFasta/chr", chr, ".fa -num_threads ", cores,
+    system(paste0("blastn -db ../MouseFasta/chr", chr, ".fa -num_threads ", cores,
                   " -ungapped -out ", output_dir, "/output_c",
                   chr, ".txt -query ", input, " -outfmt 6"))
 }
+
+# read the probe sequences
+probes <- qtl2::read_csv("../../Sequences/mm_seq.csv")
+nchar_probes <- setNames(nchar(probes$probe_seq), rownames(probes))
 
 results <- lapply(c(1:19,"X","Y","M"), function(chr) {
     file <- paste0(output_dir, "/output_c", chr, ".txt")
@@ -36,7 +40,8 @@ results <- do.call("rbind", results)
 colnames(results) <- c("query", "chr", "percent_match", "length", "n_mismatch", "n_gap",
                        "start_query", "end_query", "start_chr", "end_chr", "evalue", "bitscore")
 
-results$tot_mismatch <- results$n_mismatch + (50 - results$length)
+results$probe_length <- nchar_probes[results$query]
+results$tot_mismatch <- results$n_mismatch + (results$probe_length - results$length)
 results <- results[results$tot_mismatch <= 2,]
 results$chr <- sub("^chr", "", results$chr)
 results$marker <- sapply(strsplit(results$query, "\\|"), "[", 1)
