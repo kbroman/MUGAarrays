@@ -1,5 +1,62 @@
 # study the results of blasting the sequences against the mouse genome (mm10)
 
+library(qtl2)
+library(broman)
+
+mm_blast <- readRDS("../results_mm/mm_blastn_results.rds")
+mm_blast <- mm_blast[mm_blast$tot_mismatch==0,]
+load("../../UNC/snps.megamuga.Rdata")
+mm_unc <- snps
+mm_unc$chr <- sub("chr", "", mm_unc$chr)
+mm_probes <- qtl2::read_csv("../../Sequences/mm_seq.csv")
+
+tab <- table(mm_blast$query)
+mm_uniq <- names(tab)[tab==1]
+mm_mult <- names(tab)[tab > 1]
+mm_nopos <- rownames(mm_probes) %wnin% names(tab)
+mm_chr_uniq <- setNames(mm_blast$chr[match(mm_uniq, mm_blast$query)], mm_uniq)
+mm_chr_unc_uniq <- mm_unc[names(mm_chr_uniq), "chr"]
+chr_lev <- c(1:19,"X","Y","P","M")
+table(factor(mm_chr_uniq, chr_lev), factor(mm_chr_unc_uniq, chr_lev))
+# small number of odd differences
+
+mm_pos_uniq <- setNames(mm_blast$snp_pos[match(mm_uniq, mm_blast$query)], mm_uniq)
+mm_pos_unc_uniq <- mm_unc[names(mm_pos_uniq), "pos"]
+table(mm_pos_uniq - mm_pos_unc_uniq) # mostly different, I think because annotations in mm9 rather than mm10
+
+#### GM
+
+gm_blast <- readRDS("../results_gm/gm_blastn_results.rds")
+gm_blast <- gm_blast[gm_blast$tot_mismatch==0,]
+load("../../UNC/snps.gigamuga.Rdata")
+gm_unc <- snps
+gm_unc$chr <- sub("chr", "", gm_unc$chr)
+gm_unc$chr[is.na(gm_unc$chr)] <- "P"
+gm_probes <- qtl2::read_csv("../../Sequences/gm_seq.csv")
+
+tab <- table(gm_blast$query)
+gm_uniq <- names(tab)[tab==1]
+gm_mult <- names(tab)[tab > 1]
+gm_nopos <- rownames(gm_probes) %wnin% names(tab)
+gm_chr_uniq <- setNames(gm_blast$chr[match(gm_uniq, gm_blast$query)], gm_uniq)
+gm_chr_unc_uniq <- gm_unc[names(gm_chr_uniq), "chr"]
+chr_lev <- c(1:19,"X","Y","P","M")
+table(factor(gm_chr_uniq, chr_lev), factor(gm_chr_unc_uniq, chr_lev))
+
+gm_pos_uniq <- setNames(gm_blast$snp_pos[match(gm_uniq, gm_blast$query)], gm_uniq)
+gm_pos_unc_uniq <- gm_unc[names(gm_pos_uniq), "pos"]
+table(gm_pos_uniq - gm_pos_unc_uniq)
+# a small number of -1, +1, but mostly 0
+pos_left <- names(gm_pos_uniq)[gm_pos_uniq < gm_pos_unc_uniq]
+pos_right <- names(gm_pos_uniq)[gm_pos_uniq > gm_pos_unc_uniq]
+
+gm_unc_unique_butmult <- rownames(gm_unc)[gm_unc$unique & rownames(gm_unc) %in% gm_mult]
+gm_unc_unique_butnopos <- rownames(gm_unc)[gm_unc$unique & rownames(gm_unc) %in% gm_nopos]
+# example: UNC4807973
+
+######################################################################
+# old stuff
+
 clean_name <- function(ids) sapply(strsplit(ids, "\\|"), "[", 1)
 
 # results of blasting the MM and GM markers against mouse genome (mm10)
