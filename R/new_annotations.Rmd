@@ -1,0 +1,77 @@
+---
+title:  "New MegaMUGA/GigaMUGA annotations"
+author: "Karl Broman"
+date:   "`r Sys.Date()`"
+output:
+    html_document:
+        code_folding: hide
+        toc: true
+        toc_float: true
+        toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width=11, fig.height=6.5,
+                      message=FALSE, warning=FALSE)
+options(width=110)
+```
+
+
+## Introduction
+
+While preparing a
+[talk](https://kbroman.org/Talk_CTC2018/broman_ctc2018.pdf) and
+[paper](https://www.biostat.wisc.edu/~kbroman/publications/mpp_diag.pdf),
+I developed some concerns about the UNC annotation file for the
+GigaMUGA array. In particular, I felt that some of the columns may
+have been scrambled:
+
+- In blasting the GigaMUGA probe sequences against
+  the mouse genome, I found the same number of non-unique markers
+  (3,114), but they were not the same markers. In comparing
+
+- Of the markers in common between the MegaMUGA and GigaMUGA arrays,
+  the chromosome assignments have a lot of differences.
+
+In case that the probe sequences in the UNC annotation files might be
+in error, I obtained the array probe sequences directly from GeneSeek.
+These proved to be the same as those in the UNC files.
+
+My main goal has been to construct new annotation files for the
+GigaMUGA and MegaMUGA arrays, with consistency across the two, with
+updated information about which markers map uniquely, which map to
+multiple locations, and which do not map, and to include genomic
+coordinates only for the markers that map uniquely.
+
+A summary of my findings:
+
+- For markers mapping uniquely, the genomic coordinates in the UNC
+  GigaMUGA annotation file were correct.
+
+- The UNC MegaMUGA annotation file had coordinates in a previous mouse
+  genome build (mm9). For markers mapping uniquely, there are a small
+  number with differences in chromosome assignments; there are lots of
+  differences in positions, with the new build (mm10).
+
+- The "unique" column in the GigaMUGA annotation file is messed up.
+
+
+## Preliminaries
+
+I'll first load some R packages.
+
+```{r load_packages}
+library(data.table)
+library(broman)
+library(devtools)
+```
+
+
+
+## Session info
+
+Here are the versions of R and R packages that I am using.
+
+```{r session_info}
+devtools::session_info()
+```
