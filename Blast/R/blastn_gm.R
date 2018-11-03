@@ -50,7 +50,8 @@ results$marker <- sapply(strsplit(results$query, "\\|"), "[", 1)
 results$snp_pos <- results$end_chr
 points_right <- results$end_chr > results$start_chr
 results$snp_pos <- results$snp_pos + (points_right*2-1) # add +1 or -1 depending on direction
-results$snp_pos <- results$snp_pos + (results$probe_length - results$end_query) # extend to end of query probe
+# now extend to end of query probe
+results$snp_pos <- results$snp_pos + (results$probe_length - results$end_query)*(points_right*2-1)
 
 saveRDS(results, paste0(output_dir, "/gm_blastn_results.rds"), compress=FALSE)
 
