@@ -26,3 +26,19 @@ revcomp <- function(txt, swap_snp_alleles=TRUE) {
     }
     result
 }
+
+justcomp <- function(txt) {
+    comp <- function(a) {
+        b <- a
+        b[a=="A"] <- "T"
+        b[a=="C"] <- "G"
+        b[a=="G"] <- "C"
+        b[a=="T"] <- "A"
+        b[a=="a"] <- "t"
+        b[a=="c"] <- "g"
+        b[a=="g"] <- "c"
+        b[a=="t"] <- "a"
+        b }
+
+    result <- sapply(strsplit(txt, ""), function(a) paste(comp(a), collapse=""))
+}
