@@ -1,2 +1,3 @@
 MouseFasta
-result_*
+results_*/*
+R/*.fa
