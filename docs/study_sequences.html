@@ -248,30 +248,285 @@ div.tocify {
 <h2>Preliminaries</h2>
 <p>I’ll first load some R packages.</p>
 <pre class="r"><code>library(data.table)
-library(broman)</code></pre>
+library(broman)
+library(devtools)</code></pre>
 <p>I’ll now load the GeneSeek annotation files for the MegaMUGA and GigaMUGA arrays. There are a few rows above the header, and then some control rows at the bottom, that need to be clipped out.</p>
 <pre class="r"><code>gm &lt;- data.table::fread(&quot;../GeneSeek/gigamuga_geneseek.csv&quot;,
                         skip=7, data.table=FALSE)
 wh &lt;- which(gm[,1]==&quot;[Controls]&quot;)
 gm &lt;- gm[1:(wh-1),]
+rownames(gm) &lt;- gm$Name
 
 mm &lt;- data.table::fread(&quot;../GeneSeek/megamuga_geneseek.csv&quot;,
                         skip=7, data.table=FALSE)
 wh &lt;- which(mm[,1]==&quot;[Controls]&quot;)
-mm &lt;- mm[1:(wh-1),]</code></pre>
+mm &lt;- mm[1:(wh-1),]
+rownames(mm) &lt;- mm$Name</code></pre>
 <p>I’ll also load the file with the names that are in common between the two arrays.</p>
-<pre class="r"><code>common &lt;- data.table::fread(&quot;../GeneSeek/common_markers.csv&quot;, data.table=FALSE)</code></pre>
+<pre class="r"><code>common &lt;- data.table::fread(&quot;../GeneSeek/common_markers.csv&quot;, data.table=FALSE)
+common_markers &lt;- common[-1,1]</code></pre>
+</div>
+<div id="numbers-of-markers" class="section level2">
+<h2>Numbers of markers</h2>
+<p>The GigaMUGA array contains 143,446 markers, which the MegaMUGA has 77,808 markers. The marker names in each file are all distinct. There are 66,992 markers in common between the two arrays.</p>
+<p>The Excel file that I received from GeneSeek has three worksheets; the second and third worksheets contain annotation information, including probe sequences, for the GigaMUGA and MegaMUGA files, respectively. The first worksheet indicates which markers are in common between the GigaMUGA and MegaMUGA arrays, but it’s a bit odd. It has counts of markers on each array, which are correct, but there’s a count that says “<code>On Both</code>”, but it’s 67,015, which is different that what you get in a direct check of the marker names. Also it has a list of names, presumably the ones that are in common, and it does have 67,015 markers, but only there are only 67,000 distinct names, and only 66,992 are present in the GigaMUGA array (The same, number of markers are in the MegaMUGA array.) The other 23 markers contain all the duplicates and look like control stuff and not real marker names: Extension, Hybridization, Non-Polymorphic, Non-Specific Binding, Restoration, Staining, Stringency, and Target Removal. It seems like those came from the <code>[Control]</code> section of the other two worksheets.</p>
+<p>The key summaries here:</p>
 <ul>
-<li>are the marker names unique? 77,808 MM; 143,446 GM</li>
-<li>lengths of the sequences</li>
-<li>is it obvious which base is the SNP?</li>
-<li>markers with identical sequences</li>
-<li>markers in common between the two arrays … are the sequences the same?</li>
-<li>relationship between probe sequence and source sequence</li>
-<li>what to do with the “IlmnStrand” and the SNP allele?</li>
-<li>seems like snp is just <em>after</em> the probe sequence sometimes probe B has sequence; seems like then the probe sequence includes the snp probe sequences are always 50 bp</li>
+<li>GigaMUGA has 143,446 SNPs</li>
+<li>MegaMUGA has 77,808 SNPs</li>
+<li>There are 66,992 in common</li>
 </ul>
-<p>I guess check: - always SourceSeq == TopGenomicSeq? - when allele B probe sequence present, the sequences are identical except for last base, (and that last base is the SNP allele)</p>
+</div>
+<div id="available-sequences" class="section level2">
+<h2>Available sequences</h2>
+<p>The GeneSeek annotation files contain four sets of sequences. <code>AlleleA_ProbeSeq</code>, <code>AlleleB_ProbeSeq</code>, <code>SourceSeq</code>, and <code>TopGenomicSeq</code>.</p>
+<p>The <code>AlleleA_ProbeSeq</code> sequences are all length 50.</p>
+<p>The <code>AlleleB_ProbeSeq</code> sequences are mostly missing. In the GigaMUGA file there are 469 that are not missing; in the MegaMUGA file there are 193 that are not missing.</p>
+<p>The <code>SourceSeq</code> and <code>TopGenomicSeq</code> sequences are the same information. They’re identical when the <code>IlmnStrand</code> column is <code>TOP</code>. The latter is the reverse complement of the former when the <code>IlmnStrand</code> column is <code>BOT</code>.</p>
+<p>The <code>SourceSeq</code> all seem to contain text like <code>[A/C]</code> that indicates the SNP. This is absent from the <code>AlleleA_ProbeSeq</code> which are all strictly ACGT characters.</p>
+</div>
+<div id="duplicate-probe-sequences" class="section level2">
+<h2>Duplicate probe sequences</h2>
+<p>There probe sequences are not all distinct. On the GigaMUGA array, there are 2,711 that appear twice, 49 that appear three times, 2 that appear four times.</p>
+<p>On the MegaMUGA array, there are 50 that appear twice, 0 that appear three times, 1 that appears four times.</p>
+</div>
+<div id="probe-sequences-for-common-markers" class="section level2">
+<h2>Probe sequences for common markers</h2>
+<p>Of the 66,992 markers that are in common between the two arrays, there are 29 markers that have different probe sequences.</p>
+<ul>
+<li>All cases where one is top strand and other is bottom strand?</li>
+<li>And so one takes sourceseq to left of snp and other to right of snp? (because in all cases the snp allele is at end or just after the probe sequence?)</li>
+</ul>
+</div>
+<div id="alleleb-probe-sequences" class="section level2">
+<h2>AlleleB probe sequences</h2>
+<p>For the small number of cases where there’s an <code>AlleleB_ProbeSeq</code>, in addition to <code>AlleleA_ProbeSeq</code>, I think the last base on the two is the SNP. They should match at the other 49 bases. Here’s a quick check of that:</p>
+<pre class="r"><code># cases with AlleleB probe sequence
+wh_gm &lt;- which(gm$AlleleB_ProbeSeq != &quot;&quot;)
+# grab the two sequences
+probeA &lt;- gm$AlleleA_ProbeSeq[wh_gm]
+probeB &lt;- gm$AlleleB_ProbeSeq[wh_gm]
+# first 49 characters are the same
+stopifnot( all(substr(probeA, 1, 49) == substr(probeB, 1, 49)) )
+# grab the last base from each, which should be the alleles
+alleleA &lt;- substr(probeA, 50, 50)
+alleleB &lt;- substr(probeB, 50, 50)
+# the alleles are different
+stopifnot( all( alleleA != alleleB ) )
+# the alleles match the SNP column
+stopifnot( all( gm$SNP[wh_gm] == paste0(&quot;[&quot;, alleleA, &quot;/&quot;, alleleB, &quot;]&quot;) ) )
+
+# now all that for the MegaMUGA array...
+# cases with AlleleB probe sequence
+wh_mm &lt;- which(mm$AlleleB_ProbeSeq != &quot;&quot;)
+# grab the two sequences
+probeA &lt;- mm$AlleleA_ProbeSeq[wh_mm]
+probeB &lt;- mm$AlleleB_ProbeSeq[wh_mm]
+# first 49 characters are the same
+stopifnot( all(substr(probeA, 1, 49) == substr(probeB, 1, 49)) )
+# grab the last base from each, which should be the alleles
+alleleA &lt;- substr(probeA, 50, 50)
+alleleB &lt;- substr(probeB, 50, 50)
+# the alleles are different
+stopifnot( all( alleleA != alleleB ) )
+# the alleles match the SNP column
+stopifnot( all( mm$SNP[wh_mm] == paste0(&quot;[&quot;, alleleA, &quot;/&quot;, alleleB, &quot;]&quot;) ) )</code></pre>
+<p>The code aboved checked that for the cases where there’s an AlleleB probe sequence, the first 49 bases are the same, between the two alleles, while the 50th base is the SNP</p>
+<p>For the remaining probes, I believe that the SNPs is just after the probe sequence. We’ll check that by comparing it to the source sequences, next.</p>
+</div>
+<div id="compare-probes-to-source-sequences" class="section level2">
+<h2>Compare probes to source sequences</h2>
+<p>I’m presuming that the probe sequences match the part of the source sequence from just before the <code>[A/T]</code> SNP part, but I want to check.</p>
+<p>I’ll first check that the <code>SourceSeq</code> column matches the <code>TopGenomicSeq</code> column, using the reverse complement when <code>SourceStrand</code> is <code>&quot;BOT&quot;</code>.</p>
+<pre class="r"><code>source(&quot;revcomp.R&quot;) # reverse complement
+
+# reverse complement of source sequence
+#    ...a few cases of lower case letters in the latter
+#    ...and it's tricky handling the SNP alleles, b/c they shouldn't be swapped
+gm_source_rev &lt;- revcomp(gm$SourceSeq)
+
+# when SourceStrand==&quot;TOP&quot;, the SourceSeq and TopGenomicSeq match
+# when SourceStrand==&quot;BOT&quot;, the TopGenomicSeq is the reverse complement
+stopifnot( all((gm$SourceSeq == gm$TopGenomicSeq &amp; gm$SourceStrand==&quot;TOP&quot;) |
+               (gm_source_rev == gm$TopGenomicSeq &amp; gm$SourceStrand==&quot;BOT&quot;)) )
+
+# now same thing with MegaMUGA
+# reverse complement of source sequence
+#    ...a few cases of lower case letters in the latter
+#    ...and it's tricky handling the SNP alleles, b/c they shouldn't be swapped
+mm_source_rev &lt;- revcomp(mm$SourceSeq)
+
+# when SourceStrand==&quot;TOP&quot;, the SourceSeq and TopGenomicSeq match
+# when SourceStrand==&quot;BOT&quot;, the TopGenomicSeq is the reverse complement
+stopifnot( all((mm$SourceSeq == mm$TopGenomicSeq &amp; mm$SourceStrand==&quot;TOP&quot;) |
+               (mm_source_rev == mm$TopGenomicSeq &amp; mm$SourceStrand==&quot;BOT&quot;)) )</code></pre>
+<p>If we made it here, than that was true and the <code>SourceSeq</code> and <code>TopGenomicSeq</code> columns have the same information, so we can just focus on the <code>SourceSeq</code> column.</p>
+<p>I now want to compare the SNP information in the source sequence to the SNP column.</p>
+<pre class="r"><code># grab SNP info from SourceSeq, with alleles in both orders
+gm_source_snp &lt;- sub(&quot;^.*\\[&quot;, &quot;[&quot;, sub(&quot;\\].*$&quot;, &quot;]&quot;, gm$SourceSeq))
+gm_source_snp_comp &lt;- justcomp(gm_source_snp)
+
+# check that SNP column is one or the other
+stopifnot( all(gm_source_snp == gm$SNP | gm_source_snp_comp == gm$SNP) )
+
+# BUT NOTE: I thought whether it was one or the other depended on whether
+#           IlmnStrand == SourceStrand or not, but there are some differences.
+gm_snp_strand_problem &lt;- ((gm_source_snp == gm$SNP &amp; gm$IlmnStrand != gm$SourceStrand) |
+                          (gm_source_snp_comp == gm$SNP &amp; gm$IlmnStrand == gm$SourceStrand))
+
+# but these are all A/T or C/G cases, so just about defining which allele is A vs B
+stopifnot( all( gm_source_snp[gm_snp_strand_problem] %in% c(&quot;[A/T]&quot;, &quot;[C/G]&quot;) ) )
+
+mm_source_snp &lt;- sub(&quot;^.*\\[&quot;, &quot;[&quot;, sub(&quot;\\].*$&quot;, &quot;]&quot;, mm$SourceSeq))
+mm_source_snp_comp &lt;- justcomp(mm_source_snp)
+
+# check that SNP column is one or the other
+stopifnot( all(mm_source_snp == mm$SNP | mm_source_snp_comp == mm$SNP) )
+
+# mismatches between direct/complement match and whether strands are the same
+mm_snp_strand_problem &lt;- ((mm_source_snp == mm$SNP &amp; mm$IlmnStrand != mm$SourceStrand) |
+                          (mm_source_snp_comp == mm$SNP &amp; mm$IlmnStrand == mm$SourceStrand))
+
+# but these are all A/T or C/G cases, so just about defining which allele is A vs B
+stopifnot( all( mm_source_snp[mm_snp_strand_problem] %in% c(&quot;[A/T]&quot;, &quot;[C/G]&quot;) ) )</code></pre>
+<p>From this, we find that the <code>SNP</code> column is the same as the SNP in the <code>SourceSeq</code>, or it is the complement of that. I thought whether it was a direct match or a match to the complement would be according to whether <code>IlmnStrand == SourceStrand</code> or not, but that there are <code>r sum(gm_snp_strand_problem)</code> mismatches on the GigaMUGA and <code>r sum(mm_snp_strand_problem)</code> mismatches on the MegaMUGA. But these are all cases of A/T or C/G SNPs, so it’s just a matter of the definition of the A vs B alleles.</p>
+<p>Finally (for this section), I’ll now turn to whether the SNP sequences match the source sequences.</p>
+<p>I’ll first split the source sequences into the bits before and after the snp. I’ll also compare the SNP part of the source sequence to the SNP column. Then I’ll compare the parts of the source sequence to AlleleA probes.</p>
+<pre class="r"><code># grab the sequence before and after the SNP
+gm_source_spl &lt;- strsplit(gm$SourceSeq, &quot;\\[[ACGT]/[ACGT]\\]&quot;)
+gm_before_snp &lt;- sapply(gm_source_spl, &quot;[&quot;, 1) # a bunch of these have length 0
+gm_after_snp &lt;- sapply(gm_source_spl, &quot;[&quot;, 2)
+gm_after_snp[is.na(gm_after_snp)] &lt;- &quot;&quot; # turn NAs into emptys
+
+# for the SNPs that have both A and B probe sequences, drop the last character from the A sequence
+gm_probe &lt;- gm$AlleleA_ProbeSeq
+gm_probe[gm$AlleleB_ProbeSeq != &quot;&quot;] &lt;- substr(gm_probe[gm$AlleleB_ProbeSeq != &quot;&quot;], 1, 49)
+gm_probe_rev &lt;- revcomp(gm_probe)
+
+# subset the before and after sequences to no longer than the probe
+nc &lt;- nchar(gm_before_snp)
+start &lt;- nc - nchar(gm_probe)+1
+start[start &lt; 1] &lt;- 1
+gm_before_sub &lt;- gm_before_snp
+gm_before_sub[nc&gt;0] &lt;- substr(gm_before_snp[nc&gt;0], start[nc&gt;0], nc[nc&gt;0])
+
+nc &lt;- nchar(gm_after_snp)
+end &lt;- nchar(gm_probe)
+end[end &gt; nc] &lt;- nc[end &gt; nc]
+gm_after_sub &lt;- gm_after_snp
+gm_after_sub[nc&gt;0] &lt;- substr(gm_after_snp[nc&gt;0], 1, end[nc&gt;0])
+
+# There were 6 cases where probe doesn't match sequence, but due to lower case letters
+# so, convert to upper case
+gm_before_sub &lt;- toupper(gm_before_sub)
+gm_after_sub &lt;- toupper(gm_after_sub)
+
+stopifnot( all(gm_after_sub == gm_probe_rev | gm_before_sub == gm_probe) )
+
+# also check the strand
+stopifnot( all((gm_after_sub == gm_probe_rev &amp; gm$IlmnStrand != gm$SourceStrand) |
+               (gm_before_sub == gm_probe &amp; gm$IlmnStrand == gm$SourceStrand)) )
+
+# Now the MegaMUGA
+# grab the sequence before and after the SNP
+mm_source_spl &lt;- strsplit(mm$SourceSeq, &quot;\\[[ACGT]/[ACGT]\\]&quot;)
+mm_before_snp &lt;- sapply(mm_source_spl, &quot;[&quot;, 1) # a bunch of these have length 0
+mm_after_snp &lt;- sapply(mm_source_spl, &quot;[&quot;, 2)
+mm_after_snp[is.na(mm_after_snp)] &lt;- &quot;&quot; # turn NAs into emptys
+
+# for the SNPs that have both A and B probe sequences, drop the last character from the A sequence
+mm_probe &lt;- mm$AlleleA_ProbeSeq
+mm_probe[mm$AlleleB_ProbeSeq != &quot;&quot;] &lt;- substr(mm_probe[mm$AlleleB_ProbeSeq != &quot;&quot;], 1, 49)
+mm_probe_rev &lt;- revcomp(mm_probe)
+
+# subset the before and after sequences to no longer than the probe
+nc &lt;- nchar(mm_before_snp)
+start &lt;- nc - nchar(mm_probe)+1
+start[start &lt; 1] &lt;- 1
+mm_before_sub &lt;- mm_before_snp
+mm_before_sub[nc&gt;0] &lt;- substr(mm_before_snp[nc&gt;0], start[nc&gt;0], nc[nc&gt;0])
+
+nc &lt;- nchar(mm_after_snp)
+end &lt;- nchar(mm_probe)
+end[end &gt; nc] &lt;- nc[end &gt; nc]
+mm_after_sub &lt;- mm_after_snp
+mm_after_sub[nc&gt;0] &lt;- substr(mm_after_snp[nc&gt;0], 1, end[nc&gt;0])
+
+# There were 9 cases where probe doesn't match sequence, but due to lower case letters
+# so, convert to upper case
+mm_before_sub &lt;- toupper(mm_before_sub)
+mm_after_sub &lt;- toupper(mm_after_sub)
+
+stopifnot( all(mm_after_sub == mm_probe_rev | mm_before_sub == mm_probe) )
+
+# also check the strand
+stopifnot( all((mm_after_sub == mm_probe_rev &amp; mm$IlmnStrand != mm$SourceStrand) |
+               (mm_before_sub == mm_probe &amp; mm$IlmnStrand == mm$SourceStrand)) )</code></pre>
+<p>Having gotten here, the probes match the source sequences exactly. SNP is just after the sequence when <code>IlmnStrand</code> is the same as <code>SourceStrand</code>, and is just before the reverse-complement of the sequence when the strands are different.</p>
+</div>
+<div id="blastn-results" class="section level2">
+<h2>BLASTn results</h2>
+</div>
+<div id="session-info" class="section level2">
+<h2>Session info</h2>
+<p>Here are the versions of R and R packages that I am using.</p>
+<pre class="r"><code>devtools::session_info()</code></pre>
+<pre><code>## ─ Session info ─────────────────────────────────────────────────────────────────────────────────────────────
+##  setting  value                       
+##  version  R version 3.5.1 (2018-07-02)
+##  os       Pop!_OS 18.04 LTS           
+##  system   x86_64, linux-gnu           
+##  ui       X11                         
+##  language en_US:en                    
+##  collate  en_US.UTF-8                 
+##  ctype    en_US.UTF-8                 
+##  tz       America/Chicago             
+##  date     2018-11-02                  
+## 
+## ─ Packages ─────────────────────────────────────────────────────────────────────────────────────────────────
+##  package     * version date       lib source        
+##  assertthat    0.2.0   2017-04-11 [1] CRAN (R 3.5.0)
+##  backports     1.1.2   2017-12-13 [1] CRAN (R 3.5.0)
+##  base64enc     0.1-3   2015-07-28 [1] CRAN (R 3.5.0)
+##  broman      * 0.68-4  2018-08-17 [1] local         
+##  callr         3.0.0   2018-08-24 [1] CRAN (R 3.5.1)
+##  cli           1.0.1   2018-09-25 [1] CRAN (R 3.5.1)
+##  crayon        1.3.4   2017-09-16 [1] CRAN (R 3.5.0)
+##  data.table  * 1.11.8  2018-09-30 [1] CRAN (R 3.5.1)
+##  debugme       1.1.0   2017-10-22 [1] CRAN (R 3.5.0)
+##  desc          1.2.0   2018-05-01 [1] CRAN (R 3.5.0)
+##  devtools    * 2.0.1   2018-10-26 [1] CRAN (R 3.5.1)
+##  digest        0.6.18  2018-10-10 [1] CRAN (R 3.5.1)
+##  evaluate      0.12    2018-10-09 [1] CRAN (R 3.5.1)
+##  fs            1.2.6   2018-08-23 [1] CRAN (R 3.5.1)
+##  glue          1.3.0   2018-07-17 [1] CRAN (R 3.5.1)
+##  htmltools     0.3.6   2017-04-28 [1] CRAN (R 3.5.0)
+##  knitr         1.20    2018-02-20 [1] CRAN (R 3.5.0)
+##  magrittr      1.5     2014-11-22 [1] CRAN (R 3.5.0)
+##  memoise       1.1.0   2017-04-21 [1] CRAN (R 3.5.0)
+##  pkgbuild      1.0.2   2018-10-16 [1] CRAN (R 3.5.1)
+##  pkgload       1.0.2   2018-10-29 [1] CRAN (R 3.5.1)
+##  prettyunits   1.0.2   2015-07-13 [1] CRAN (R 3.5.0)
+##  processx      3.2.0   2018-08-16 [1] CRAN (R 3.5.1)
+##  ps            1.2.0   2018-10-16 [1] CRAN (R 3.5.1)
+##  R6            2.3.0   2018-10-04 [1] CRAN (R 3.5.1)
+##  Rcpp          0.12.19 2018-10-01 [1] CRAN (R 3.5.1)
+##  remotes       2.0.2   2018-10-30 [1] CRAN (R 3.5.1)
+##  rlang         0.3.0.1 2018-10-25 [1] CRAN (R 3.5.1)
+##  rmarkdown     1.10    2018-06-11 [1] CRAN (R 3.5.0)
+##  rprojroot     1.3-2   2018-01-03 [1] CRAN (R 3.5.0)
+##  sessioninfo   1.1.0   2018-09-25 [1] CRAN (R 3.5.1)
+##  stringi       1.2.4   2018-07-20 [1] CRAN (R 3.5.1)
+##  stringr       1.3.1   2018-05-10 [1] CRAN (R 3.5.0)
+##  testthat      2.0.1   2018-10-13 [1] CRAN (R 3.5.1)
+##  usethis     * 1.4.0   2018-08-14 [1] CRAN (R 3.5.1)
+##  withr         2.1.2   2018-03-15 [1] CRAN (R 3.5.0)
+##  yaml          2.2.0   2018-07-25 [1] CRAN (R 3.5.1)
+## 
+## [1] /home/kbroman/Rlibs
+## [2] /usr/local/lib/R/site-library
+## [3] /usr/lib/R/site-library
+## [4] /usr/lib/R/library</code></pre>
 </div>
 
 

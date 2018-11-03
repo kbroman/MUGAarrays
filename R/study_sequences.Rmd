@@ -24,6 +24,7 @@ I'll first load some R packages.
 ```{r load_packages}
 library(data.table)
 library(broman)
+library(devtools)
 ```
 
 I'll now load the GeneSeek annotation files for the MegaMUGA and
@@ -275,20 +276,89 @@ AlleleA probes.
 # grab the sequence before and after the SNP
 gm_source_spl <- strsplit(gm$SourceSeq, "\\[[ACGT]/[ACGT]\\]")
 gm_before_snp <- sapply(gm_source_spl, "[", 1) # a bunch of these have length 0
-gm_after_snp <- sapply(gm_source_spl, "[", 2) # a bunch of these are NA
+gm_after_snp <- sapply(gm_source_spl, "[", 2)
+gm_after_snp[is.na(gm_after_snp)] <- "" # turn NAs into emptys
+
+# for the SNPs that have both A and B probe sequences, drop the last character from the A sequence
+gm_probe <- gm$AlleleA_ProbeSeq
+gm_probe[gm$AlleleB_ProbeSeq != ""] <- substr(gm_probe[gm$AlleleB_ProbeSeq != ""], 1, 49)
+gm_probe_rev <- revcomp(gm_probe)
+
+# subset the before and after sequences to no longer than the probe
+nc <- nchar(gm_before_snp)
+start <- nc - nchar(gm_probe)+1
+start[start < 1] <- 1
+gm_before_sub <- gm_before_snp
+gm_before_sub[nc>0] <- substr(gm_before_snp[nc>0], start[nc>0], nc[nc>0])
+
+nc <- nchar(gm_after_snp)
+end <- nchar(gm_probe)
+end[end > nc] <- nc[end > nc]
+gm_after_sub <- gm_after_snp
+gm_after_sub[nc>0] <- substr(gm_after_snp[nc>0], 1, end[nc>0])
+
+# There were 6 cases where probe doesn't match sequence, but due to lower case letters
+# so, convert to upper case
+gm_before_sub <- toupper(gm_before_sub)
+gm_after_sub <- toupper(gm_after_sub)
+
+stopifnot( all(gm_after_sub == gm_probe_rev | gm_before_sub == gm_probe) )
+
+# also check the strand
+stopifnot( all((gm_after_sub == gm_probe_rev & gm$IlmnStrand != gm$SourceStrand) |
+               (gm_before_sub == gm_probe & gm$IlmnStrand == gm$SourceStrand)) )
+
+# Now the MegaMUGA
+# grab the sequence before and after the SNP
+mm_source_spl <- strsplit(mm$SourceSeq, "\\[[ACGT]/[ACGT]\\]")
+mm_before_snp <- sapply(mm_source_spl, "[", 1) # a bunch of these have length 0
+mm_after_snp <- sapply(mm_source_spl, "[", 2)
+mm_after_snp[is.na(mm_after_snp)] <- "" # turn NAs into emptys
+
+# for the SNPs that have both A and B probe sequences, drop the last character from the A sequence
+mm_probe <- mm$AlleleA_ProbeSeq
+mm_probe[mm$AlleleB_ProbeSeq != ""] <- substr(mm_probe[mm$AlleleB_ProbeSeq != ""], 1, 49)
+mm_probe_rev <- revcomp(mm_probe)
+
+# subset the before and after sequences to no longer than the probe
+nc <- nchar(mm_before_snp)
+start <- nc - nchar(mm_probe)+1
+start[start < 1] <- 1
+mm_before_sub <- mm_before_snp
+mm_before_sub[nc>0] <- substr(mm_before_snp[nc>0], start[nc>0], nc[nc>0])
+
+nc <- nchar(mm_after_snp)
+end <- nchar(mm_probe)
+end[end > nc] <- nc[end > nc]
+mm_after_sub <- mm_after_snp
+mm_after_sub[nc>0] <- substr(mm_after_snp[nc>0], 1, end[nc>0])
+
+# There were 9 cases where probe doesn't match sequence, but due to lower case letters
+# so, convert to upper case
+mm_before_sub <- toupper(mm_before_sub)
+mm_after_sub <- toupper(mm_after_sub)
+
+stopifnot( all(mm_after_sub == mm_probe_rev | mm_before_sub == mm_probe) )
+
+# also check the strand
+stopifnot( all((mm_after_sub == mm_probe_rev & mm$IlmnStrand != mm$SourceStrand) |
+               (mm_before_sub == mm_probe & mm$IlmnStrand == mm$SourceStrand)) )
 ```
 
+Having gotten here, the probes match the source sequences exactly. SNP
+is just after the sequence when `IlmnStrand` is the same as
+`SourceStrand`, and is just before the reverse-complement of the
+sequence when the strands are different.
+
+
+## BLASTn results
 
 
 
-## extra stuff
+## Session info
 
-- is it obvious which base is the SNP? And how they match the SourceSeq?
+Here are the versions of R and R packages that I am using.
 
-- seems like snp is just *after* the probe sequence
-  sometimes probe B has sequence; seems like then the probe sequence includes the snp
-  probe sequences are always 50 bp
-
-I guess check:
-- when allele B probe sequence present, the sequences are identical except for last base,
-  (and that last base is the SNP allele)
+```{r session_info}
+devtools::session_info()
+```
