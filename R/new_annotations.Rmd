@@ -94,15 +94,19 @@ rownames(mm_gs) <- mm_gs$Name
 # UNC files
 load("../UNC/snps.gigamuga.Rdata")
 gm_unc <- snps
+# omit "chr" from the chromosome IDs
+gm_unc$chr <- sub("chr", "", gm_unc$chr)
 
 load("../UNC/snps.megamuga.Rdata")
 mm_unc <- snps
+# omit "chr" from the chromosome IDs
+mm_unc$chr <- sub("chr", "", mm_unc$chr)
 
 # Blast results; keep just the perfect matches(?)
 mm_blast <- readRDS("../Blast/results_mm/mm_blastn_results.rds")
-mm_blast <- mm_blast[mm_blast$n_mismatch==0,]
+mm_blast <- mm_blast[mm_blast$tot_mismatch==0,]
 gm_blast <- readRDS("../Blast/results_gm/gm_blastn_results.rds")
-gm_blast <- gm_blast[gm_blast$n_mismatch==0,]
+gm_blast <- gm_blast[gm_blast$tot_mismatch==0,]
 ```
 
 
@@ -118,6 +122,31 @@ gm_nhits[names(gm_tab)] <- gm_tab
 gm_tab_chr <- table(gm_blast$query, gm_blast$chr)
 gm_nchr[rownames(gm_tab_chr)] <- rowSums(gm_tab_chr > 0)
 
+# multiple hits, but all to the same chromosome
+gm_mult_but1chr <- names(gm_nhits)[gm_nhits > 1 & gm_nchr==1]
+ra <- sapply(gm_mult_but1chr, function(mar)
+    diff(range(gm_blast$snp_pos[gm_blast$query==mar])))
+# UNC19597786: two hits at exactly the same positions; why would blast do that?
+
+# hit X and Y but no other chr
+gm_mar_xy <- rownames(gm_tab_chr)[apply(gm_tab_chr, 1, function(a) all(a[1:20]==0) && all(a[21:22] > 0))]
+# a bunch of these are named "PAR" but on GM they're mostly Y and a little X
+# they mostly have multiple hits on X and Y
+# in geneseek file, they're all on chr X
+#
+# 36 of GM markers with NA for chr have hits
+
+
+
+# for MM, there are just 4 markers on chr P that are in the blast results
+#  ... and all 2 map uniquely to chr 13; the other two map uniquely to chr 5.
+# NNT001, NNT002 but while these are chr P in MM, they're chr 13 in GM
+# SAbGeoEUCOMM001 and SAbGeoEUCOMM002 are chr P in MM, map uniquely to
+# chr 5, and former is on chr 5 in GM while the latter is not present on GM
+#
+# only 4 of the P markers have hits
+sum(mm_nhits[mm_unc$marker[mm_unc$chr=="P"]] > 0)
+
 ## Same for MegaMUGA
 # no. blast hits
 mm_tab <- table(mm_blast$query)
@@ -127,6 +156,27 @@ mm_nhits[names(mm_tab)] <- mm_tab
 # no. chromosomes hit
 mm_tab_chr <- table(mm_blast$query, mm_blast$chr)
 mm_nchr[rownames(mm_tab_chr)] <- rowSums(mm_tab_chr > 0)
+```
+
+```{r snp_pos}
+gm_blast_uniq <- gm_blast[gm_blast$query %in% names(gm_nhits)[gm_nhits==1],]
+rownames(gm_blast_uniq) <- gm_blast_uniq$query
+
+gm_blast_uniq_chr <- setNames(gm_blast_uniq$chr, rownames(gm_blast_uniq))
+gm_unc_uniq_chr <- gm_unc[rownames(gm_blast_uniq), "chr"]
+gm_blast_uniq_pos <- setNames(gm_blast_uniq$snp_pos, rownames(gm_blast_uniq))
+gm_unc_uniq_pos <- gm_unc[rownames(gm_blast_uniq), "pos"]
+
+
+table(gm_blast_uniq_pos - gm_unc_uniq_pos, gm_gs[gm_blast_uniq$marker,"AlleleB_ProbeSeq"]=="")
+
+# strands have no relationship :(
+gm_blast_uniq_strand <- setNames(gm_blast_uniq$strand, rownames(gm_blast_uniq))
+table(gm_gs[rownames(gm_blast_uniq),"IlmnStrand"], gm_blast_uniq_strand)
+
+
+# the markers that are off by +/- 1 are exactly the ones with the AlleleB_ProbeSeq
+# (and I think I'm right)
 ```
 
 
