@@ -44,7 +44,6 @@ results$probe_length <- nchar_probes[results$query]
 results$tot_mismatch <- results$n_mismatch + (results$probe_length - results$length)
 results <- results[results$tot_mismatch <= 2,]
 results$chr <- sub("^chr", "", results$chr)
-results$marker <- sapply(strsplit(results$query, "\\|"), "[", 1)
 
 # determine SNP position
 results$snp_pos <- results$end_chr
