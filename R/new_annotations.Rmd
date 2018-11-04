@@ -179,6 +179,56 @@ table(gm_gs[rownames(gm_blast_uniq),"IlmnStrand"], gm_blast_uniq_strand)
 # (and I think I'm right)
 ```
 
+```{r p_mar}
+# markers on p chr in MM that are also in GM
+pmar_mm <- mm_unc$marker[mm_unc$chr=="P" & mm_unc$marker %in% gm_unc$marker]
+
+# markers on p chr(?) ...well actually chr is NA... in GM that are also in MM
+pmar_gm <- gm_unc$marker[is.na(gm_unc$chr) & gm_unc$marker %in% mm_unc$marker]
+
+pmar_gm %wnin% pmar_mm # UNC28724761 UNC28725371 UNC28726152
+# latter are on 18 in MM
+pmar_mm %wnin% pmar_gm # NNT001      NNT002      SAbGeoEUCOMM001
+# latter are on 5,13 in GM
+```
+
+```{r markers_with_common_probes}
+# MM probes with the same sequence
+tab <- table(mm_unc$seq.A)
+dup <- names(tab)[tab > 1] # 51 sets
+z <- lapply(dup, function(d) { z <- mm_unc[mm_unc$seq.A == d,]
+         if(length(unique(z$chr[!is.na(z$chr)])) > 1) return(rownames(z)) })
+z <- z[sapply(z, length)>0]
+
+# MM UNC88694 (chr 1), UNC2512583 (chr 2)
+[only 2nd one in GM]
+# MM UNC23833145 (chr 14), UNC4368900 (chr 2)
+[in GM, both said to be unique, but same probe and on different chromosomes]
+# MM UNC20251282 (chr 11), UNC5746160 (chr 3)
+[in GM, both said to be unique, but same probe and on different chromosomes]
+# MM UNC27690624 (chr 17), UNC30009421 (chr 19)
+[only 2nd one in GM]
+# MM UNC19598208 (chr 11)  UNC24941679 (chr 14)
+[in GM, both said to be unique, but same probe and on different chromosomes]
+
+# GM has *a lot* of markers with the same sequence
+tab <- table(gm_unc$seq.A)
+dup <- names(tab)[tab > 1] # 2672 sets
+z <- lapply(dup, function(d) { z <- gm_unc[gm_unc$seq.A == d,]
+         if(length(unique(z$chr[!is.na(z$chr)])) > 1) return(rownames(z)) })
+z <- z[sapply(z, length)>0]
+# only 10 sets that are on different chromosomes: 3 above, and these 7:
+# UNCrs52300311 complement008 complement018 complement016 (repetitive sequence that doesn't map)
+# Mit016 Mit030             # Mit016 placed on M
+# sanger1454  sanger1454q   # both map multiply, but in unc annotations said unique
+# UNC9964748  UNC10237349   # "
+# sanger2519  sanger2519q
+# sanger2310  sanger2310q
+# JAX00187253q JAX00187253
+```
+
+
+
 
 ## Session info
 
