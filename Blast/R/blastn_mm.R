@@ -53,8 +53,8 @@ results$snp_pos <- results$snp_pos + (points_right*2-1) # add +1 or -1 depending
 results$snp_pos <- results$snp_pos + (results$probe_length - results$end_query)*(points_right*2-1)
 
 # add strand info
-results$strand <- rep("TOP", nrow(results))
-results$strand[results$end_chr < results$start_chr] <- "BOT"
+results$strand <- rep("plus", nrow(results))
+results$strand[results$end_chr < results$start_chr] <- "minus"
 
 # remove duplicate rows
 tag <- apply(results[,c("query", "chr", "start_chr", "end_chr")], 1, paste, collapse=":")
