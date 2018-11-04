@@ -57,27 +57,15 @@ results$snp_pos <- results$snp_pos + (results$probe_length - results$end_query)*
 results$strand <- rep("TOP", nrow(results))
 results$strand[results$end_chr < results$start_chr] <- "BOT"
 
+# remove duplicate rows
+tag <- apply(results[,c("query", "chr", "start_chr", "end_chr")], 1, paste, collapse=":")
+tagtab <- table(tag)
+dup <- names(tagtab)[tagtab > 1]
+todrop <- NULL
+for(d in dup) {
+     wh <- which(tag==d)
+    todrop <- c(todrop, wh[-1])
+}
+results <- results[-todrop,]
+
 saveRDS(results, paste0(output_dir, "/mm_blastn_results.rds"), compress=FALSE)
-
-#tab <- table(results[,1])
-#onematch <- results[results$query %in% names(tab)[tab==1],]
-#twomatches <- results[results$query %in% names(tab)[tab==2],]
-#more_matches <- results[results$query %in% names(tab)[tab>2],]
-
-#chr <- sapply(strsplit(onematch$query, "\\|"), "[", 2)
-#all(chr == onematch$chr)
-
-#chr2 <- sapply(strsplit(twomatches$query, "\\|"), "[", 2)
-#mean(chr2 == twomatches$chr)
-
-#chrn <- sapply(strsplit(more_matches$query, "\\|"), "[", 2)
-#mean(chrn == more_matches$chr)
-
-
-# proportion of markers used in attie DO that have a single match
-#do <- readRDS("~/Projects/AttieDOv2/RawData/Genotypes/Derived/attieDO_v0.rds")
-#sum((marker_names(do) %in% sapply(strsplit(onematch$query, "\\|"), "[", 1)))   # 112,620
-#sum(!(marker_names(do) %in% sapply(strsplit(onematch$query, "\\|"), "[", 1)))  #   1,564
-
-# of the 132,438 markers with a single match, all but 181 have a perfect match
-#table(onematch$tot_mismatch)
