@@ -333,7 +333,9 @@ the chromosome assignments in the UNC annotations of the GigaMUGA
 array all match what we see in these blast results, rather than the
 chromosome in the UNC annotations of the MegaMUGA array.
 
-
+I won't make any comparisons of basepair positions, as the UNC
+annotation file for the MegaMUGA array uses coordinates from build mm9
+of the mouse genome, rather than build mm10 that I'm using.
 
 ### Multiple hits to one chromosome
 
@@ -419,7 +421,7 @@ all on the Y chromosome. So two pairs of intended replicates, but it's
 not obvious that JAX00725045 and JAX00725054 should be the same.
 
 Of the other `r sum(mm_probe_tab==2)` pairs, 35 are obvious from their
-names. Here are the other:
+names. Here are the others:
 
 ```{r mm_study_dup_pairs}
 dup <- names(mm_probe_tab)[mm_probe_tab==2]
