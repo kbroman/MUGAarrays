@@ -21,14 +21,15 @@ options(width=110)
 
 While preparing a
 [talk](https://kbroman.org/Talk_CTC2018/broman_ctc2018.pdf) and
-[paper](https://www.biostat.wisc.edu/~kbroman/publications/mpp_diag.pdf),
+[paper](https://www.biostat.wisc.edu/~kbroman/publications/mpp_diag.pdf)
+on genotype diagnostics in Diversity Outbred mice,
 I developed some concerns about the UNC annotation file for the
 GigaMUGA array. In particular, I felt that some of the columns may
 have been scrambled:
 
 - In blasting the GigaMUGA probe sequences against
   the mouse genome, I found the same number of non-unique markers
-  (3,114), but they were not the same markers. In comparing
+  (3,114), but they were not the same markers.
 
 - Of the markers in common between the MegaMUGA and GigaMUGA arrays,
   the chromosome assignments have a lot of differences.
@@ -37,10 +38,10 @@ In case that the probe sequences in the UNC annotation files might be
 in error, I obtained the array probe sequences directly from GeneSeek.
 These proved to be the same as those in the UNC files.
 
-My main goal has been to construct new annotation files for the
-GigaMUGA and MegaMUGA arrays, with consistency across the two, with
+My goal here is to construct new annotation files for the
+GigaMUGA and MegaMUGA arrays; with consistency between the two; with
 updated information about which markers map uniquely, which map to
-multiple locations, and which do not map, and to include genomic
+multiple locations, and which do not map; and including genomic
 coordinates only for the markers that map uniquely.
 
 A summary of my findings:
@@ -54,6 +55,19 @@ A summary of my findings:
   differences in positions, with the new build (mm10).
 
 - The "unique" column in the GigaMUGA annotation file is messed up.
+
+- On both arrays, there are a number of pairs of markers with common probe
+  sequences. Many of these are intended duplicates, but some are not
+  and have inconsistent information
+
+- Of the markers in common between the two arrays, some have different
+  probe sequences on the two arrays, and there are cases where the
+  sequence on one array maps uniquely but the other does not.
+
+- I'm not sure what to do with the markers on the "P" chromosome,
+  which I understand to be the pseudoautosomal region, as the markers
+  are not mapping to the mm10 mouse genome build.
+
 
 
 ## Procedures
