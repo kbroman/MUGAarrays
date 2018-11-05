@@ -22,6 +22,10 @@ My goals are to:
 - compare the sequences and probe locations, and the markers with
   multiple hits, to the UNC annotation file
 
+The following document describes what I've found:
+
+- [New annotations](https://kbroman.org/MUGAarrays/new_annotations.html)
+
 ---
 
 ## Contents
