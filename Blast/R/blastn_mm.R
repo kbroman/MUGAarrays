@@ -57,7 +57,7 @@ results$strand <- rep("plus", nrow(results))
 results$strand[results$end_chr < results$start_chr] <- "minus"
 
 # remove duplicate rows
-tag <- apply(results[,c("query", "chr", "start_chr", "end_chr")], 1, paste, collapse=":")
+tag <- apply(results[,c("query", "chr", "start_chr", "end_chr")], 1, function(a) gsub(" ", "", paste(a, collapse=":")))
 tagtab <- table(tag)
 dup <- names(tagtab)[tagtab > 1]
 todrop <- NULL
