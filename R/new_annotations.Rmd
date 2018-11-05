@@ -32,16 +32,17 @@ have been scrambled:
   (3,114), but they were not the same markers.
 
 - Of the markers in common between the MegaMUGA and GigaMUGA arrays,
-  the chromosome assignments have a lot of differences.
+  the chromosome assignments have a lot of differences, even among
+  those indicated to be unique.
 
 In case that the probe sequences in the UNC annotation files might be
 in error, I obtained the array probe sequences directly from GeneSeek.
 These proved to be the same as those in the UNC files.
 
 My goal here is to construct new annotation files for the
-GigaMUGA and MegaMUGA arrays; with consistency between the two; with
+GigaMUGA and MegaMUGA arrays with
 updated information about which markers map uniquely, which map to
-multiple locations, and which do not map; and including genomic
+multiple locations, and which do not map. I'll include genomic
 coordinates only for the markers that map uniquely.
 
 A summary of my findings:
@@ -187,6 +188,16 @@ mm_blast_chr[mm_blast_uniq$query] <- mm_blast_uniq$chr
 mm_blast_pos[mm_blast_uniq$query] <- mm_blast_uniq$snp_pos
 mm_blast_strand[mm_blast_uniq$query] <- mm_blast_uniq$strand
 
+# probe sequences
+mm_blast_probe <- setNames(mm_gs$AlleleA_ProbeSeq, mm_gs$Name)
+mm_trim <- (mm_gs$AlleleB_ProbeSeq != "")
+mm_blast_probe[mm_trim] <- substr(mm_blast_probe[mm_trim], 1, nchar(mm_blast_probe[mm_trim])-1)
+
+# SNP alleles
+mm_blast_snp <- setNames(sub("]", "", mm_gs$SNP, fixed=TRUE), mm_gs$Name)
+mm_blast_snp <- sub("[", "", mm_blast_snp, fixed=TRUE)
+mm_blast_snp <- sub("/", "", mm_blast_snp, fixed=TRUE)
+
 # put all of this stuff into a data frame
 mm_uwisc <- data.frame(marker=names(mm_nhits),
                        n_blast_hits=mm_nhits,
@@ -196,7 +207,11 @@ mm_uwisc <- data.frame(marker=names(mm_nhits),
                        no_pos=(mm_nhits==0),
                        chr=mm_blast_chr,
                        pos=mm_blast_pos,
-                       strand=mm_blast_strand)
+                       strand=mm_blast_strand,
+                       snp=mm_blast_snp[names(mm_nhits)],
+                       probe=mm_blast_probe[names(mm_nhits)],
+                       stringsAsFactors=FALSE)
+rownames(mm_uwisc) <- mm_uwisc$marker
 
 # probes that hit multiply but all to one chromosome
 mm_mult_but1chr <- names(mm_nhits)[mm_nhits > 1 & mm_nchr==1]
@@ -227,6 +242,16 @@ gm_blast_chr[gm_blast_uniq$query] <- gm_blast_uniq$chr
 gm_blast_pos[gm_blast_uniq$query] <- gm_blast_uniq$snp_pos
 gm_blast_strand[gm_blast_uniq$query] <- gm_blast_uniq$strand
 
+# probe sequences
+gm_blast_probe <- setNames(gm_gs$AlleleA_ProbeSeq, gm_gs$Name)
+gm_trim <- (gm_gs$AlleleB_ProbeSeq != "")
+gm_blast_probe[gm_trim] <- substr(gm_blast_probe[gm_trim], 1, nchar(gm_blast_probe[mm_trim])-1)
+
+# SNP alleles
+gm_blast_snp <- setNames(sub("]", "", gm_gs$SNP, fixed=TRUE), gm_gs$Name)
+gm_blast_snp <- sub("[", "", gm_blast_snp, fixed=TRUE)
+gm_blast_snp <- sub("/", "", gm_blast_snp, fixed=TRUE)
+
 # put all of this stuff into a data frame
 gm_uwisc <- data.frame(marker=names(gm_nhits),
                        n_blast_hits=gm_nhits,
@@ -236,7 +261,11 @@ gm_uwisc <- data.frame(marker=names(gm_nhits),
                        no_pos=(gm_nhits==0),
                        chr=gm_blast_chr,
                        pos=gm_blast_pos,
-                       strand=gm_blast_strand)
+                       strand=gm_blast_strand,
+                       snp=gm_blast_snp[names(gm_nhits)],
+                       probe=gm_blast_probe[names(gm_nhits)],
+                       stringsAsFactors=FALSE)
+rownames(gm_uwisc) <- gm_uwisc$marker
 
 # probes that hit multiply but all to one chromosome
 gm_mult_but1chr <- names(gm_nhits)[gm_nhits > 1 & gm_nchr==1]
@@ -252,16 +281,55 @@ gm_uniqXY <- names(gm_nhits)[rowSums(gm_tab_chr[,1:20])==0 & gm_tab_chr[,21]==1 
 
 ## MegaMUGA
 
-I'll start by focusing on the MegaMUGA array.
+### Basic blast results
 
+I'll start by focusing on the MegaMUGA array, which contains
+`r add_commas(nrow(mm_unc))`. In the UNC annotation file,
+`r add_commas(sum(mm_unc$chr %in% (1:19)))` are on autosomes,
+`r add_commas(sum(mm_unc$chr=="X"))` are on the X chromosome,
+`r add_commas(sum(mm_unc$chr=="Y"))` are on the Y chromosome,
+`r add_commas(sum(mm_unc$chr=="M"))` are in the mitochondrial genome,
+and `r add_commas(sum(mm_unc$chr=="P"))` have chromosome "`P`"
+(presumably pseudoautosomal).
 
-- unique markers: comparison to chr assignment in UNC file
+In the blastn results, I find that `r add_commas(sum(mm_nhits==1))`
+markers have a single, unique hit in the mouse genome (build mm10), while
+`r add_commas(sum(mm_nhits>1))` hit to multiple locations
+(median `r median(mm_nhits[mm_nhits>1])` locations and maximum
+`r add_commas(max(mm_nhits))`), and `r add_commas(mm_nhits==0)`
+have no perfect match in the mm10 build of the mouse genome.
+
+### Unique markers
+
+If we look at the inferred chromosome assignments of the markers with
+a unique hit to the genome, all but
+`r sum(mm_unc[mm_uwisc$marker, "chr"] != mm_uwisc$chr, na.rm=TRUE)`
+match the chromosome in the UNC annotation file.
+
+```{r mm_mismatch_chr}
+# reorder mm_unc
+mm_unc <- mm_unc[mm_uwisc$marker,]
+wh <- mm_uwisc$unique & mm_uwisc$chr != mm_unc$chr
+mm_diff_chr <- data.frame(marker=mm_uwisc$marker,
+                          unc_chr=mm_unc$chr,
+                          blast_chr=mm_uwisc$chr)[wh,]
+mm_diff_chr <- mm_diff_chr[order(mm_diff_chr$marker),]
+rownames(mm_diff_chr) <- 1:nrow(mm_diff_chr)
+mm_diff_chr
+```
+
+Four of these were assigned to pseudoautosomal in the UNC annotations
+but map to autosomes, one was mitochondrial (with a name to match),
+but the sequence maps to chromosome1, and one (`MiniMuscle001`) was
+assigned to chr 16 but maps to chr 11.
+
+### Multiple hits to one chromosome
 
 - markers that hit multiply but just to one chromosome
 
-- markers that hit X and Y uniquely, but no other chromosome
-  - names
-  - chr assignments in the UNC annotations
+
+### Pseudoautosomal region
+
 
 - chr P markers
   - no hits, unique, multiply
@@ -273,13 +341,20 @@ I'll start by focusing on the MegaMUGA array.
   SAbGeoEUCOMM001 and SAbGeoEUCOMM002 are chr P in MM, map uniquely to
   chr 5, and former is on chr 5 in GM while the latter is not present on GM
 
+- markers that hit X and Y uniquely, but no other chromosome
+  - names
+  - chr assignments in the UNC annotations
+
+
+### What the heck is "`IlmnStrand`"?
+
 - what's going on with the "strand" column in the GeneSeek annotation
   file. It has no apparent relationship to the strand of the hits.
 
 - marker positions have no relationship to UNC file, but that's partly
   because the UNC file is in previous build
 
-
+### Markers with the same probes
 
 ## GigaMUGA
 
