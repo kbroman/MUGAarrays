@@ -72,10 +72,44 @@ A summary of my findings:
 
 ## Procedures
 
-The key thing here was to run blastn to map all array probe sequences
-to the mouse genome (build mm10). There is some trickiness in
-trimming SNP alleles off some problems, and in identifying the SNP
-position from the blast results.
+The key thing here was to run
+[blastn](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastSearch)
+to map all array probe sequences to the mouse genome (build mm10).
+There was some trickiness in trimming SNP alleles off some probes,
+and in identifying the SNP position from the blast results.
+
+[Separately, I studied the probe sequences in some
+detail](https://kbroman.org/MUGAarrays/study_sequences).
+Most probes do not include the SNP, which is the next base off the 3'
+end. But for probes where `AlleleB_ProbeSeq` is provided (in addition
+to `AlleleA_ProbeSeq`, which is always provided), the sequences
+include the SNP allele as the last base. In these cases, I trimmed off
+the SNP allele and used the 49-bp sequence.
+
+I performed blast allowing no insertions/deletions. In cases where the
+match didn't include the full probe sequence, I took all non-aligned
+bases to be mismatches.
+
+More precisely, I installed blastn on my linux laptop with
+
+    sudo apt install ncbi-blast+"
+
+I downloaded the mm10 mouse genome files from
+<http://hgdownload-test.cse.ucsc.edu/goldenPath/mm10/bigZips/>
+
+I created index files with
+
+    makeblastdb -in MouseFasta/chr19.fa -dbtype nuc
+
+I ran blastn with a command like this:
+
+    blastn -db MouseFasta/chr19.fa -ungapped -out output_c19.txt -query gigamuga.fa -outfmt 6
+
+For some reason, there were a small number of duplicate alignments
+(same query, same chromosome, same start and end) in the results; I
+omitted all but one of these duplicates.
+
+I've also focused on full-length, perfect hits.
 
 
 ## Preliminaries
@@ -89,7 +123,8 @@ library(devtools)
 ```
 
 I'll now load various data sets: the GeneSeek and UNC annotation
-files, and the blast results.
+files, and the blast results. For the blast results, I only keep the
+full length, perfect hits.
 
 ```{r load_data}
 # GeneSeek files
@@ -124,9 +159,58 @@ gm_blast <- gm_blast[gm_blast$tot_mismatch==0,]
 ```
 
 
-## Study blast results
+## Summarize blast hits
 
-```{r summarize_blast_results}
+I'll start with a bunch of code to summarize the blast hits. For each
+SNP, I want to count the number of perfect blast hits and the number
+of chromosomes hit. For markers with a unique hit, I'll record the
+chromosome, position, and strand. For markers that hit multiple
+locations but all on the same chromosome, I'll record the range of the
+positions hit (in basepairs).
+
+Here's the code for the MegaMUGA array:
+
+```{r mm_summarize_blast}
+# no. blast hits
+mm_tab <- table(mm_blast$query)
+mm_nchr <- mm_nhits <- setNames(rep(0, nrow(mm_gs)), rownames(mm_gs))
+mm_nhits[names(mm_tab)] <- mm_tab
+
+# no. chromosomes hit
+mm_tab_chr <- table(mm_blast$query, mm_blast$chr)
+mm_nchr[rownames(mm_tab_chr)] <- rowSums(mm_tab_chr > 0)
+
+# chr,pos,strand for the unique ones
+mm_blast_uniq <- mm_blast[mm_blast$query %in% names(mm_nhits)[mm_nhits==1],]
+mm_blast_chr <- mm_blast_pos <- mm_blast_strand <- setNames(rep(NA, nrow(mm_gs)), rownames(mm_gs))
+mm_blast_chr[mm_blast_uniq$query] <- mm_blast_uniq$chr
+mm_blast_pos[mm_blast_uniq$query] <- mm_blast_uniq$snp_pos
+mm_blast_strand[mm_blast_uniq$query] <- mm_blast_uniq$strand
+
+# put all of this stuff into a data frame
+mm_uwisc <- data.frame(marker=names(mm_nhits),
+                       n_blast_hits=mm_nhits,
+                       n_blast_chr=mm_nchr,
+                       unique=(mm_nhits==1),
+                       multi=(mm_nhits>1),
+                       no_pos=(mm_nhits==0),
+                       chr=mm_blast_chr,
+                       pos=mm_blast_pos,
+                       strand=mm_blast_strand)
+
+# probes that hit multiply but all to one chromosome
+mm_mult_but1chr <- names(mm_nhits)[mm_nhits > 1 & mm_nchr==1]
+mm_mult_but1chr_range <- sapply(mm_mult_but1chr, function(mar)
+    diff(range(mm_blast$snp_pos[mm_blast$query==mar])))
+
+# probes that hit uniquely on each of X and Y and to no other chromosome
+mm_uniqXY <- names(mm_nhits)[rowSums(mm_tab_chr[,1:20])==0 & mm_tab_chr[,21]==1 & mm_tab_chr[,22]==1]
+```
+
+
+Now we repeat that for the GigaMUGA array:
+
+```{r gm_summarize_blast}
 # no. blast hits
 gm_tab <- table(gm_blast$query)
 gm_nchr <- gm_nhits <- setNames(rep(0, nrow(gm_gs)), rownames(gm_gs))
@@ -136,64 +220,76 @@ gm_nhits[names(gm_tab)] <- gm_tab
 gm_tab_chr <- table(gm_blast$query, gm_blast$chr)
 gm_nchr[rownames(gm_tab_chr)] <- rowSums(gm_tab_chr > 0)
 
-# multiple hits, but all to the same chromosome
-gm_mult_but1chr <- names(gm_nhits)[gm_nhits > 1 & gm_nchr==1]
-ra <- sapply(gm_mult_but1chr, function(mar)
-    diff(range(gm_blast$snp_pos[gm_blast$query==mar])))
-# UNC19597786: two hits at exactly the same positions; why would blast do that?
-
-# hit X and Y but no other chr
-gm_mar_xy <- rownames(gm_tab_chr)[apply(gm_tab_chr, 1, function(a) all(a[1:20]==0) && all(a[21:22] > 0))]
-# a bunch of these are named "PAR" but on GM they're mostly Y and a little X
-# they mostly have multiple hits on X and Y
-# in geneseek file, they're all on chr X
-#
-# 36 of GM markers with NA for chr have hits
-
-
-
-# for MM, there are just 4 markers on chr P that are in the blast results
-#  ... and all 2 map uniquely to chr 13; the other two map uniquely to chr 5.
-# NNT001, NNT002 but while these are chr P in MM, they're chr 13 in GM
-# SAbGeoEUCOMM001 and SAbGeoEUCOMM002 are chr P in MM, map uniquely to
-# chr 5, and former is on chr 5 in GM while the latter is not present on GM
-#
-# only 4 of the P markers have hits
-sum(mm_nhits[mm_unc$marker[mm_unc$chr=="P"]] > 0)
-
-## Same for MegaMUGA
-# no. blast hits
-mm_tab <- table(mm_blast$query)
-mm_nchr <- mm_nhits <- setNames(rep(0, nrow(mm_gs)), rownames(mm_gs))
-mm_nhits[names(mm_tab)] <- mm_tab
-
-# no. chromosomes hit
-mm_tab_chr <- table(mm_blast$query, mm_blast$chr)
-mm_nchr[rownames(mm_tab_chr)] <- rowSums(mm_tab_chr > 0)
-```
-
-```{r snp_pos}
+# chr,pos,strand for the unique ones
 gm_blast_uniq <- gm_blast[gm_blast$query %in% names(gm_nhits)[gm_nhits==1],]
-rownames(gm_blast_uniq) <- gm_blast_uniq$query
+gm_blast_chr <- gm_blast_pos <- gm_blast_strand <- setNames(rep(NA, nrow(gm_gs)), rownames(gm_gs))
+gm_blast_chr[gm_blast_uniq$query] <- gm_blast_uniq$chr
+gm_blast_pos[gm_blast_uniq$query] <- gm_blast_uniq$snp_pos
+gm_blast_strand[gm_blast_uniq$query] <- gm_blast_uniq$strand
 
-gm_blast_uniq_chr <- setNames(gm_blast_uniq$chr, rownames(gm_blast_uniq))
-gm_unc_uniq_chr <- gm_unc[rownames(gm_blast_uniq), "chr"]
-gm_blast_uniq_pos <- setNames(gm_blast_uniq$snp_pos, rownames(gm_blast_uniq))
-gm_unc_uniq_pos <- gm_unc[rownames(gm_blast_uniq), "pos"]
+# put all of this stuff into a data frame
+gm_uwisc <- data.frame(marker=names(gm_nhits),
+                       n_blast_hits=gm_nhits,
+                       n_blast_chr=gm_nchr,
+                       unique=(gm_nhits==1),
+                       multi=(gm_nhits>1),
+                       no_pos=(gm_nhits==0),
+                       chr=gm_blast_chr,
+                       pos=gm_blast_pos,
+                       strand=gm_blast_strand)
 
+# probes that hit multiply but all to one chromosome
+gm_mult_but1chr <- names(gm_nhits)[gm_nhits > 1 & gm_nchr==1]
+gm_mult_but1chr_range <- sapply(gm_mult_but1chr, function(mar)
+    diff(range(gm_blast$snp_pos[gm_blast$query==mar])))
 
-table(gm_blast_uniq_pos - gm_unc_uniq_pos, gm_gs[gm_blast_uniq$marker,"AlleleB_ProbeSeq"]=="")
-
-# strands have no relationship :(
-gm_blast_uniq_strand <- setNames(gm_blast_uniq$strand, rownames(gm_blast_uniq))
-table(gm_gs[rownames(gm_blast_uniq),"IlmnStrand"], gm_blast_uniq_strand)
-
-
-# the markers that are off by +/- 1 are exactly the ones with the AlleleB_ProbeSeq
-# (and I think I'm right)
+# probes that hit uniquely on each of X and Y and to no other chromosome
+gm_uniqXY <- names(gm_nhits)[rowSums(gm_tab_chr[,1:20])==0 & gm_tab_chr[,21]==1 & gm_tab_chr[,22]==1]
 ```
 
-```{r p_mar}
+
+
+
+## MegaMUGA
+
+I'll start by focusing on the MegaMUGA array.
+
+
+- unique markers: comparison to chr assignment in UNC file
+
+- markers that hit multiply but just to one chromosome
+
+- markers that hit X and Y uniquely, but no other chromosome
+  - names
+  - chr assignments in the UNC annotations
+
+- chr P markers
+  - no hits, unique, multiply
+  - where do the unique ones hit?
+
+  for MM, there are just 4 markers on chr P that are in the blast results
+  ... and all 2 map uniquely to chr 13; the other two map uniquely to chr 5.
+  NNT001, NNT002 but while these are chr P in MM, they're chr 13 in GM
+  SAbGeoEUCOMM001 and SAbGeoEUCOMM002 are chr P in MM, map uniquely to
+  chr 5, and former is on chr 5 in GM while the latter is not present on GM
+
+- what's going on with the "strand" column in the GeneSeek annotation
+  file. It has no apparent relationship to the strand of the hits.
+
+- marker positions have no relationship to UNC file, but that's partly
+  because the UNC file is in previous build
+
+
+
+## GigaMUGA
+
+I'll now turn to the GigaMUGA array, and do the same stuff plus a bit more.
+
+the markers that are off by +/- 1 are exactly the ones with the AlleleB_ProbeSeq
+(and I think I'm right)
+```
+
+```{r p_mar, eval=FALSE}
 # markers on p chr in MM that are also in GM
 pmar_mm <- mm_unc$marker[mm_unc$chr=="P" & mm_unc$marker %in% gm_unc$marker]
 
@@ -206,7 +302,7 @@ pmar_mm %wnin% pmar_gm # NNT001      NNT002      SAbGeoEUCOMM001
 # latter are on 5,13 in GM
 ```
 
-```{r markers_with_common_probes}
+```{r markers_with_common_probes, eval=FALSE}
 # MM probes with the same sequence
 tab <- table(mm_unc$seq.A)
 dup <- names(tab)[tab > 1] # 51 sets
