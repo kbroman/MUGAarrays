@@ -219,7 +219,7 @@ mm_mult_but1chr_range <- sapply(mm_mult_but1chr, function(mar)
     diff(range(mm_blast$snp_pos[mm_blast$query==mar])))
 
 # probes that hit uniquely on each of X and Y and to no other chromosome
-mm_uniqXY <- names(mm_nhits)[rowSums(mm_tab_chr[,1:20])==0 & mm_tab_chr[,21]==1 & mm_tab_chr[,22]==1]
+mm_hitXY <- rownames(mm_tab_chr)[rowSums(mm_tab_chr[,1:20])==0 & mm_tab_chr[,21]>0 & mm_tab_chr[,22]>0]
 ```
 
 
@@ -273,7 +273,7 @@ gm_mult_but1chr_range <- sapply(gm_mult_but1chr, function(mar)
     diff(range(gm_blast$snp_pos[gm_blast$query==mar])))
 
 # probes that hit uniquely on each of X and Y and to no other chromosome
-gm_uniqXY <- names(gm_nhits)[rowSums(gm_tab_chr[,1:20])==0 & gm_tab_chr[,21]==1 & gm_tab_chr[,22]==1]
+gm_hitXY <- rownames(gm_tab_chr)[rowSums(gm_tab_chr[,1:20])==0 & gm_tab_chr[,21]>0 & gm_tab_chr[,22]>0]
 ```
 
 
@@ -284,19 +284,19 @@ gm_uniqXY <- names(gm_nhits)[rowSums(gm_tab_chr[,1:20])==0 & gm_tab_chr[,21]==1 
 ### Basic blast results
 
 I'll start by focusing on the MegaMUGA array, which contains
-`r add_commas(nrow(mm_unc))`. In the UNC annotation file,
+`r add_commas(nrow(mm_unc))` markers. In the UNC annotation file,
 `r add_commas(sum(mm_unc$chr %in% (1:19)))` are on autosomes,
 `r add_commas(sum(mm_unc$chr=="X"))` are on the X chromosome,
 `r add_commas(sum(mm_unc$chr=="Y"))` are on the Y chromosome,
-`r add_commas(sum(mm_unc$chr=="M"))` are in the mitochondrial genome,
-and `r add_commas(sum(mm_unc$chr=="P"))` have chromosome "`P`"
-(presumably pseudoautosomal).
+`r add_commas(sum(mm_unc$chr=="M"))` are on the mitochondrial genome,
+and `r add_commas(sum(mm_unc$chr=="P"))` have chromosome `P`, which
+I take to mean they are pseudoautosomal.
 
-In the blastn results, I find that `r add_commas(sum(mm_nhits==1))`
+In the blast results, I find that `r add_commas(sum(mm_nhits==1))`
 markers have a single, unique hit in the mouse genome (build mm10), while
 `r add_commas(sum(mm_nhits>1))` hit to multiple locations
 (median `r median(mm_nhits[mm_nhits>1])` locations and maximum
-`r add_commas(max(mm_nhits))`), and `r add_commas(mm_nhits==0)`
+`r add_commas(max(mm_nhits))`), and `r add_commas(sum(mm_nhits==0))`
 have no perfect match in the mm10 build of the mouse genome.
 
 ### Unique markers
@@ -304,7 +304,8 @@ have no perfect match in the mm10 build of the mouse genome.
 If we look at the inferred chromosome assignments of the markers with
 a unique hit to the genome, all but
 `r sum(mm_unc[mm_uwisc$marker, "chr"] != mm_uwisc$chr, na.rm=TRUE)`
-match the chromosome in the UNC annotation file.
+match the chromosome in the UNC annotation file. Here are the markers
+with discrepancies in chromosome assignment:
 
 ```{r mm_mismatch_chr}
 # reorder mm_unc
@@ -312,49 +313,158 @@ mm_unc <- mm_unc[mm_uwisc$marker,]
 wh <- mm_uwisc$unique & mm_uwisc$chr != mm_unc$chr
 mm_diff_chr <- data.frame(marker=mm_uwisc$marker,
                           unc_chr=mm_unc$chr,
-                          blast_chr=mm_uwisc$chr)[wh,]
+                          blast_chr=mm_uwisc$chr,
+                          stringsAsFactors=FALSE)[wh,]
 mm_diff_chr <- mm_diff_chr[order(mm_diff_chr$marker),]
 rownames(mm_diff_chr) <- 1:nrow(mm_diff_chr)
 mm_diff_chr
 ```
 
-Four of these were assigned to pseudoautosomal in the UNC annotations
-but map to autosomes, one was mitochondrial (with a name to match),
-but the sequence maps to chromosome1, and one (`MiniMuscle001`) was
+Four of these were pseudoautosomal in the UNC annotations
+but map to autosomes, one was mitochondrial (with a name to match)
+but the sequence maps to chr 1, and one (`MiniMuscle001`) was
 assigned to chr 16 but maps to chr 11.
+
+`r Numbers[sum(mm_diff_chr$marker %in% gm_unc$marker)]`
+of these `r numbers[nrow(mm_diff_chr)]`
+markers are found on the GigaMUGA array (all but
+`r mm_diff_chr$marker %wnin% gm_unc$marker`), and
+the chromosome assignments in the UNC annotations of the GigaMUGA
+array all match what we see in these blast results, rather than the
+chromosome in the UNC annotations of the MegaMUGA array.
+
+
 
 ### Multiple hits to one chromosome
 
-- markers that hit multiply but just to one chromosome
+There are `r length(mm_mult_but1chr)` markers on the MegaMUGA array
+that have multiple perfect hits in the mouse genome, but all on the
+same chromosome. I looked at the range in SNP positions, for these
+multiple hits, which varied from
+`r min(mm_mult_but1chr_range)` bp to
+`r round(max(mm_mult_but1chr_range)/1e6)` Mbp, with a median of
+`r round(median(mm_mult_but1chr_range)/1000)` kbp.
+
+There are `r sum(mm_mult_but1chr_range < 1000)` markers with multiple
+hits but all on a single chromosome and all within a 1000 bp interval.
+We could maybe keep these, and assign each to the median of the observed
+positions.  But for now we'll leave them with missing genomic
+coordinates.
 
 
 ### Pseudoautosomal region
 
+I'm not sure what to do about the pseudoautosomal markers.
+The UNC annotations for the MegaMUGA array has
+`r sum(mm_unc$chr=="P")` markers with chromosome `P`. But only
+`r numbers[sum(mm_uwisc$unique[mm_unc$chr=="P"])]`
+have hits to the mm10 mouse genome build, and these are the
+four mentioned above, that actually map to autosomes. The other
+`r sum(mm_uwisc$no_pos[mm_unc$chr=="P"])` have no perfect hits in the
+blast results, which leads me to think that the pseudoautosomal region
+is perhaps not part of the mm10 genome assembly.
 
-- chr P markers
-  - no hits, unique, multiply
-  - where do the unique ones hit?
+There are another `r sum(grepl("^PAR[0-9]+$", mm_unc$marker))` markers
+with names like `PAR10`. All of these were placed on chr X in the UNC
+annotation file. In the blast results,
+`r numbers[sum(mm_uwisc$unique[grepl("^PAR[0-9]+$", mm_uwisc$marker)])]`
+of these have unique hits in the mouse genome, all to chromosome X.
+The remainder have multiple hits.
+PAR4 has a single hit on each of the X and Y chromosomes.
+PAR6 has a single hit on the X chromosome and two hits on the Y
+chromosome.
+The other `r sum(grep("^PAR[0-9]+$", mm_unc$marker, value=TRUE) %in% mm_mult_but1chr)`
+PAR markers have multiple hits but just to the X chromosome.
 
-  for MM, there are just 4 markers on chr P that are in the blast results
-  ... and all 2 map uniquely to chr 13; the other two map uniquely to chr 5.
-  NNT001, NNT002 but while these are chr P in MM, they're chr 13 in GM
-  SAbGeoEUCOMM001 and SAbGeoEUCOMM002 are chr P in MM, map uniquely to
-  chr 5, and former is on chr 5 in GM while the latter is not present on GM
-
-- markers that hit X and Y uniquely, but no other chromosome
-  - names
-  - chr assignments in the UNC annotations
+There are two additional markers with hits to both the X and the Y
+chromosome, but with no hits to autosomes:
+`r vec2string(mm_hitXY[mm_hitXY %nin% c("PAR4", "PAR6")])`.
+UNC31596388 has a single hit on each of the X and Y chromosomes.
+UNC31596457 has a single hit on the X and two hits on the Y.
+So maybe these are also pseudoautosomal markers.
 
 
-### What the heck is "`IlmnStrand`"?
+### What the heck is `IlmnStrand`?
 
-- what's going on with the "strand" column in the GeneSeek annotation
-  file. It has no apparent relationship to the strand of the hits.
+The annotation file I received from GeneSeek has a column `IlmnStrand`
+with values `TOP` and `BOT`, which I took to indicate the strand
+origin of the SNP probe sequences (which I thought were generally
+called "plus" and "minus").
 
-- marker positions have no relationship to UNC file, but that's partly
-  because the UNC file is in previous build
+But while this `IlmnStrand` column is consistent with the
+`SourceStrand` column in the UNC annotation file, it doesn't have any
+relation to the strands that I'm seeing in the blast results.
+
+About half of the `IlmnStrand` values are `TOP` and half are `BOT`,
+and in each of these groups, markers with a unique hit to the mouse
+genome are about half hitting the plus strand and half hitting the
+minus strand, so I don't know what to make of this.
+
+
 
 ### Markers with the same probes
+
+One last thing on the MegaMUGA array: there are
+`r sum((mm_probe_tab <- table(mm_uwisc$probe))==2)` pairs of markers
+with the same probe sequence, and one set of four markers that all of
+the same sequence.
+
+For most of these replicate problems, it seems like they were
+intended, as they have names like JAX00333860 and repJAX00333860,
+or CEAJAX00159275 and CEBJAX00159275.
+
+But the group of four probes with matching sequences are
+`r vec2string(sort(mm_uwisc$marker[mm_uwisc$probe==names(mm_probe_tab)[mm_probe_tab==4]]))`,
+all on the Y chromosome. So two pairs of intended replicates, but it's
+not obvious that JAX00725045 and JAX00725054 should be the same.
+
+Of the other `r sum(mm_probe_tab==2)` pairs, 35 are obvious from their
+names. Here are the other:
+
+```{r mm_study_dup_pairs}
+dup <- names(mm_probe_tab)[mm_probe_tab==2]
+dup_pairs <- t(sapply(dup, function(a) mm_uwisc$marker[mm_uwisc$probe==a]))
+dup_pairs <- dup_pairs[dup_pairs[,2] != paste0("rep", dup_pairs[,1]) &
+                       dup_pairs[,1] != paste0("rep", dup_pairs[,2]) &
+                       dup_pairs[,2] != paste0("CEA", dup_pairs[,2]) &
+                       dup_pairs[,1] != paste0("CEA", dup_pairs[,2]) &
+                       sub("^CEA", "CEB", dup_pairs[,2]) != dup_pairs[,1] &
+                       sub("^CEA", "CEB", dup_pairs[,1]) != dup_pairs[,2],]
+dup_pairs <- t(apply(dup_pairs, 1, sort))
+rownames(dup_pairs) <- 1:nrow(dup_pairs)
+colnames(dup_pairs) <- c("snp1", "snp2")
+dup_pairs
+```
+
+This begs the question: are there other marker pairs whose names
+indicate that they should be duplicates, but where they're not really
+duplicates?
+
+```{r mm_look_for_more_dups}
+mn <- mm_uwisc$marker
+mnrep <- paste0("rep", mn)
+mncea <- paste0("CEA", mn)
+mnceb <- paste0("CEB", substr(mn, 4, nchar(mn)))
+mnceb[grepl("^CEB", mn)] <- "" # drop those that already start with CEB
+
+more_dup <- rbind(cbind(mn, mnrep)[mnrep %in% mn,],
+                  cbind(mn, mncea)[mncea %in% mn,],
+                  cbind(mn, mnceb)[mnceb %in% mn,])
+
+more_dup_probes <- cbind(mm_uwisc[more_dup[,1],"probe"],
+                         mm_uwisc[more_dup[,2],"probe"])
+
+stopifnot(more_dup_probes[,1] == more_dup_probes[,2])
+```
+
+If I look for the patterns that I saw in the marker pairs with common
+sequences, I see a total of `r nrow(more_dup)` pairs, but these are
+exactly the ones found based on their sequences matching (including
+the two pairs that make up the set of four markers all with the same
+sequence).
+
+
+
 
 ## GigaMUGA
 
