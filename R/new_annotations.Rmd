@@ -865,33 +865,44 @@ bp in the first case and
 `r mm_uwisc["JAX00181213","pos"]-gm_uwisc["JAX00181213r","pos"]`
 bp in the second.
 
-If we go by SNP positions, we'll find a different set of positions
-that are present on both arrays. Ugh.
+I'm coming to decide that maybe we should just focus on SNP positions
+and ignore the marker names themselves: cases with different names but
+really the same probe, cases with names suggesting re-designed probes
+that actually lead to different SNPs being assayed. Moreover, of the
+`r add_commas(length(mar_in_both <- mm_uwisc$marker[mm_uwisc$marker %in% gm_uwisc$marker]))`
+markers that are on both arrays (by matching their names),
+`r length(diff_probes <- mar_in_both[mm_uwisc[mar_in_both,"probe"] != gm_uwisc[mar_in_both,"probe"]])`
+actually have different probes on the two arrays.
 
-And I still need to also look at the set of markers with identical
-names but different sequences: are they pointing to the same
-positions?
+```{r both_arrays_same_names_different_probes}
+mar_in_both <- mm_uwisc$marker[mm_uwisc$marker %in% gm_uwisc$marker]
+diff_probes <- mar_in_both[mm_uwisc[mar_in_both,"probe"] != gm_uwisc[mar_in_both,"probe"]]
+diff_probes_pos <- cbind(mm_uwisc[diff_probes, c("chr", "pos", "strand")], gm_uwisc[diff_probes, c("chr", "pos", "strand")])
+```
 
-Seems like we should focus on the positions of the markers rather than
-their names or even their sequences. We need to create lists of
-markers that are assaying the same SNP.
+`r sum(diff_probes_pos[,2] == diff_probes_pos[,5], na.rm=TRUE)` of
+these were a switch from the minus to the plus strand, or vice versa.
+But for `r numbers[sum(gm_uwisc[diff_probes,"unmapped"])]` of these the
+GigaMUGA probe doesn't have a perfect match with the mm10 assembly,
+and for `r numbers[sum(mm_uwisc[diff_probes,"unmapped"])]` of these
+the MegaMUGA probe didn't have a perfect match with the mm10 assembly,
+and then for `r sum(mm_uwisc[diff_probes,"multi"])` the MegaMUGA probe
+has multiple hits to the mouse genome.
+
+So I'm currently thinking we should just go by SNP position, and
+create a file that indicates groups of markers across the two arrays
+that are assaying the same SNP.
 
 ```{r snp_positions}
 gm_pos <- apply(gm_uwisc[gm_uwisc$unique,c("chr", "pos")], 1, function(a) gsub(" ", "", paste(a, collapse=":")))
 mm_pos <- apply(mm_uwisc[mm_uwisc$unique,c("chr", "pos")], 1, function(a) gsub(" ", "", paste(a, collapse=":")))
 ```
 
-Focusing on SNP positions, the MegaMUGA has
-`r add_commas(length(unique(mm_pos)))` unique markers, the GigaMUGA
-has `r add_commas(length(unique(gm_pos)))` unique markers, and the two
-arrays have `r add_commas(sum(unique(mm_pos) %in% gm_pos))` markers in
+With a focus on SNP positions, the MegaMUGA has
+`r add_commas(length(unique(mm_pos)))` unique SNPs, the GigaMUGA
+has `r add_commas(length(unique(gm_pos)))` unique SNPs, and the two
+arrays have `r add_commas(sum(unique(mm_pos) %in% gm_pos))` SNPs in
 common.
-
-Need to make a table of markers that are assaying the same positions.
-
-Also markers that have the same name but different sequences on the
-two arrays, especially where they're not both unique and assaying the
-same marker.
 
 
 ## Marker tier information
