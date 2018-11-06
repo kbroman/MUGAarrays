@@ -93,7 +93,7 @@ bases to be mismatches.
 
 More precisely, I installed blastn on my linux laptop with
 
-    sudo apt install ncbi-blast+"
+    sudo apt install ncbi-blast+
 
 I downloaded the mm10 mouse genome files from
 <http://hgdownload-test.cse.ucsc.edu/goldenPath/mm10/bigZips/>
