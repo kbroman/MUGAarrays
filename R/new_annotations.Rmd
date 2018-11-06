@@ -640,6 +640,15 @@ with the same probe sequence,
 `r sum(gm_probe_tab == 3)` trios, and
 `r sum(gm_probe_tab == 4)` groups of four.
 
+```{r gm_grab_dup_probes}
+gm_pairs <- t(sapply(names(gm_probe_tab)[gm_probe_tab==2],
+                     function(probe) gm_uwisc$marker[gm_uwisc$probe==probe]))
+gm_trios <- t(sapply(names(gm_probe_tab)[gm_probe_tab==3],
+                     function(probe) gm_uwisc$marker[gm_uwisc$probe==probe]))
+gm_quart <- t(sapply(names(gm_probe_tab)[gm_probe_tab==4],
+                     function(probe) gm_uwisc$marker[gm_uwisc$probe==probe]))
+```
+
 One of the quartets is for markers
 UNCrs52300311, complement008, complement016, and complement018, with
 the absurd probe sequence
@@ -654,35 +663,148 @@ In the UNC annotation file for the GigaMUGA array, these were all
 placed at the same location on chr 17, and at the same location as the
 blast hit.
 
-I'm a bit tired to check all these others, but I guess I have to.
+I spent a bunch of time studying the marker names for those sharing a common probe sequence.
+There are a bunch of pairs that are maybe obvious small changes from
+one name to another:
+
+- add q, r, s, t, or u at the end of the name
+- replace a q,r,s,t,u at the end with a different one of these letters
+- add "backup" at the beginning
+- add "CEA" at the beginning
+- Replace "CEA" at the beginning with "CEB"
+
+These can explain about half of the pairs of markers with common
+sequences. But when I start looking for pairs of markers that satisfy
+these rules, I find a ton of marker pairs that are related in these
+ways but have completely different sequences. I finally decided the
+whole thing was fruitless.
+
+There are a bunch of markers with the same sequences. Some of these
+were maybe by design but some maybe weren't.
 
 
 ### Unique column in the GM array
 
-Has little relationship with my blast results.
+The `unique` column in the UNC annotations for the GM array is quite
+different from what I'm finding with blast.
 
+The UNC annotation files indicates that `r add_commas(sum(!gm_unc$unique))`
+of the GigaMUGA markers are non-unique.
 
+When I first ran blast, I found that exactly this many of the GigaMUGA
+markers had multiple hits to the mouse genome. I've since changed my
+analysis slightly, by trimming off the SNP from a set of
+`r sum(gm_gs$AlleleB_ProbeSeq != "")` probes that contained it. As a
+result, I'm now getting `r add_commas(sum(gm_uwisc$multi))` markers
+with multiple hits, and I'm pretty sure that the difference
+(`r sum(gm_uwisc$multi) - sum(!gm_unc$unique)`) is due to this
+trimming of some of the probe sequences.
+
+But anyway, the key thing is that these indicators of markers with
+multiple hits in the mouse genome, while not completely independent,
+are quite different. The two lists have just
+`r sum(gm_uwisc$multi & !gm_unc$unique)` markers in common.
+There are `r sum(gm_uwisc$multi & gm_unc$unique)` markers that my
+blast results say have multiple hits but that the UNC file says are
+unique in the mouse genome, and there are
+`r sum(!gm_uwisc$multi & !gm_unc$unique)` markers that my
+blast results say have 0 or 1 hits but that the UNC file says are
+non-unique.
+
+We can spot check a few of these.
+
+- UNC22328648 is said to be unique by the UNC annotations, but I find
+  it has 36 hits in the mouse genome, on 17 different chromosomes.
+
+      TGCTGGGATTTGAACTCAGAACCTTCGGAAGAGCAGTCAGTGCTCTTAAC
+
+- UNC7052740 is said to be non-unique by the UNC annotations, but I
+  find it has a single, unique hit on chr 4 at 35,637,450 bp, which is
+  the position given in the UNC annotations.
+
+      TAATGTGATAGATCCCCAGGTGGGGCAGTCTCTGGATGGTCCATCCTTCC
+
+- UNC15059592 is said to be unique by the UNC annotations, but this is
+  the one that I find has the most hits to the mouse genome: 18,855 on
+  21 chromosomes (all but the mtDNA).
+
+      GCTTCTGGCTATTATAAATAAGGCTGCTATGAACATAGTGGAGCATGTGT
 
 ## Markers on both arrays
 
-There are some markers that are on both arrays but have different
-sequences in the two annotation files.
+There are `r add_commas(sum(gm_unc$marker %in% mm_unc$marker))`
+markers that are in common between the MegaMUGA and GigaMUGA arrays,
+if we just match the names.
 
-Also consider the `is.MM` column in the UNC annotations for GM.
-Seems like it has all of the markers that match by name, but also some
-additional ones.
+If we instead use the probe sequences, we get a larger number of
+markers that are in common:
+`r add_commas(sum(gm_uwisc$probe %in% mm_uwisc$probe))` of the probe
+sequences present in the GigaMUGA array are also found in the MegaMUGA
+array.
 
-```{r gm_isMM_column_vs_marker_names}
-table(gm_unc$marker %in% mm_unc$marker, gm_unc$is.MM)
+But somehow only `r add_commas(sum(mm_uwisc$probe %in% gm_uwisc$probe))` of
+the sequences on the MegaMUGA array are also on the GigaMUGA array.
+This difference is due to the many sequences that are in duplicate on
+each array.
+
+The MegaMUGA array has `r add_commas(length(unique(mm_uwisc$probe)))` unique
+probes across `r add_commas(nrow(mm_uwisc))` markers, and
+`r add_commas(sum(unique(mm_uwisc$probe) %in% gm_uwisc$probe))`
+of them are also on the GigaMUGA array.
+
+The GigaMUGA array has `r add_commas(length(unique(gm_uwisc$probe)))` unique
+probes across `r add_commas(nrow(gm_uwisc))` markers, and again
+`r add_commas(sum(unique(gm_uwisc$probe) %in% mm_uwisc$probe))`
+of them are also on the MegaMUGA array.
+
+Now the GigaMUGA annotation file has a column `is.MM` that presumably
+indicates which markers are also on the MegaMUGA array. It points to
+`r add_commas(sum(gm_unc$is.MM))` markers, which includes the
+`r add_commas(sum(gm_unc$marker %in% mm_unc$marker))` markers with
+matching names, but also includes another
+`r sum(gm_unc$is.MM[!(gm_unc$marker %in% mm_unc$marker)])` markers.
+
+```{r odd_mm_markers}
+# markers where "is.MM" is true but the exact marker name isn't seen on MM array
+odd_mm <- as.character(gm_unc$marker)[gm_unc$is.MM & !(gm_unc$marker %in% mm_unc$marker)]
+odd_mm_no_r <- sub("r$", "", odd_mm)
+
+# the ones that changed probes
+probe_changed <- odd_mm_no_r[gm_uwisc[odd_mm,"probe"] != mm_uwisc[odd_mm_no_r, "probe"]]
+probe_changed_r <- paste0(probe_changed, "r")
 ```
 
-We could also ask: which probes for the GM array are also seen in the
-MM array? Here, we get rather a different answer, and it's **less**
-like the `is.MM` column.
+These `r length(odd_mm)` markers all have names like "JAX00017210r",
+where "JAX00017210" is a marker on the MegaMUGA array (and
+`r sum(odd_mm_no_r %in% gm_unc$marker)` of the markers
+without the terminal r are also on the GigaMUGA array).
 
-```{r gm_isMM_vs_probes}
-table(gm_uwisc$probe %in% mm_uwisc$probe, gm_unc$is.MM)
-```
+`r sum(mm_uwisc[odd_mm_no_r, "probe"] == gm_uwisc[odd_mm, "probe"])`
+of the probes are unchanged between the MegaMUGA and GigaMUGA arrays,
+despite the "r" that was added to the name.
+
+That leaves another `r length(probe_changed)` markers for which the
+probe was changed. For one of these markers, neither of the probes are
+unique in the mm10 mouse build. For two others, the probe on the
+MegaMUGA array is not unique but the probe on the GigaMUGA array is.
+12 of the markers have unique sequences on both arrays, and both are
+for the same SNP position, but with one on the plus strand and one on
+the minus strand. But then there are two markers where the SNP was
+switched from the plus to the minus strand but also shifted somewhat:
+JAX00712617/JAX00712617r and JAX00181213/JAX00181213r. Both pairs are
+on the X chromosome, and the difference in SNP position is 72 bp in
+the first case and 34 bp in the second.
+
+If we got by SNP positions, we'll find a different set of positions
+that are present on both arrays. Ugh.
+
+And I still need to also look at the set of markers with identical
+names but different sequences: are they pointing to the same
+positions?
+
+Seems like we should focus on the positions of the markers rather than
+their names or even their sequences. We need to create lists of
+markers that are assaying the same SNP.
 
 
 
