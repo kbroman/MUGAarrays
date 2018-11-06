@@ -683,7 +683,7 @@ There are a bunch of markers with the same sequences. Some of these
 were maybe by design but some maybe weren't.
 
 
-### Unique column in the GM array
+### "`unique`" column in the GM array
 
 The `unique` column in the UNC annotations for the GM array is quite
 different from what I'm finding with blast.
@@ -699,6 +699,12 @@ result, I'm now getting `r add_commas(sum(gm_uwisc$multi))` markers
 with multiple hits, and I'm pretty sure that the difference
 (`r sum(gm_uwisc$multi) - sum(!gm_unc$unique)`) is due to this
 trimming of some of the probe sequences.
+
+[I went back and checked, and indeed, of the markers that I'd trimmed,
+there were 62 that showed multiple hits with the trimmed sequence, but
+only 26 that showed multiple hits with the untrimmed sequence, and so
+using the untrimmed sequences, I'd get 3,150 - 62 + 26 = 3,114 total
+markers with multiple hits.]
 
 But anyway, the key thing is that these indicators of markers with
 multiple hits in the mouse genome, while not completely independent,
@@ -816,6 +822,15 @@ Focusing on SNP positions, the MegaMUGA has
 has `r add_commas(length(unique(gm_pos)))` unique markers, and the two
 arrays have `r add_commas(sum(unique(mm_pos) %in% gm_pos))` markers in
 common.
+
+Need to emphasize that while the `unique` column is screwed up, the
+`is.MM` column seems just as intended.
+
+Need to make a table of markers that are assaying the same positions.
+
+Also markers that have the same name but different sequences on the
+two arrays, especially where they're not both unique and assaying the
+same marker.
 
 
 ## Marker tier information
