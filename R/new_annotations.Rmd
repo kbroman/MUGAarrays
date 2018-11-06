@@ -29,7 +29,7 @@ have been scrambled:
 
 - In blasting the GigaMUGA probe sequences against
   the mouse genome, I found the same number of non-unique markers
-  (3,114), but they were not the same markers.
+  (3,114), but they were not entirely the same markers.
 
 - Of the markers in common between the MegaMUGA and GigaMUGA arrays,
   the chromosome assignments have a lot of differences, even among
@@ -208,7 +208,7 @@ mm_uwisc <- data.frame(marker=names(mm_nhits),
                        n_blast_chr=mm_nchr,
                        unique=(mm_nhits==1),
                        multi=(mm_nhits>1),
-                       no_pos=(mm_nhits==0),
+                       unmapped=(mm_nhits==0),
                        chr=mm_blast_chr,
                        pos=mm_blast_pos,
                        strand=mm_blast_strand,
@@ -262,7 +262,7 @@ gm_uwisc <- data.frame(marker=names(gm_nhits),
                        n_blast_chr=gm_nchr,
                        unique=(gm_nhits==1),
                        multi=(gm_nhits>1),
-                       no_pos=(gm_nhits==0),
+                       unmapped=(gm_nhits==0),
                        chr=gm_blast_chr,
                        pos=gm_blast_pos,
                        strand=gm_blast_strand,
@@ -366,7 +366,7 @@ The UNC annotations for the MegaMUGA array has
 `r numbers[sum(mm_uwisc$unique[mm_unc$chr=="P"])]`
 have hits to the mm10 mouse genome build, and these are the
 four mentioned above, that actually map to autosomes. The other
-`r sum(mm_uwisc$no_pos[mm_unc$chr=="P"])` have no perfect hits in the
+`r sum(mm_uwisc$unmapped[mm_unc$chr=="P"])` have no perfect hits in the
 blast results, which leads me to think that the pseudoautosomal region
 is perhaps not part of the mm10 genome assembly.
 
@@ -639,7 +639,7 @@ as `P`. **None** of them have a hit to the mm10 mouse genome build.
 There are `r length(gm_par <- grep("^PAR", gm_unc$marker, value=TRUE))` markers
 with names like `PAR10` or `PARv2S06`. `r sum(gm_uwisc[gm_par, "unique"])`
 of these have unique hits in the mouse genome, all to the X
-chromosome. One PAR marker (`r gm_par[gm_uwisc[gm_par, "no_pos"]]`)
+chromosome. One PAR marker (`r gm_par[gm_uwisc[gm_par, "unmapped"]]`)
 has no hits to the mouse genome. The other `r sum(gm_uwisc[gm_par, "multi"])`
 have multiple hits
 
