@@ -483,21 +483,21 @@ dup_pairs &lt;- t(apply(dup_pairs, 1, sort))
 rownames(dup_pairs) &lt;- 1:nrow(dup_pairs)
 colnames(dup_pairs) &lt;- c(&quot;snp1&quot;, &quot;snp2&quot;)
 dup_pairs</code></pre>
-<pre><code>##    snp1             snp2         
-## 1  &quot;Prdm9001&quot;       &quot;Prdm9005&quot;   
-## 2  &quot;Mit020&quot;         &quot;Mit031&quot;     
-## 3  &quot;UNC2512583&quot;     &quot;UNC88694&quot;   
-## 4  &quot;Mit001&quot;         &quot;Mit002&quot;     
-## 5  &quot;NNT001&quot;         &quot;NNT002&quot;     
-## 6  &quot;UNC23833145&quot;    &quot;UNC4368900&quot; 
-## 7  &quot;UNC20251282&quot;    &quot;UNC5746160&quot; 
+<pre><code>##    snp1             snp2
+## 1  &quot;Prdm9001&quot;       &quot;Prdm9005&quot;
+## 2  &quot;Mit020&quot;         &quot;Mit031&quot;
+## 3  &quot;UNC2512583&quot;     &quot;UNC88694&quot;
+## 4  &quot;Mit001&quot;         &quot;Mit002&quot;
+## 5  &quot;NNT001&quot;         &quot;NNT002&quot;
+## 6  &quot;UNC23833145&quot;    &quot;UNC4368900&quot;
+## 7  &quot;UNC20251282&quot;    &quot;UNC5746160&quot;
 ## 8  &quot;UNC27690624&quot;    &quot;UNC30009421&quot;
-## 9  &quot;UNC10237349&quot;    &quot;UNC9964748&quot; 
-## 10 &quot;Mx1002&quot;         &quot;Mx1004&quot;     
-## 11 &quot;Mx1001&quot;         &quot;Mx1003&quot;     
+## 9  &quot;UNC10237349&quot;    &quot;UNC9964748&quot;
+## 10 &quot;Mx1002&quot;         &quot;Mx1004&quot;
+## 11 &quot;Mx1001&quot;         &quot;Mx1003&quot;
 ## 12 &quot;UNC19598208&quot;    &quot;UNC24941679&quot;
-## 13 &quot;NRAMP1001&quot;      &quot;NRAMP1002&quot;  
-## 14 &quot;Mit017&quot;         &quot;Mit018&quot;     
+## 13 &quot;NRAMP1001&quot;      &quot;NRAMP1002&quot;
+## 14 &quot;Mit017&quot;         &quot;Mit018&quot;
 ## 15 &quot;CEAJAX00012397&quot; &quot;UNC2165985&quot;</code></pre>
 <p>This begs the question: are there other marker pairs whose names indicate that they should be duplicates, but where they’re not really duplicates?</p>
 <pre class="r"><code>mn &lt;- mm_uwisc$marker
@@ -549,7 +549,14 @@ stopifnot( all(gm_unc[gm_uwisc$marker[gm_uwisc$unique], &quot;chr&quot;] == gm_u
 # reorder gm_unc and gm_gs
 gm_unc &lt;- gm_unc[gm_uwisc$marker,]</code></pre>
 <p>The SNP positions match for 136,965 markers, but are off by ±1 for the other 394 markers. These off-by-1 markers are exactly the ones where the probe sequence in the GeneSeek annotation file included the SNP, which I trimmed off. Moreover, the ones that I have at +1 relative to the UNC annotation are the ones on the minus strand, and the ones I have at -1 relative to the UNC annotation are the ones on the plus strand. And so these off-by-one values are due to the handling of the cases where the probe sequences included the SNP. And I am confident that my positions are the correct values.</p>
-<p>``{r gm_verify_off_by_1} # verify the statements above # markers where position is off by one are the cases where AlleleB is provided off_by_plus1 &lt;- gm_uwisc<span class="math inline">\(marker[gm_uwisc\)</span>pos == gm_unc<span class="math inline">\(pos+1 &amp; gm_uwisc\)</span>unique] off_by_minus1 &lt;- gm_uwisc<span class="math inline">\(marker[gm_uwisc\)</span>pos == gm_unc<span class="math inline">\(pos-1 &amp; gm_uwisc\)</span>unique] off_by_pm1 &lt;- c(off_by_plus1, off_by_minus1) stopifnot( sort(off_by_pm1) == sort(gm_gs<span class="math inline">\(Name[gm_gs\)</span>AlleleB_ProbeSeq != “” &amp; gm_uwisc<span class="math inline">\(unique]) ) stopifnot( sort(off_by_plus1) == sort(gm_gs\)</span>Name[gm_gs<span class="math inline">\(AlleleB_ProbeSeq != &quot;&quot; &amp; gm_uwisc\)</span>unique &amp; gm_uwisc$strand==“minus”]) ) stopifnot( sort(off_by_minus1) == sort(gm_gs<span class="math inline">\(Name[gm_gs\)</span>AlleleB_ProbeSeq != “” &amp; gm_uwisc<span class="math inline">\(unique &amp; gm_uwisc\)</span>strand==“plus”]) ) ```</p>
+<pre class="r"><code># verify the statements above
+# markers where position is off by one are the cases where AlleleB is provided
+off_by_plus1 &lt;- gm_uwisc$marker[gm_uwisc$pos == gm_unc$pos+1 &amp; gm_uwisc$unique]
+off_by_minus1 &lt;- gm_uwisc$marker[gm_uwisc$pos == gm_unc$pos-1 &amp; gm_uwisc$unique]
+off_by_pm1 &lt;- c(off_by_plus1, off_by_minus1)
+stopifnot( sort(off_by_pm1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != &quot;&quot; &amp; gm_uwisc$unique]) )
+stopifnot( sort(off_by_plus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != &quot;&quot; &amp; gm_uwisc$unique &amp; gm_uwisc$strand==&quot;minus&quot;]) )
+stopifnot( sort(off_by_minus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != &quot;&quot; &amp; gm_uwisc$unique &amp; gm_uwisc$strand==&quot;plus&quot;]) )</code></pre>
 </div>
 <div id="multiple-hits-to-one-chromosome-1" class="section level3">
 <h3>Multiple hits to one chromosome</h3>
@@ -560,7 +567,7 @@ gm_unc &lt;- gm_unc[gm_uwisc$marker,]</code></pre>
 <h3>Pseudoautosomal region</h3>
 <p>Returning to the dreaded pseudoautosomal markers, we’ve got these 80 GigaMUGA markers where the chromosome ID was missing in the UNC annotation file, and which we’re interpreting here as <code>P</code>. <strong>None</strong> of them have a hit to the mm10 mouse genome build.</p>
 <p>There are 60 markers with names like <code>PAR10</code> or <code>PARv2S06</code>. 29 of these have unique hits in the mouse genome, all to the X chromosome. One PAR marker (PARv2S58) has no hits to the mouse genome. The other 30 have multiple hits</p>
-<p>There are 42 markers that have hits on both the X and Y chromosomes and not to any autosomes. These include 16 of these PAR markers, but also sum(grepl(“^PAR”, gm_hitXY))` of these PAR markers, but also another 26 markers with names starting JAX or UNC. Seven of these markers have a single hit on each of the X and Y chromosomes, which sounds like what we’d want for a pseudoautosomal marker: PAR4, PARv2S15, PARv2S18, PARv2S44, UNC31596388, UNCHS049772, and UNCJPD007636.</p>
+<p>There are 42 markers that have hits on both the X and Y chromosomes and not to any autosomes. These include 16 of these PAR markers, but also another 26 markers with names starting JAX or UNC. Seven of these markers have a single hit on each of the X and Y chromosomes, which sounds like what we’d want for a pseudoautosomal marker: PAR4, PARv2S15, PARv2S18, PARv2S44, UNC31596388, UNCHS049772, and UNCJPD007636.</p>
 <p>But again, I’m not quite sure what to do with these.</p>
 </div>
 <div id="what-the-heck-is-ilmnstrand-1" class="section level3">
@@ -580,17 +587,17 @@ gm_unc &lt;- gm_unc[gm_uwisc$marker,]</code></pre>
 </div>
 </div>
 <div id="markers-on-both-gigamuga-and-megamuga" class="section level2">
-<h2>Markers on both GigaMUGA and MegaMUGA</h2>
+<h2>Markers on both arrays</h2>
 <p>There are some markers that are on both arrays but have different sequences in the two annotation files.</p>
 <p>Also consider the <code>is.MM</code> column in the UNC annotations for GM. Seems like it has all of the markers that match by name, but also some additional ones.</p>
 <pre class="r"><code>table(gm_unc$marker %in% mm_unc$marker, gm_unc$is.MM)</code></pre>
-<pre><code>##        
+<pre><code>##
 ##         FALSE  TRUE
 ##   FALSE 75614   653
 ##   TRUE      0 66992</code></pre>
 <p>We could also ask: which probes for the GM array are also seen in the MM array? Here, we get rather a different answer, and it’s <strong>less</strong> like the <code>is.MM</code> column.</p>
 <pre class="r"><code>table(gm_uwisc$probe %in% mm_uwisc$probe, gm_unc$is.MM)</code></pre>
-<pre><code>##        
+<pre><code>##
 ##         FALSE  TRUE
 ##   FALSE 74641    46
 ##   TRUE    973 67599</code></pre>
@@ -604,23 +611,23 @@ gm_unc &lt;- gm_unc[gm_uwisc$marker,]</code></pre>
 <p>Here are the versions of R and R packages that I am using.</p>
 <pre class="r"><code>devtools::session_info()</code></pre>
 <pre><code>## ─ Session info ─────────────────────────────────────────────────────────────────────────────────────────────
-##  setting  value                       
+##  setting  value
 ##  version  R version 3.5.1 (2018-07-02)
-##  os       macOS High Sierra 10.13.6   
-##  system   x86_64, darwin15.6.0        
-##  ui       X11                         
-##  language en_US.UTF-8                 
-##  collate  en_US.UTF-8                 
-##  ctype    en_US.UTF-8                 
-##  tz       America/Chicago             
-##  date     2018-11-05                  
-## 
+##  os       macOS High Sierra 10.13.6
+##  system   x86_64, darwin15.6.0
+##  ui       X11
+##  language en_US.UTF-8
+##  collate  en_US.UTF-8
+##  ctype    en_US.UTF-8
+##  tz       America/Chicago
+##  date     2018-11-05
+##
 ## ─ Packages ─────────────────────────────────────────────────────────────────────────────────────────────────
-##  package     * version date       lib source        
+##  package     * version date       lib source
 ##  assertthat    0.2.0   2017-04-11 [1] CRAN (R 3.5.0)
 ##  backports     1.1.2   2017-12-13 [1] CRAN (R 3.5.0)
 ##  base64enc     0.1-3   2015-07-28 [1] CRAN (R 3.5.0)
-##  broman      * 0.68-4  2018-08-17 [1] local         
+##  broman      * 0.68-4  2018-08-17 [1] local
 ##  callr         3.0.0   2018-08-24 [1] CRAN (R 3.5.0)
 ##  cli           1.0.1   2018-09-25 [1] CRAN (R 3.5.0)
 ##  crayon        1.3.4   2017-09-16 [1] CRAN (R 3.5.0)
@@ -654,7 +661,7 @@ gm_unc &lt;- gm_unc[gm_uwisc$marker,]</code></pre>
 ##  usethis     * 1.4.0   2018-08-14 [1] CRAN (R 3.5.0)
 ##  withr         2.1.2   2018-03-15 [1] CRAN (R 3.5.0)
 ##  yaml          2.2.0   2018-07-25 [1] CRAN (R 3.5.0)
-## 
+##
 ## [1] /Users/kbroman/Rlibs
 ## [2] /Library/Frameworks/R.framework/Versions/3.5/Resources/library</code></pre>
 </div>

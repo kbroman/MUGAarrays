@@ -567,7 +567,7 @@ off-by-one values are due to the handling of the cases where the probe
 sequences included the SNP. And I am confident that my positions are
 the correct values.
 
-``{r gm_verify_off_by_1}
+```{r gm_verify_off_by_1}
 # verify the statements above
 # markers where position is off by one are the cases where AlleleB is provided
 off_by_plus1 <- gm_uwisc$marker[gm_uwisc$pos == gm_unc$pos+1 & gm_uwisc$unique]
@@ -614,7 +614,6 @@ have multiple hits
 There are `r length(gm_hitXY)` markers that have hits on both the X
 and Y chromosomes and not to any autosomes. These include
 `r sum(gm_hitXY %in% gm_par)` of these PAR markers, but also
-sum(grepl("^PAR", gm_hitXY))` of these PAR markers, but also
 another `r sum(!(gm_hitXY %in% gm_par))` markers with names starting
 JAX or UNC.
 `r Numbers[sum(rowSums(gm_tab_chr[gm_hitXY,c("X","Y")])==2)]`
@@ -664,7 +663,7 @@ Has little relationship with my blast results.
 
 
 
-## Markers on both GigaMUGA and MegaMUGA
+## Markers on both arrays
 
 There are some markers that are on both arrays but have different
 sequences in the two annotation files.
