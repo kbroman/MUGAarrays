@@ -834,6 +834,10 @@ These `r length(odd_mm)` markers all have names like "JAX00017210r",
 where "JAX00017210" is a marker on the MegaMUGA array (and
 `r sum(odd_mm_no_r %in% gm_unc$marker)` of the markers
 without the terminal r are also on the GigaMUGA array).
+**Importantly**, this indicates that the `is.MM` column is **as
+intended**. So while I've concluded that the `unique` column is at
+least partially scrambled, there's no evidence for other columns being
+similarly scrambled.
 
 `r sum(mm_uwisc[odd_mm_no_r, "probe"] == gm_uwisc[odd_mm, "probe"])`
 of the probes are unchanged between the MegaMUGA and GigaMUGA arrays,
@@ -851,7 +855,7 @@ JAX00712617/JAX00712617r and JAX00181213/JAX00181213r. Both pairs are
 on the X chromosome, and the difference in SNP position is 72 bp in
 the first case and 34 bp in the second.
 
-If we got by SNP positions, we'll find a different set of positions
+If we go by SNP positions, we'll find a different set of positions
 that are present on both arrays. Ugh.
 
 And I still need to also look at the set of markers with identical
@@ -873,9 +877,6 @@ has `r add_commas(length(unique(gm_pos)))` unique markers, and the two
 arrays have `r add_commas(sum(unique(mm_pos) %in% gm_pos))` markers in
 common.
 
-Need to emphasize that while the `unique` column is screwed up, the
-`is.MM` column seems just as intended.
-
 Need to make a table of markers that are assaying the same positions.
 
 Also markers that have the same name but different sequences on the
@@ -893,6 +894,13 @@ to be there (just the annotation files and information on SNP
 intensity clusters).
 
 
+
+## New annotation files
+
+### Version 0
+
+
+### Version 1, with genetic maps
 
 
 ## Session info

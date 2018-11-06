@@ -248,16 +248,16 @@ div.tocify {
 <h2>Introduction</h2>
 <p>While preparing a <a href="https://kbroman.org/Talk_CTC2018/broman_ctc2018.pdf">talk</a> and <a href="https://www.biostat.wisc.edu/~kbroman/publications/mpp_diag.pdf">paper</a> on genotype diagnostics in Diversity Outbred mice, I developed some concerns about the UNC annotation file for the GigaMUGA array. In particular, I felt that some of the columns may have been scrambled:</p>
 <ul>
-<li><p>In blasting the GigaMUGA probe sequences against the mouse genome, I found the same number of non-unique markers (3,114), but they were not the same markers.</p></li>
+<li><p>In blasting the GigaMUGA probe sequences against the mouse genome, I found the same number of non-unique markers (3,114), but they were not entirely the same markers.</p></li>
 <li><p>Of the markers in common between the MegaMUGA and GigaMUGA arrays, the chromosome assignments have a lot of differences, even among those indicated to be unique.</p></li>
 </ul>
 <p>In case that the probe sequences in the UNC annotation files might be in error, I obtained the array probe sequences directly from GeneSeek. These proved to be the same as those in the UNC files.</p>
 <p>My goal here is to construct new annotation files for the GigaMUGA and MegaMUGA arrays with updated information about which markers map uniquely, which map to multiple locations, and which do not map. I’ll include genomic coordinates only for the markers that map uniquely.</p>
 <p>A summary of my findings:</p>
 <ul>
-<li><p>For markers mapping uniquely, the genomic coordinates in the UNC GigaMUGA annotation file were correct.</p></li>
-<li><p>The UNC MegaMUGA annotation file had coordinates in a previous mouse genome build (mm9). For markers mapping uniquely, there are a small number with differences in chromosome assignments; there are lots of differences in positions, with the new build (mm10).</p></li>
-<li><p>The “unique” column in the GigaMUGA annotation file is messed up.</p></li>
+<li><p>For markers mapping uniquely (by my determination), the genomic coordinates in the UNC GigaMUGA annotation file were correct (except for a set of 394 markers where the UNC position is off by one basepair, because the probe sequences include the SNP and this wasn’t taken into account).</p></li>
+<li><p>The UNC MegaMUGA annotation file had coordinates in a previous mouse genome build (mm9). For markers mapping uniquely, there are just a small number with differences in chromosome assignments; there are lots of differences in positions, with the new build (mm10).</p></li>
+<li><p>The <code>unique</code> column in the GigaMUGA annotation file from UNC is messed up.</p></li>
 <li><p>On both arrays, there are a number of pairs of markers with common probe sequences. Many of these are intended duplicates, but some are not and have inconsistent information</p></li>
 <li><p>Of the markers in common between the two arrays, some have different probe sequences on the two arrays, and there are cases where the sequence on one array maps uniquely but the other does not.</p></li>
 <li><p>I’m not sure what to do with the markers on the “P” chromosome, which I understand to be the pseudoautosomal region, as the markers are not mapping to the mm10 mouse genome build.</p></li>
@@ -269,7 +269,7 @@ div.tocify {
 <p><a href="https://kbroman.org/MUGAarrays/study_sequences">Separately, I studied the probe sequences in some detail</a>. Most probes do not include the SNP, which is the next base off the 3’ end. But for probes where <code>AlleleB_ProbeSeq</code> is provided (in addition to <code>AlleleA_ProbeSeq</code>, which is always provided), the sequences include the SNP allele as the last base. In these cases, I trimmed off the SNP allele and used the 49-bp sequence.</p>
 <p>I performed blast allowing no insertions/deletions. In cases where the match didn’t include the full probe sequence, I took all non-aligned bases to be mismatches.</p>
 <p>More precisely, I installed blastn on my linux laptop with</p>
-<pre><code>sudo apt install ncbi-blast+&quot;</code></pre>
+<pre><code>sudo apt install ncbi-blast+</code></pre>
 <p>I downloaded the mm10 mouse genome files from <a href="http://hgdownload-test.cse.ucsc.edu/goldenPath/mm10/bigZips/" class="uri">http://hgdownload-test.cse.ucsc.edu/goldenPath/mm10/bigZips/</a></p>
 <p>I created index files with</p>
 <pre><code>makeblastdb -in MouseFasta/chr19.fa -dbtype nuc</code></pre>
@@ -313,7 +313,12 @@ mm_unc$chr &lt;- sub(&quot;chr&quot;, &quot;&quot;, mm_unc$chr)
 mm_blast &lt;- readRDS(&quot;../Blast/results_mm/mm_blastn_results.rds&quot;)
 mm_blast &lt;- mm_blast[mm_blast$tot_mismatch==0,]
 gm_blast &lt;- readRDS(&quot;../Blast/results_gm/gm_blastn_results.rds&quot;)
-gm_blast &lt;- gm_blast[gm_blast$tot_mismatch==0,]</code></pre>
+gm_blast &lt;- gm_blast[gm_blast$tot_mismatch==0,]
+
+# blast results for untrimmed sequences
+gm_untrimmed_blast &lt;- readRDS(&quot;../Blast/results_gm_untrimmed/gm_untrimmed_blastn_results.rds&quot;)
+gm_untrimmed_blast &lt;- gm_untrimmed_blast[gm_untrimmed_blast$tot_mismatch==0,]</code></pre>
+<p>For reasons that will become apparent later, for a set of 469 markers, I also ran blast with an “untrimmed” probe sequence that included the SNP allele at the end.</p>
 </div>
 <div id="summarize-blast-hits" class="section level2">
 <h2>Summarize blast hits</h2>
@@ -351,7 +356,7 @@ mm_uwisc &lt;- data.frame(marker=names(mm_nhits),
                        n_blast_chr=mm_nchr,
                        unique=(mm_nhits==1),
                        multi=(mm_nhits&gt;1),
-                       no_pos=(mm_nhits==0),
+                       unmapped=(mm_nhits==0),
                        chr=mm_blast_chr,
                        pos=mm_blast_pos,
                        strand=mm_blast_strand,
@@ -400,7 +405,7 @@ gm_uwisc &lt;- data.frame(marker=names(gm_nhits),
                        n_blast_chr=gm_nchr,
                        unique=(gm_nhits==1),
                        multi=(gm_nhits&gt;1),
-                       no_pos=(gm_nhits==0),
+                       unmapped=(gm_nhits==0),
                        chr=gm_blast_chr,
                        pos=gm_blast_pos,
                        strand=gm_blast_strand,
@@ -446,11 +451,11 @@ mm_diff_chr</code></pre>
 ## 6 SAbGeoEUCOMM002       P         5</code></pre>
 <p>Four of these were pseudoautosomal in the UNC annotations but map to autosomes, one was mitochondrial (with a name to match) but the sequence maps to chr 1, and one (<code>MiniMuscle001</code>) was assigned to chr 16 but maps to chr 11.</p>
 <p>Five of these six markers are found on the GigaMUGA array (all but SAbGeoEUCOMM002), and the chromosome assignments in the UNC annotations of the GigaMUGA array all match what we see in these blast results, rather than the chromosome in the UNC annotations of the MegaMUGA array.</p>
-<p>I won’t make any comparisons of basepair positions, as the UNC annotation file for the MegaMUGA array uses coordinates from build mm9 of the mouse genome, rather than build mm10 that I’m using.</p>
+<p>I won’t make any comparisons of basepair positions, as the UNC annotation file for the MegaMUGA array uses coordinates from build mm9 of the mouse genome, rather than build mm10, which I’m using.</p>
 </div>
 <div id="multiple-hits-to-one-chromosome" class="section level3">
 <h3>Multiple hits to one chromosome</h3>
-<p>There are 364 markers on the MegaMUGA array that have multiple perfect hits in the mouse genome, but all on the same chromosome. I looked at the range in SNP positions, for these multiple hits, which varied from 35 bp to 147 Mbp, with a median of 218 kbp.</p>
+<p>There are 364 markers on the MegaMUGA array that have multiple perfect hits in the mouse genome, but all on the same chromosome. The range in SNP positions, for these multiple hits, varied from 35 bp to 147 Mbp, with a median of 218 kbp.</p>
 <p>There are 29 markers with multiple hits but all on a single chromosome and all within a 1000 bp interval. We could maybe keep these, and assign each to the median of the observed positions. But for now we’ll leave them with missing genomic coordinates.</p>
 </div>
 <div id="pseudoautosomal-region" class="section level3">
@@ -462,16 +467,17 @@ mm_diff_chr</code></pre>
 <div id="what-the-heck-is-ilmnstrand" class="section level3">
 <h3>What the heck is <code>IlmnStrand</code>?</h3>
 <p>The annotation file I received from GeneSeek has a column <code>IlmnStrand</code> with values <code>TOP</code> and <code>BOT</code>, which I took to indicate the strand origin of the SNP probe sequences (which I thought were generally called “plus” and “minus”).</p>
-<p>But while this <code>IlmnStrand</code> column is consistent with the <code>SourceStrand</code> column in the UNC annotation file, it doesn’t have any relation to the strands that I’m seeing in the blast results.</p>
+<p>But while this <code>IlmnStrand</code> column is consistent with the <code>SourceStrand</code> column in the file, it doesn’t have any relation to the strands that I’m seeing in the blast results.</p>
 <p>About half of the <code>IlmnStrand</code> values are <code>TOP</code> and half are <code>BOT</code>, and in each of these groups, markers with a unique hit to the mouse genome are about half hitting the plus strand and half hitting the minus strand, so I don’t know what to make of this.</p>
 </div>
 <div id="markers-with-the-same-probes" class="section level3">
 <h3>Markers with the same probes</h3>
-<p>One last thing on the MegaMUGA array: there are 50 pairs of markers with the same probe sequence, and one set of four markers that all of the same sequence.</p>
-<p>For most of these replicate problems, it seems like they were intended, as they have names like JAX00333860 and repJAX00333860, or CEAJAX00159275 and CEBJAX00159275.</p>
-<p>But the group of four probes with matching sequences are JAX00725045, JAX00725054, repJAX00725045, and repJAX00725054, all on the Y chromosome. So two pairs of intended replicates, but it’s not obvious that JAX00725045 and JAX00725054 should be the same.</p>
+<p>One last thing on the MegaMUGA array: there are 50 pairs of markers with the same probe sequence, and one set of four markers that all have the same sequence.</p>
+<p>For most of these replicate probes, it seems like they were intended, as they have names like JAX00333860 and repJAX00333860, or CEAJAX00159275 and CEBJAX00159275.</p>
+<p>The group of four probes with matching sequences are JAX00725045, JAX00725054, repJAX00725045, and repJAX00725054, all on the Y chromosome. So two pairs of intended replicates, but it’s not obvious that JAX00725045 and JAX00725054 should be the same.</p>
 <p>Of the other 50 pairs, 35 are obvious from their names. Here are the others:</p>
-<pre class="r"><code>dup &lt;- names(mm_probe_tab)[mm_probe_tab==2]
+<pre class="r"><code>mm_probe_tab &lt;- table(mm_uwisc$probe)
+dup &lt;- names(mm_probe_tab)[mm_probe_tab==2]
 dup_pairs &lt;- t(sapply(dup, function(a) mm_uwisc$marker[mm_uwisc$probe==a]))
 dup_pairs &lt;- dup_pairs[dup_pairs[,2] != paste0(&quot;rep&quot;, dup_pairs[,1]) &amp;
                        dup_pairs[,1] != paste0(&quot;rep&quot;, dup_pairs[,2]) &amp;
@@ -527,7 +533,7 @@ stopifnot(more_dup_probes[,1] == more_dup_probes[,2])</code></pre>
 <p>(Of the 83 markers on the MegaMUGA array with chr ID <code>P</code>, 8 are not on the GigaMUGA array, 72 have missing chr ID in the UNC annotations on the GigaMUGA array, 2 are on chr 13 in the UNC annotation of the GigaMUGA array, and 1 is on chr 5 in the UNC annotation of the GigaMUGA array.)</p>
 <p>I’m going to take these <code>NA</code> chromosome IDs to be <code>P</code>.</p>
 <pre class="r"><code>gm_unc$chr[is.na(gm_unc$chr)] &lt;- &quot;P&quot;</code></pre>
-<p>The GeneSeek annotation file for the GigaMUGA array includes 143,446 markers: the 143,259 markers in the UNC annotation file for the array, plus another 187 markers in the UNC. These extra markers all have names like <code>CTRL-22</code>, and so seem to be control probes. None of matches in the mouse genome, and so we will omit them from further consideration.</p>
+<p>The GeneSeek annotation file for the GigaMUGA array includes 143,446 markers: the 143,259 markers in the UNC annotation file for the array, plus another 187 markers. These extra markers all have names like <code>CTRL-22</code> and so seem to be control probes. None of them have matches in the mouse genome, and so we will omit them from further consideration.</p>
 <pre class="r"><code># make sure control probes have no hits to mouse genome
 ctrl &lt;- gm_gs$Name[!(gm_gs$Name %in% gm_unc$marker)]
 stopifnot( !any(ctrl %in% gm_blast$query) )
@@ -557,10 +563,18 @@ off_by_pm1 &lt;- c(off_by_plus1, off_by_minus1)
 stopifnot( sort(off_by_pm1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != &quot;&quot; &amp; gm_uwisc$unique]) )
 stopifnot( sort(off_by_plus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != &quot;&quot; &amp; gm_uwisc$unique &amp; gm_uwisc$strand==&quot;minus&quot;]) )
 stopifnot( sort(off_by_minus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != &quot;&quot; &amp; gm_uwisc$unique &amp; gm_uwisc$strand==&quot;plus&quot;]) )</code></pre>
+<p>Here’s an example of this, for marker UNCrs220914250. I show the basepair positions assigned by me and UNC, as well as the two probes and the source sequence.</p>
+<pre><code>##                chr pos_uwisc   pos_unc
+## UNCrs220914250   1 130451926 130451927</code></pre>
+<pre><code>## probe A:  CACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCTC</code></pre>
+<pre><code>## probe B:  CACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCTG</code></pre>
+<pre><code>## source: NCCACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCT[C/G]TGCTACAGACAGTGAGAAGAATACCAAAAATGGGGCAACTGCTCCACCG</code></pre>
+<p>The blast result for the trimmed sequence has it matching to chr 1 from 130451877 to 130451925, putting the SNP at 1.304519310^{8}.</p>
+<p>The blast results for the <strong>untrimmed</strong> sequence has it matching to chr 1 from 130451877 to 130451926, but since the probe includes the SNP, that would place the SNP at the end position, NA.</p>
 </div>
 <div id="multiple-hits-to-one-chromosome-1" class="section level3">
 <h3>Multiple hits to one chromosome</h3>
-<p>There are 1,840 markers on the GigaMUGA array that have multiple perfect hits in the mouse genome, but all on the same chromosome. I looked at the range in SNP positions, for these multiple hits, which varied from 33 bp to 147 Mbp, with a median of 596 kbp.</p>
+<p>There are 1,840 markers on the GigaMUGA array that have multiple perfect hits in the mouse genome, but all on the same chromosome. The range in SNP positions, for these multiple hits, varied from 33 bp to 147 Mbp, with a median of 596 kbp.</p>
 <p>There are 55 markers with multiple hits but all on a single chromosome and all within a 1000 bp interval. We could maybe keep these, and assign each to the median of the observed positions. But for now we’ll leave them with missing genomic coordinates.</p>
 </div>
 <div id="pseudoautosomal-region-1" class="section level3">
@@ -577,7 +591,8 @@ stopifnot( sort(off_by_minus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != &quo
 <div id="markers-with-the-same-probes-1" class="section level3">
 <h3>Markers with the same probes</h3>
 <p>As with the MegaMUGA array, there are a number of sets of probes with the same sequence: 2,620 pairs of markers with the same probe sequence, 49 trios, and 2 groups of four.</p>
-<pre class="r"><code>gm_pairs &lt;- t(sapply(names(gm_probe_tab)[gm_probe_tab==2],
+<pre class="r"><code>gm_probe_tab &lt;- table(gm_uwisc$probe)
+gm_pairs &lt;- t(sapply(names(gm_probe_tab)[gm_probe_tab==2],
                      function(probe) gm_uwisc$marker[gm_uwisc$probe==probe]))
 gm_trios &lt;- t(sapply(names(gm_probe_tab)[gm_probe_tab==3],
                      function(probe) gm_uwisc$marker[gm_uwisc$probe==probe]))
@@ -594,21 +609,21 @@ gm_quart &lt;- t(sapply(names(gm_probe_tab)[gm_probe_tab==4],
 <li>Replace “CEA” at the beginning with “CEB”</li>
 </ul>
 <p>These can explain about half of the pairs of markers with common sequences. But when I start looking for pairs of markers that satisfy these rules, I find a ton of marker pairs that are related in these ways but have completely different sequences. I finally decided the whole thing was fruitless.</p>
-<p>There are a bunch of markers with the same sequences. Some of these were maybe by design but some maybe weren’t.</p>
 </div>
 <div id="unique-column-in-the-gm-array" class="section level3">
-<h3>Unique column in the GM array</h3>
+<h3>“<code>unique</code>” column in the GM array</h3>
 <p>The <code>unique</code> column in the UNC annotations for the GM array is quite different from what I’m finding with blast.</p>
-<p>The UNC annotation files indicates that 3,114 of the GigaMUGA markers are non-unique.</p>
-<p>When I first ran blast, I found that exactly this many of the GigaMUGA markers had multiple hits to the mouse genome. I’ve since changed my analysis slightly, by trimming off the SNP from a set of 469 probes that contained it. As a result, I’m now getting 3,150 markers with multiple hits, and I’m pretty sure that the difference (36) is due to this trimming of some of the probe sequences.</p>
+<p>The UNC annotation files indicates that 3114 of the GigaMUGA markers are non-unique.</p>
+<p>When I first ran blast, I found exactly this many of the GigaMUGA markers had multiple hits to the mouse genome. I’ve since changed my analysis slightly, by trimming off the SNP from a set of 469 probes that contained it. As a result, I’m now getting 3150 markers with multiple hits, but the difference (36) is due to this trimming of some of the probe sequences.</p>
+<p>(I went back and checked, and indeed, of the markers that I’d trimmed, there were 62 that showed multiple hits with the trimmed sequence, but only 26 that showed multiple hits with the untrimmed sequence, and so using the untrimmed sequences, I’d get 3150 - 62 + 26 = 3114 markers with multiple hits.)</p>
 <p>But anyway, the key thing is that these indicators of markers with multiple hits in the mouse genome, while not completely independent, are quite different. The two lists have just 1469 markers in common. There are 1681 markers that my blast results say have multiple hits but that the UNC file says are unique in the mouse genome, and there are 1645 markers that my blast results say have 0 or 1 hits but that the UNC file says are non-unique.</p>
 <p>We can spot check a few of these.</p>
 <ul>
-<li><p>UNC22328648 is said to be unique by the UNC annotations, but I find it has 36 hits in the mouse genome, on 17 different chromosomes.</p>
+<li><p>UNC22328648 is said to be unique by the UNC annotations, but I find it has 36 hits in the mouse genome, on 17 different chromosomes. Here’s the probe:</p>
 <p>TGCTGGGATTTGAACTCAGAACCTTCGGAAGAGCAGTCAGTGCTCTTAAC</p></li>
-<li><p>UNC7052740 is said to be non-unique by the UNC annotations, but I find it has a single, unique hit on chr 4 at 35,637,450 bp, which is the position given in the UNC annotations.</p>
+<li><p>UNC7052740 is said to be non-unique by the UNC annotations, but I find it has a single, unique hit on chr 4 at 35,637,450 bp, which is the position given in the UNC annotations. Here’s the probe:</p>
 <p>TAATGTGATAGATCCCCAGGTGGGGCAGTCTCTGGATGGTCCATCCTTCC</p></li>
-<li><p>UNC15059592 is said to be unique by the UNC annotations, but this is the one that I find has the most hits to the mouse genome: 18,855 on 21 chromosomes (all but the mtDNA).</p>
+<li><p>UNC15059592 is said to be unique by the UNC annotations, but this is the one that I find has the most hits to the mouse genome: 18,855 on 21 chromosomes (all but the mtDNA). Here’s the probe:</p>
 <p>GCTTCTGGCTATTATAAATAAGGCTGCTATGAACATAGTGGAGCATGTGT</p></li>
 </ul>
 </div>
@@ -628,16 +643,30 @@ odd_mm_no_r &lt;- sub(&quot;r$&quot;, &quot;&quot;, odd_mm)
 # the ones that changed probes
 probe_changed &lt;- odd_mm_no_r[gm_uwisc[odd_mm,&quot;probe&quot;] != mm_uwisc[odd_mm_no_r, &quot;probe&quot;]]
 probe_changed_r &lt;- paste0(probe_changed, &quot;r&quot;)</code></pre>
-<p>These 653 markers all have names like “JAX00017210r”, where “JAX00017210” is a marker on the MegaMUGA array (and 617 of the markers without the terminal r are also on the GigaMUGA array).</p>
+<p>These 653 markers all have names like “JAX00017210r”, where “JAX00017210” is a marker on the MegaMUGA array (and 617 of the markers without the terminal r are also on the GigaMUGA array). <strong>Importantly</strong>, this indicates that the <code>is.MM</code> column is <strong>as intended</strong>. So while I’ve concluded that the <code>unique</code> column is at least partially scrambled, there’s no evidence for other columns being similarly scrambled.</p>
 <p>636 of the probes are unchanged between the MegaMUGA and GigaMUGA arrays, despite the “r” that was added to the name.</p>
 <p>That leaves another 17 markers for which the probe was changed. For one of these markers, neither of the probes are unique in the mm10 mouse build. For two others, the probe on the MegaMUGA array is not unique but the probe on the GigaMUGA array is. 12 of the markers have unique sequences on both arrays, and both are for the same SNP position, but with one on the plus strand and one on the minus strand. But then there are two markers where the SNP was switched from the plus to the minus strand but also shifted somewhat: JAX00712617/JAX00712617r and JAX00181213/JAX00181213r. Both pairs are on the X chromosome, and the difference in SNP position is 72 bp in the first case and 34 bp in the second.</p>
-<p>If we got by SNP positions, we’ll find a different set of positions that are present on both arrays. Ugh.</p>
+<p>If we go by SNP positions, we’ll find a different set of positions that are present on both arrays. Ugh.</p>
 <p>And I still need to also look at the set of markers with identical names but different sequences: are they pointing to the same positions?</p>
 <p>Seems like we should focus on the positions of the markers rather than their names or even their sequences. We need to create lists of markers that are assaying the same SNP.</p>
+<pre class="r"><code>gm_pos &lt;- apply(gm_uwisc[gm_uwisc$unique,c(&quot;chr&quot;, &quot;pos&quot;)], 1, function(a) gsub(&quot; &quot;, &quot;&quot;, paste(a, collapse=&quot;:&quot;)))
+mm_pos &lt;- apply(mm_uwisc[mm_uwisc$unique,c(&quot;chr&quot;, &quot;pos&quot;)], 1, function(a) gsub(&quot; &quot;, &quot;&quot;, paste(a, collapse=&quot;:&quot;)))</code></pre>
+<p>Focusing on SNP positions, the MegaMUGA has 75,021 unique markers, the GigaMUGA has 134,602 unique markers, and the two arrays have 64,887 markers in common.</p>
+<p>Need to make a table of markers that are assaying the same positions.</p>
+<p>Also markers that have the same name but different sequences on the two arrays, especially where they’re not both unique and assaying the same marker.</p>
 </div>
 <div id="marker-tier-information" class="section level2">
 <h2>Marker tier information</h2>
-<p>Reconstruct the tiers 1,2,3,4: Is the tier column in the UNC annotation file for GM correct?</p>
+<p>I was going to check the <code>tier</code> column in the UNC annotation file, with quality tiers 1-4, but I can’t find the data from <a href="https://doi.org/10.1534/g3.115.022087">Morgan et al. (2016)</a>. It’s reported to be at <a href="http://csbio.unc.edu/MUGA" class="uri">http://csbio.unc.edu/MUGA</a>, but they no longer seem to be there (just the annotation files and information on SNP intensity clusters).</p>
+</div>
+<div id="new-annotation-files" class="section level2">
+<h2>New annotation files</h2>
+<div id="version-0" class="section level3">
+<h3>Version 0</h3>
+</div>
+<div id="version-1-with-genetic-maps" class="section level3">
+<h3>Version 1, with genetic maps</h3>
+</div>
 </div>
 <div id="session-info" class="section level2">
 <h2>Session info</h2>
@@ -646,10 +675,10 @@ probe_changed_r &lt;- paste0(probe_changed, &quot;r&quot;)</code></pre>
 <pre><code>## ─ Session info ─────────────────────────────────────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 3.5.1 (2018-07-02)
-##  os       Pop!_OS 18.04 LTS           
-##  system   x86_64, linux-gnu           
+##  os       macOS High Sierra 10.13.6   
+##  system   x86_64, darwin15.6.0        
 ##  ui       X11                         
-##  language en_US:en                    
+##  language en_US.UTF-8                 
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       America/Chicago             
@@ -661,44 +690,42 @@ probe_changed_r &lt;- paste0(probe_changed, &quot;r&quot;)</code></pre>
 ##  backports     1.1.2   2017-12-13 [1] CRAN (R 3.5.0)
 ##  base64enc     0.1-3   2015-07-28 [1] CRAN (R 3.5.0)
 ##  broman      * 0.68-4  2018-08-17 [1] local         
-##  callr         3.0.0   2018-08-24 [1] CRAN (R 3.5.1)
-##  cli           1.0.1   2018-09-25 [1] CRAN (R 3.5.1)
+##  callr         3.0.0   2018-08-24 [1] CRAN (R 3.5.0)
+##  cli           1.0.1   2018-09-25 [1] CRAN (R 3.5.0)
 ##  crayon        1.3.4   2017-09-16 [1] CRAN (R 3.5.0)
-##  data.table  * 1.11.8  2018-09-30 [1] CRAN (R 3.5.1)
+##  data.table  * 1.11.8  2018-09-30 [1] CRAN (R 3.5.0)
 ##  debugme       1.1.0   2017-10-22 [1] CRAN (R 3.5.0)
 ##  desc          1.2.0   2018-05-01 [1] CRAN (R 3.5.0)
 ##  devtools    * 2.0.1   2018-10-26 [1] CRAN (R 3.5.1)
-##  digest        0.6.18  2018-10-10 [1] CRAN (R 3.5.1)
-##  evaluate      0.12    2018-10-09 [1] CRAN (R 3.5.1)
-##  fs            1.2.6   2018-08-23 [1] CRAN (R 3.5.1)
-##  glue          1.3.0   2018-07-17 [1] CRAN (R 3.5.1)
+##  digest        0.6.18  2018-10-10 [1] CRAN (R 3.5.0)
+##  evaluate      0.12    2018-10-09 [1] CRAN (R 3.5.0)
+##  fs            1.2.6   2018-08-23 [1] CRAN (R 3.5.0)
+##  glue          1.3.0   2018-07-17 [1] CRAN (R 3.5.0)
 ##  htmltools     0.3.6   2017-04-28 [1] CRAN (R 3.5.0)
 ##  knitr         1.20    2018-02-20 [1] CRAN (R 3.5.0)
 ##  magrittr      1.5     2014-11-22 [1] CRAN (R 3.5.0)
 ##  memoise       1.1.0   2017-04-21 [1] CRAN (R 3.5.0)
-##  pkgbuild      1.0.2   2018-10-16 [1] CRAN (R 3.5.1)
-##  pkgload       1.0.2   2018-10-29 [1] CRAN (R 3.5.1)
+##  pkgbuild      1.0.2   2018-10-16 [1] CRAN (R 3.5.0)
+##  pkgload       1.0.2   2018-10-29 [1] CRAN (R 3.5.0)
 ##  prettyunits   1.0.2   2015-07-13 [1] CRAN (R 3.5.0)
 ##  processx      3.2.0   2018-08-16 [1] CRAN (R 3.5.1)
-##  ps            1.2.0   2018-10-16 [1] CRAN (R 3.5.1)
+##  ps            1.2.0   2018-10-16 [1] CRAN (R 3.5.0)
 ##  R6            2.3.0   2018-10-04 [1] CRAN (R 3.5.1)
-##  Rcpp          0.12.19 2018-10-01 [1] CRAN (R 3.5.1)
-##  remotes       2.0.2   2018-10-30 [1] CRAN (R 3.5.1)
-##  rlang         0.3.0.1 2018-10-25 [1] CRAN (R 3.5.1)
+##  Rcpp          0.12.19 2018-10-01 [1] CRAN (R 3.5.0)
+##  remotes       2.0.2   2018-10-30 [1] CRAN (R 3.5.0)
+##  rlang         0.3.0.1 2018-10-25 [1] CRAN (R 3.5.0)
 ##  rmarkdown     1.10    2018-06-11 [1] CRAN (R 3.5.0)
 ##  rprojroot     1.3-2   2018-01-03 [1] CRAN (R 3.5.0)
-##  sessioninfo   1.1.0   2018-09-25 [1] CRAN (R 3.5.1)
-##  stringi       1.2.4   2018-07-20 [1] CRAN (R 3.5.1)
+##  sessioninfo   1.1.0   2018-09-25 [1] CRAN (R 3.5.0)
+##  stringi       1.2.4   2018-07-20 [1] CRAN (R 3.5.0)
 ##  stringr       1.3.1   2018-05-10 [1] CRAN (R 3.5.0)
-##  testthat      2.0.1   2018-10-13 [1] CRAN (R 3.5.1)
-##  usethis     * 1.4.0   2018-08-14 [1] CRAN (R 3.5.1)
+##  testthat      2.0.1   2018-10-13 [1] CRAN (R 3.5.0)
+##  usethis     * 1.4.0   2018-08-14 [1] CRAN (R 3.5.0)
 ##  withr         2.1.2   2018-03-15 [1] CRAN (R 3.5.0)
-##  yaml          2.2.0   2018-07-25 [1] CRAN (R 3.5.1)
+##  yaml          2.2.0   2018-07-25 [1] CRAN (R 3.5.0)
 ## 
-## [1] /home/kbroman/Rlibs
-## [2] /usr/local/lib/R/site-library
-## [3] /usr/lib/R/site-library
-## [4] /usr/lib/R/library</code></pre>
+## [1] /Users/kbroman/Rlibs
+## [2] /Library/Frameworks/R.framework/Versions/3.5/Resources/library</code></pre>
 </div>
 
 
