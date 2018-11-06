@@ -844,16 +844,26 @@ of the probes are unchanged between the MegaMUGA and GigaMUGA arrays,
 despite the "r" that was added to the name.
 
 That leaves another `r length(probe_changed)` markers for which the
-probe was changed. For one of these markers, neither of the probes are
-unique in the mm10 mouse build. For two others, the probe on the
-MegaMUGA array is not unique but the probe on the GigaMUGA array is.
-12 of the markers have unique sequences on both arrays, and both are
+probe was changed. For
+`r numbers[sum(mm_uwisc[probe_changed, "multi"] & gm_uwisc[probe_changed_r,"unmapped"])]`
+of these markers, the probe on the MegaMUGA had multiple hits but the
+probe on the GigaMUGA has no hits.
+For
+`r numbers[sum(mm_uwisc[probe_changed, "multi"] & gm_uwisc[probe_changed_r,"unique"])]`
+others, the probe on the
+MegaMUGA array has multiple genome hits but the probe on the GigaMUGA
+array is unique.
+`r Numbers[sum(mm_uwisc[probe_changed, "unique"] & gm_uwisc[probe_changed_r,"unique"] & mm_uwisc[probe_changed, "pos"]==gm_uwisc[probe_changed_r,"pos"])]`
+of the markers have unique sequences on both arrays, and both are
 for the same SNP position, but with one on the plus strand and one on
 the minus strand. But then there are two markers where the SNP was
 switched from the plus to the minus strand but also shifted somewhat:
 JAX00712617/JAX00712617r and JAX00181213/JAX00181213r. Both pairs are
-on the X chromosome, and the difference in SNP position is 72 bp in
-the first case and 34 bp in the second.
+on the X chromosome, and the difference in SNP position is
+`r mm_uwisc["JAX00712617","pos"]-gm_uwisc["JAX00712617r","pos"]`
+bp in the first case and
+`r mm_uwisc["JAX00181213","pos"]-gm_uwisc["JAX00181213r","pos"]`
+bp in the second.
 
 If we go by SNP positions, we'll find a different set of positions
 that are present on both arrays. Ugh.
