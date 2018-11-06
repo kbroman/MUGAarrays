@@ -806,6 +806,16 @@ Seems like we should focus on the positions of the markers rather than
 their names or even their sequences. We need to create lists of
 markers that are assaying the same SNP.
 
+```{r snp_positions}
+gm_pos <- apply(gm_uwisc[gm_uwisc$unique,c("chr", "pos")], 1, function(a) gsub(" ", "", paste(a, collapse=":")))
+mm_pos <- apply(mm_uwisc[mm_uwisc$unique,c("chr", "pos")], 1, function(a) gsub(" ", "", paste(a, collapse=":")))
+```
+
+Focusing on SNP positions, the MegaMUGA has
+`r add_commas(length(unique(mm_pos)))` unique markers, the GigaMUGA
+has `r add_commas(length(unique(gm_pos)))` unique markers, and the two
+arrays have `r add_commas(sum(unique(mm_pos) %in% gm_pos))` markers in
+common.
 
 
 ## Marker tier information
