@@ -424,6 +424,7 @@ Of the other `r sum(mm_probe_tab==2)` pairs, 35 are obvious from their
 names. Here are the others:
 
 ```{r mm_study_dup_pairs}
+mm_probe_tab <- table(mm_uwisc$probe)
 dup <- names(mm_probe_tab)[mm_probe_tab==2]
 dup_pairs <- t(sapply(dup, function(a) mm_uwisc$marker[mm_uwisc$probe==a]))
 dup_pairs <- dup_pairs[dup_pairs[,2] != paste0("rep", dup_pairs[,1]) &
@@ -641,6 +642,7 @@ with the same probe sequence,
 `r sum(gm_probe_tab == 4)` groups of four.
 
 ```{r gm_grab_dup_probes}
+gm_probe_tab <- table(gm_uwisc$probe)
 gm_pairs <- t(sapply(names(gm_probe_tab)[gm_probe_tab==2],
                      function(probe) gm_uwisc$marker[gm_uwisc$probe==probe]))
 gm_trios <- t(sapply(names(gm_probe_tab)[gm_probe_tab==3],
