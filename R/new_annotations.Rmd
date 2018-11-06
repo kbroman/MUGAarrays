@@ -48,9 +48,10 @@ coordinates only for the markers that map uniquely.
 A summary of my findings:
 
 - For markers mapping uniquely (by my determination), the genomic
-  coordinates in the UNC GigaMUGA annotation file were correct. The
-  `is.MM` column in the UNC annotation file also appears to be as
-  intended.
+  coordinates in the UNC GigaMUGA annotation file were correct (except
+  for a set of 394 markers where the UNC position is off by
+  one basepair, because the probe sequences include the SNP and this
+  wasn't taken into account).
 
 - The UNC MegaMUGA annotation file had coordinates in a previous mouse
   genome build (mm9). For markers mapping uniquely, there are just a small
