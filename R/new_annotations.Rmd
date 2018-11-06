@@ -47,15 +47,17 @@ coordinates only for the markers that map uniquely.
 
 A summary of my findings:
 
-- For markers mapping uniquely, the genomic coordinates in the UNC
-  GigaMUGA annotation file were correct.
+- For markers mapping uniquely (by my determination), the genomic
+  coordinates in the UNC GigaMUGA annotation file were correct. The
+  `is.MM` column in the UNC annotation file also appears to be as
+  intended.
 
 - The UNC MegaMUGA annotation file had coordinates in a previous mouse
-  genome build (mm9). For markers mapping uniquely, there are a small
+  genome build (mm9). For markers mapping uniquely, there are just a small
   number with differences in chromosome assignments; there are lots of
   differences in positions, with the new build (mm10).
 
-- The "unique" column in the GigaMUGA annotation file is messed up.
+- The `unique` column in the GigaMUGA annotation file from UNC is messed up.
 
 - On both arrays, there are a number of pairs of markers with common probe
   sequences. Many of these are intended duplicates, but some are not
@@ -162,6 +164,10 @@ gm_blast <- gm_blast[gm_blast$tot_mismatch==0,]
 gm_untrimmed_blast <- readRDS("../Blast/results_gm_untrimmed/gm_untrimmed_blastn_results.rds")
 gm_untrimmed_blast <- gm_untrimmed_blast[gm_untrimmed_blast$tot_mismatch==0,]
 ```
+
+For reasons that will become apparent later, for a set of
+`r sum(gm_gs$AlleleB_ProbeSeq!="")` markers, I also ran blast with an
+"untrimmed" probe sequence that included the SNP allele at the end.
 
 
 ## Summarize blast hits
@@ -339,14 +345,14 @@ chromosome in the UNC annotations of the MegaMUGA array.
 
 I won't make any comparisons of basepair positions, as the UNC
 annotation file for the MegaMUGA array uses coordinates from build mm9
-of the mouse genome, rather than build mm10 that I'm using.
+of the mouse genome, rather than build mm10, which I'm using.
 
 ### Multiple hits to one chromosome
 
 There are `r length(mm_mult_but1chr)` markers on the MegaMUGA array
 that have multiple perfect hits in the mouse genome, but all on the
-same chromosome. I looked at the range in SNP positions, for these
-multiple hits, which varied from
+same chromosome. The range in SNP positions, for these
+multiple hits, varied from
 `r min(mm_mult_but1chr_range)` bp to
 `r round(max(mm_mult_but1chr_range)/1e6)` Mbp, with a median of
 `r round(median(mm_mult_but1chr_range)/1000)` kbp.
@@ -398,7 +404,7 @@ origin of the SNP probe sequences (which I thought were generally
 called "plus" and "minus").
 
 But while this `IlmnStrand` column is consistent with the
-`SourceStrand` column in the UNC annotation file, it doesn't have any
+`SourceStrand` column in the file, it doesn't have any
 relation to the strands that I'm seeing in the blast results.
 
 About half of the `IlmnStrand` values are `TOP` and half are `BOT`,
@@ -412,14 +418,14 @@ minus strand, so I don't know what to make of this.
 
 One last thing on the MegaMUGA array: there are
 `r sum((mm_probe_tab <- table(mm_uwisc$probe))==2)` pairs of markers
-with the same probe sequence, and one set of four markers that all of
+with the same probe sequence, and one set of four markers that all have
 the same sequence.
 
-For most of these replicate problems, it seems like they were
+For most of these replicate probes, it seems like they were
 intended, as they have names like JAX00333860 and repJAX00333860,
 or CEAJAX00159275 and CEBJAX00159275.
 
-But the group of four probes with matching sequences are
+The group of four probes with matching sequences are
 `r vec2string(sort(mm_uwisc$marker[mm_uwisc$probe==names(mm_probe_tab)[mm_probe_tab==4]]))`,
 all on the Y chromosome. So two pairs of intended replicates, but it's
 not obvious that JAX00725045 and JAX00725054 should be the same.
@@ -519,9 +525,9 @@ The GeneSeek annotation file for the GigaMUGA array includes
 `r add_commas(nrow(gm_gs))` markers: the
 `r add_commas(sum(gm_gs$Name %in% gm_unc$marker))` markers in the UNC
 annotation file for the array, plus another
-`r add_commas(sum(!(gm_gs$Name %in% gm_unc$marker)))` markers in the
-UNC. These extra markers all have names like `CTRL-22`, and so seem to
-be control probes. None of matches in the mouse genome, and so we will
+`r add_commas(sum(!(gm_gs$Name %in% gm_unc$marker)))` markers.
+These extra markers all have names like `CTRL-22` and so seem to
+be control probes. None of them have matches in the mouse genome, and so we will
 omit them from further consideration.
 
 ```{r gm_omit_ctrl_probes}
@@ -569,7 +575,7 @@ Moreover, the ones that I have at +1 relative to the UNC annotation
 are the ones on the minus strand, and the ones I have at -1 relative
 to the UNC annotation are the ones on the plus strand. And so these
 off-by-one values are due to the handling of the cases where the probe
-sequences included the SNP. And I think that my positions are
+sequences included the SNP. And I am confident that my positions are
 the correct values.
 
 ```{r gm_verify_off_by_1}
@@ -583,9 +589,11 @@ stopifnot( sort(off_by_plus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != "" & 
 stopifnot( sort(off_by_minus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != "" & gm_uwisc$unique & gm_uwisc$strand=="plus"]) )
 ```
 
-Here's an example of this:
+Here's an example of this, for marker UNCrs220914250. I show the
+basepair positions assigned by me and UNC, as well as the two probes
+and the source sequence.
 
-```{r off_by_1_example}
+```{r off_by_1_example, echo=FALSE}
 marker <- "UNCrs220914250"
 cbind(chr=gm_uwisc[marker, "chr",drop=FALSE],
       pos_uwisc=gm_uwisc[marker, "pos"],
@@ -596,18 +604,18 @@ cat("source:",  gm_gs[marker,"SourceSeq"], "\n")
 ```
 
 The blast result for the trimmed sequence has it matching to chr
-`r gm_blast[gm_blast$query=="marker", "chr"]` from
-`r gm_blast[gm_blast$query=="marker", "start_chr"]` to
-`r gm_blast[gm_blast$query=="marker", "end_chr"]`, putting the SNP at
-`r gm_blast[gm_blast$query=="marker", "snp_pos"]`.
+`r gm_blast[gm_blast$query==marker, "chr"]` from
+`r gm_blast[gm_blast$query==marker, "start_chr"]` to
+`r gm_blast[gm_blast$query==marker, "end_chr"]`, putting the SNP at
+`r gm_blast[gm_blast$query==marker, "snp_pos"]`.
 
 The blast results for the **untrimmed** sequence
 has it matching to chr
-`r gm_untrimmed_blast[gm_untrimmed_blast$query=="marker", "chr"]` from
-`r gm_untrimmed_blast[gm_untrimmed_blast$query=="marker", "start_chr"]` to
-`r gm_untrimmed_blast[gm_untrimmed_blast$query=="marker", "end_chr"]`,
+`r gm_untrimmed_blast[gm_untrimmed_blast$query==marker, "chr"]` from
+`r gm_untrimmed_blast[gm_untrimmed_blast$query==marker, "start_chr"]` to
+`r gm_untrimmed_blast[gm_untrimmed_blast$query==marker, "end_chr"]`,
 but since the probe includes the SNP, that would place the SNP at the
-end position, `r gm_untrimmed_blast[gm_blast$query=="marker", "end_chr"]`.
+end position, `r gm_untrimmed_blast[gm_blast$query==marker, "end_chr"]`.
 
 
 
@@ -616,8 +624,8 @@ end position, `r gm_untrimmed_blast[gm_blast$query=="marker", "end_chr"]`.
 
 There are `r add_commas(length(gm_mult_but1chr))` markers on the GigaMUGA array
 that have multiple perfect hits in the mouse genome, but all on the
-same chromosome. I looked at the range in SNP positions, for these
-multiple hits, which varied from
+same chromosome. The range in SNP positions, for these
+multiple hits, varied from
 `r min(gm_mult_but1chr_range)` bp to
 `r round(max(gm_mult_but1chr_range)/1e6)` Mbp, with a median of
 `r round(median(gm_mult_but1chr_range)/1000)` kbp.
@@ -712,36 +720,41 @@ these rules, I find a ton of marker pairs that are related in these
 ways but have completely different sequences. I finally decided the
 whole thing was fruitless.
 
-There are a bunch of markers with the same sequences. Some of these
-were maybe by design but some maybe weren't.
-
 
 ### "`unique`" column in the GM array
 
 The `unique` column in the UNC annotations for the GM array is quite
 different from what I'm finding with blast.
 
-The UNC annotation files indicates that `r add_commas(sum(!gm_unc$unique))`
+The UNC annotation files indicates that `r sum(!gm_unc$unique)`
 of the GigaMUGA markers are non-unique.
 
-When I first ran blast, I found that exactly this many of the GigaMUGA
+When I first ran blast, I found exactly this many of the GigaMUGA
 markers had multiple hits to the mouse genome. I've since changed my
 analysis slightly, by trimming off the SNP from a set of
 `r sum(gm_gs$AlleleB_ProbeSeq != "")` probes that contained it. As a
-result, I'm now getting `r add_commas(sum(gm_uwisc$multi))` markers
-with multiple hits, and I'm pretty sure that the difference
+result, I'm now getting `r sum(gm_uwisc$multi)` markers
+with multiple hits, but the difference
 (`r sum(gm_uwisc$multi) - sum(!gm_unc$unique)`) is due to this
 trimming of some of the probe sequences.
 
-[I went back and checked, and indeed, of the markers that I'd trimmed,
-there were 62 that showed multiple hits with the trimmed sequence, but
-only 26 that showed multiple hits with the untrimmed sequence, and so
-using the untrimmed sequences, I'd get 3,150 - 62 + 26 = 3,114 total
-markers with multiple hits.]
+(I went back and checked, and indeed, of the markers that I'd trimmed,
+there were
+`r (n_trimmed <- sum(table(gm_blast$query[gm_blast$query %in% gm_gs$Name[gm_gs$AlleleB_ProbeSeq != ""]]) > 1))`
+that showed multiple hits with the trimmed sequence, but
+only
+`r (n_untrimmed <- sum(table(gm_untrimmed_blast$query)>1))`
+that showed multiple hits with the untrimmed sequence, and so
+using the untrimmed sequences, I'd get
+`r sum(gm_uwisc$multi)` -
+`r n_trimmed` + `r n_untrimmed` =
+`r sum(gm_uwisc$multi) - n_trimmed + n_untrimmed`
+markers with multiple hits.)
 
 But anyway, the key thing is that these indicators of markers with
 multiple hits in the mouse genome, while not completely independent,
-are quite different. The two lists have just
+are quite different.
+The two lists have just
 `r sum(gm_uwisc$multi & !gm_unc$unique)` markers in common.
 There are `r sum(gm_uwisc$multi & gm_unc$unique)` markers that my
 blast results say have multiple hits but that the UNC file says are
@@ -754,18 +767,21 @@ We can spot check a few of these.
 
 - UNC22328648 is said to be unique by the UNC annotations, but I find
   it has 36 hits in the mouse genome, on 17 different chromosomes.
+  Here's the probe:
 
       TGCTGGGATTTGAACTCAGAACCTTCGGAAGAGCAGTCAGTGCTCTTAAC
 
 - UNC7052740 is said to be non-unique by the UNC annotations, but I
   find it has a single, unique hit on chr 4 at 35,637,450 bp, which is
   the position given in the UNC annotations.
+  Here's the probe:
 
       TAATGTGATAGATCCCCAGGTGGGGCAGTCTCTGGATGGTCCATCCTTCC
 
 - UNC15059592 is said to be unique by the UNC annotations, but this is
   the one that I find has the most hits to the mouse genome: 18,855 on
   21 chromosomes (all but the mtDNA).
+  Here's the probe:
 
       GCTTCTGGCTATTATAAATAAGGCTGCTATGAACATAGTGGAGCATGTGT
 
