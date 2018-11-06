@@ -472,57 +472,225 @@ sequence).
 
 I'll now turn to the GigaMUGA array, and do the same stuff plus a bit more.
 
-the markers that are off by +/- 1 are exactly the ones with the AlleleB_ProbeSeq
-(and I think I'm right)
+### Basic blast results
+
+The GigaMUGA array contains
+`r add_commas(nrow(gm_unc))` markers. In the UNC annotation file,
+`r add_commas(sum(gm_unc$chr %in% (1:19)))` are on autosomes,
+`r add_commas(sum(gm_unc$chr=="X", na.rm=TRUE))` are on the X chromosome,
+`r add_commas(sum(gm_unc$chr=="Y", na.rm=TRUE))` are on the Y chromosome,
+and `r add_commas(sum(gm_unc$chr=="M", na.rm=TRUE))` are on the mitochondrial genome.
+
+In the UNC annotation file, none of the GigaMUGA markers are assigned
+to chromosome `P`, but there are
+`r add_commas(sum(is.na(gm_unc$chr)))` markers where the chromosome ID
+is missing. Of these,
+`r sum(gm_unc$marker[is.na(gm_unc$chr)] %in% mm_unc$marker[(mm_unc$chr=="P")] )`
+were on the MegaMUGA array and assigned to chromosome `P`,
+`r sum(gm_unc$marker[is.na(gm_unc$chr)] %in% mm_unc$marker[(mm_unc$chr!="P")] )`
+were on MegaMUGA array but assigned to chr 18,
+and
+`r sum(!gm_unc$marker[is.na(gm_unc$chr)] %in% mm_unc$marker)`
+were not on the MegaMUGA array.
+
+(Of the `r add_commas(sum(mm_unc$chr=="P"))` markers on the MegaMUGA
+array with chr ID `P`,
+`r sum(!(mm_unc$marker[mm_unc$chr=="P"] %in% gm_unc$marker))`
+are not on the GigaMUGA array,
+`r sum(mm_unc$marker[mm_unc$chr=="P"] %in% gm_unc$marker[is.na(gm_unc$chr)])`
+have missing chr ID in the UNC annotations on the GigaMUGA array,
+`r sum(mm_unc$marker[mm_unc$chr=="P"] %in% gm_unc$marker[!is.na(gm_unc$chr) & gm_unc$chr=="13"])`
+are on chr 13 in the UNC annotation of the GigaMUGA array,
+and `r sum(mm_unc$marker[mm_unc$chr=="P"] %in% gm_unc$marker[!is.na(gm_unc$chr) & gm_unc$chr=="5"])`
+is on chr 5 in the UNC annotation of the GigaMUGA array.)
+
+I'm going to take these `NA` chromosome IDs to be `P`.
+
+```{r gm_na_chr_to_p}
+gm_unc$chr[is.na(gm_unc$chr)] <- "P"
 ```
 
-```{r p_mar, eval=FALSE}
-# markers on p chr in MM that are also in GM
-pmar_mm <- mm_unc$marker[mm_unc$chr=="P" & mm_unc$marker %in% gm_unc$marker]
+The GeneSeek annotation file for the GigaMUGA array includes
+`r add_commas(nrow(gm_gs))` markers: the
+`r add_commas(sum(gm_gs$Name %in% gm_unc$marker))` markers in the UNC
+annotation file for the array, plus another
+`r add_commas(sum(!(gm_gs$Name %in% gm_unc$marker)))` markers in the
+UNC. These extra markers all have names like `CTRL-22`, and so seem to
+be control probes. None of matches in the mouse genome, and so we will
+omit them from further consideration.
 
-# markers on p chr(?) ...well actually chr is NA... in GM that are also in MM
-pmar_gm <- gm_unc$marker[is.na(gm_unc$chr) & gm_unc$marker %in% mm_unc$marker]
+```{r gm_omit_ctrl_probes}
+# make sure control probes have no hits to mouse genome
+ctrl <- gm_gs$Name[!(gm_gs$Name %in% gm_unc$marker)]
+stopifnot( !any(ctrl %in% gm_blast$query) )
 
-pmar_gm %wnin% pmar_mm # UNC28724761 UNC28725371 UNC28726152
-# latter are on 18 in MM
-pmar_mm %wnin% pmar_gm # NNT001      NNT002      SAbGeoEUCOMM001
-# latter are on 5,13 in GM
+# omit these control probes from the annotations
+gm_gs <- gm_gs[gm_gs$Name %in% gm_unc$marker,]
+gm_uwisc <- gm_uwisc[gm_uwisc$marker %in% gm_unc$marker,]
+
+# omit them from other pieces I'm using
+gm_nhits <- gm_nhits[gm_uwisc$marker]
 ```
 
-```{r markers_with_common_probes, eval=FALSE}
-# MM probes with the same sequence
-tab <- table(mm_unc$seq.A)
-dup <- names(tab)[tab > 1] # 51 sets
-z <- lapply(dup, function(d) { z <- mm_unc[mm_unc$seq.A == d,]
-         if(length(unique(z$chr[!is.na(z$chr)])) > 1) return(rownames(z)) })
-z <- z[sapply(z, length)>0]
+In the blast results, I find that `r add_commas(sum(gm_nhits==1))`
+markers have a single, unique hit in the mouse genome (build mm10), while
+`r add_commas(sum(gm_nhits>1))` hit to multiple locations
+(median `r median(gm_nhits[gm_nhits>1])` locations and maximum
+`r add_commas(max(gm_nhits))`), and `r add_commas(sum(gm_nhits==0))`
+have no perfect match in the mm10 build of the mouse genome.
 
-# MM UNC88694 (chr 1), UNC2512583 (chr 2)
-[only 2nd one in GM]
-# MM UNC23833145 (chr 14), UNC4368900 (chr 2)
-[in GM, both said to be unique, but same probe and on different chromosomes]
-# MM UNC20251282 (chr 11), UNC5746160 (chr 3)
-[in GM, both said to be unique, but same probe and on different chromosomes]
-# MM UNC27690624 (chr 17), UNC30009421 (chr 19)
-[only 2nd one in GM]
-# MM UNC19598208 (chr 11)  UNC24941679 (chr 14)
-[in GM, both said to be unique, but same probe and on different chromosomes]
+### Unique markers
 
-# GM has *a lot* of markers with the same sequence
-tab <- table(gm_unc$seq.A)
-dup <- names(tab)[tab > 1] # 2672 sets
-z <- lapply(dup, function(d) { z <- gm_unc[gm_unc$seq.A == d,]
-         if(length(unique(z$chr[!is.na(z$chr)])) > 1) return(rownames(z)) })
-z <- z[sapply(z, length)>0]
-# only 10 sets that are on different chromosomes: 3 above, and these 7:
-# UNCrs52300311 complement008 complement018 complement016 (repetitive sequence that doesn't map)
-# Mit016 Mit030             # Mit016 placed on M
-# sanger1454  sanger1454q   # both map multiply, but in unc annotations said unique
-# UNC9964748  UNC10237349   # "
-# sanger2519  sanger2519q
-# sanger2310  sanger2310q
-# JAX00187253q JAX00187253
+If we look at the inferred chromosome assignments of the
+`r add_commas(sum(gm_uwisc$unique))` markers with a unique hit to the
+genome, **all of them** match the chromosome in the UNC annotation
+file.
+
+```{r gm_mismatch_chr}
+# all of the unique ones match
+stopifnot( all(gm_unc[gm_uwisc$marker[gm_uwisc$unique], "chr"] == gm_uwisc$chr[gm_uwisc$unique]) )
+
+# reorder gm_unc and gm_gs
+gm_unc <- gm_unc[gm_uwisc$marker,]
 ```
+
+The SNP positions match for
+`r add_commas(sum((gm_unc$pos - gm_uwisc$pos)[gm_uwisc$unique]==0))`
+markers, but are off by &plusmn;1 for the other
+`r sum((gm_unc$pos - gm_uwisc$pos)[gm_uwisc$unique]!=0)` markers.
+These off-by-1 markers are exactly the ones where the probe sequence
+in the GeneSeek annotation file included the SNP, which I trimmed off.
+Moreover, the ones that I have at +1 relative to the UNC annotation
+are the ones on the minus strand, and the ones I have at -1 relative
+to the UNC annotation are the ones on the plus strand. And so these
+off-by-one values are due to the handling of the cases where the probe
+sequences included the SNP. And I am confident that my positions are
+the correct values.
+
+``{r gm_verify_off_by_1}
+# verify the statements above
+# markers where position is off by one are the cases where AlleleB is provided
+off_by_plus1 <- gm_uwisc$marker[gm_uwisc$pos == gm_unc$pos+1 & gm_uwisc$unique]
+off_by_minus1 <- gm_uwisc$marker[gm_uwisc$pos == gm_unc$pos-1 & gm_uwisc$unique]
+off_by_pm1 <- c(off_by_plus1, off_by_minus1)
+stopifnot( sort(off_by_pm1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != "" & gm_uwisc$unique]) )
+stopifnot( sort(off_by_plus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != "" & gm_uwisc$unique & gm_uwisc$strand=="minus"]) )
+stopifnot( sort(off_by_minus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != "" & gm_uwisc$unique & gm_uwisc$strand=="plus"]) )
+```
+
+
+
+### Multiple hits to one chromosome
+
+There are `r add_commas(length(gm_mult_but1chr))` markers on the GigaMUGA array
+that have multiple perfect hits in the mouse genome, but all on the
+same chromosome. I looked at the range in SNP positions, for these
+multiple hits, which varied from
+`r min(gm_mult_but1chr_range)` bp to
+`r round(max(gm_mult_but1chr_range)/1e6)` Mbp, with a median of
+`r round(median(gm_mult_but1chr_range)/1000)` kbp.
+
+There are `r sum(gm_mult_but1chr_range < 1000)` markers with multiple
+hits but all on a single chromosome and all within a 1000 bp interval.
+We could maybe keep these, and assign each to the median of the observed
+positions.  But for now we'll leave them with missing genomic
+coordinates.
+
+
+### Pseudoautosomal region
+
+Returning to the dreaded pseudoautosomal markers, we've got these
+`r sum(gm_unc$chr=="P")` GigaMUGA markers where the chromosome ID was
+missing in the UNC annotation file, and which we're interpreting here
+as `P`. **None** of them have a hit to the mm10 mouse genome build.
+
+There are `r length(gm_par <- grep("^PAR", gm_unc$marker, value=TRUE))` markers
+with names like `PAR10` or `PARv2S06`. `r sum(gm_uwisc[gm_par, "unique"])`
+of these have unique hits in the mouse genome, all to the X
+chromosome. One PAR marker (`r gm_par[gm_uwisc[gm_par, "no_pos"]]`)
+has no hits to the mouse genome. The other `r sum(gm_uwisc[gm_par, "multi"])`
+have multiple hits
+
+There are `r length(gm_hitXY)` markers that have hits on both the X
+and Y chromosomes and not to any autosomes. These include
+`r sum(gm_hitXY %in% gm_par)` of these PAR markers, but also
+sum(grepl("^PAR", gm_hitXY))` of these PAR markers, but also
+another `r sum(!(gm_hitXY %in% gm_par))` markers with names starting
+JAX or UNC.
+`r Numbers[sum(rowSums(gm_tab_chr[gm_hitXY,c("X","Y")])==2)]`
+of these markers have a single hit on each of the X and Y chromosomes,
+which sounds like what we'd want for a pseudoautosomal marker:
+`r vec2string(gm_hitXY[(rowSums(gm_tab_chr[gm_hitXY,c("X","Y")])==2)])`.
+
+But again, I'm not quite sure what to do with these.
+
+### What the heck is `IlmnStrand`?
+
+As with the MegaMUGA array, the annotation file from GeneSeek has a
+column `IlmnStrand` with values `TOP` and `BOT`, which doen't have any
+relation to the mapping of probes to the plus and minus strands of the
+mouse genome.
+
+
+### Markers with the same probes
+
+As with the MegaMUGA array, there are a number of sets of probes with
+the same sequence:
+`r add_commas(sum((gm_probe_tab <- table(gm_uwisc$probe))==2))` pairs of markers
+with the same probe sequence,
+`r sum(gm_probe_tab == 3)` trios, and
+`r sum(gm_probe_tab == 4)` groups of four.
+
+One of the quartets is for markers
+UNCrs52300311, complement008, complement016, and complement018, with
+the absurd probe sequence
+AGAAAGAAAGAAAGAAAGAAAGAAAGAAAGAAAGAAAGAAAGAAAGAAAG, which doesn't have
+a blast hit to the mouse genome.
+
+The other quartet is for markers
+JAX00076336, JAX00076336q, UNC27974559, and UNCHS044416, whose
+sequence has a unique hit in the mouse genome, on chr 17.
+Of these four markers, only UNC27974559 was on the MegaMUGA array.
+In the UNC annotation file for the GigaMUGA array, these were all
+placed at the same location on chr 17, and at the same location as the
+blast hit.
+
+I'm a bit tired to check all these others, but I guess I have to.
+
+
+### Unique column in the GM array
+
+Has little relationship with my blast results.
+
+
+
+## Markers on both GigaMUGA and MegaMUGA
+
+There are some markers that are on both arrays but have different
+sequences in the two annotation files.
+
+Also consider the `is.MM` column in the UNC annotations for GM.
+Seems like it has all of the markers that match by name, but also some
+additional ones.
+
+```{r gm_isMM_column_vs_marker_names}
+table(gm_unc$marker %in% mm_unc$marker, gm_unc$is.MM)
+```
+
+We could also ask: which probes for the GM array are also seen in the
+MM array? Here, we get rather a different answer, and it's **less**
+like the `is.MM` column.
+
+```{r gm_isMM_vs_probes}
+table(gm_uwisc$probe %in% mm_uwisc$probe, gm_unc$is.MM)
+```
+
+
+
+## Marker tier information
+
+Reconstruct the tiers 1,2,3,4: Is the tier column in the UNC
+annotation file for GM correct?
 
 
 

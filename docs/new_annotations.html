@@ -470,7 +470,7 @@ mm_diff_chr</code></pre>
 <p>One last thing on the MegaMUGA array: there are 50 pairs of markers with the same probe sequence, and one set of four markers that all of the same sequence.</p>
 <p>For most of these replicate problems, it seems like they were intended, as they have names like JAX00333860 and repJAX00333860, or CEAJAX00159275 and CEBJAX00159275.</p>
 <p>But the group of four probes with matching sequences are JAX00725045, JAX00725054, repJAX00725045, and repJAX00725054, all on the Y chromosome. So two pairs of intended replicates, but it’s not obvious that JAX00725045 and JAX00725054 should be the same.</p>
-<p>Of the other 50 pairs, 35 are obvious from their names. Here are the other:</p>
+<p>Of the other 50 pairs, 35 are obvious from their names. Here are the others:</p>
 <pre class="r"><code>dup &lt;- names(mm_probe_tab)[mm_probe_tab==2]
 dup_pairs &lt;- t(sapply(dup, function(a) mm_uwisc$marker[mm_uwisc$probe==a]))
 dup_pairs &lt;- dup_pairs[dup_pairs[,2] != paste0(&quot;rep&quot;, dup_pairs[,1]) &amp;
@@ -520,49 +520,84 @@ stopifnot(more_dup_probes[,1] == more_dup_probes[,2])</code></pre>
 <div id="gigamuga" class="section level2">
 <h2>GigaMUGA</h2>
 <p>I’ll now turn to the GigaMUGA array, and do the same stuff plus a bit more.</p>
-<p>the markers that are off by +/- 1 are exactly the ones with the AlleleB_ProbeSeq (and I think I’m right) ```</p>
-<pre class="r"><code># markers on p chr in MM that are also in GM
-pmar_mm &lt;- mm_unc$marker[mm_unc$chr==&quot;P&quot; &amp; mm_unc$marker %in% gm_unc$marker]
+<div id="basic-blast-results-1" class="section level3">
+<h3>Basic blast results</h3>
+<p>The GigaMUGA array contains 143,259 markers. In the UNC annotation file, 137,475 are on autosomes, 5,589 are on the X chromosome, 83 are on the Y chromosome, and 32 are on the mitochondrial genome.</p>
+<p>In the UNC annotation file, none of the GigaMUGA markers are assigned to chromosome <code>P</code>, but there are 80 markers where the chromosome ID is missing. Of these, 72 were on the MegaMUGA array and assigned to chromosome <code>P</code>, 3 were on MegaMUGA array but assigned to chr 18, and 5 were not on the MegaMUGA array.</p>
+<p>(Of the 83 markers on the MegaMUGA array with chr ID <code>P</code>, 8 are not on the GigaMUGA array, 72 have missing chr ID in the UNC annotations on the GigaMUGA array, 2 are on chr 13 in the UNC annotation of the GigaMUGA array, and 1 is on chr 5 in the UNC annotation of the GigaMUGA array.)</p>
+<p>I’m going to take these <code>NA</code> chromosome IDs to be <code>P</code>.</p>
+<pre class="r"><code>gm_unc$chr[is.na(gm_unc$chr)] &lt;- &quot;P&quot;</code></pre>
+<p>The GeneSeek annotation file for the GigaMUGA array includes 143,446 markers: the 143,259 markers in the UNC annotation file for the array, plus another 187 markers in the UNC. These extra markers all have names like <code>CTRL-22</code>, and so seem to be control probes. None of matches in the mouse genome, and so we will omit them from further consideration.</p>
+<pre class="r"><code># make sure control probes have no hits to mouse genome
+ctrl &lt;- gm_gs$Name[!(gm_gs$Name %in% gm_unc$marker)]
+stopifnot( !any(ctrl %in% gm_blast$query) )
 
-# markers on p chr(?) ...well actually chr is NA... in GM that are also in MM
-pmar_gm &lt;- gm_unc$marker[is.na(gm_unc$chr) &amp; gm_unc$marker %in% mm_unc$marker]
+# omit these control probes from the annotations
+gm_gs &lt;- gm_gs[gm_gs$Name %in% gm_unc$marker,]
+gm_uwisc &lt;- gm_uwisc[gm_uwisc$marker %in% gm_unc$marker,]
 
-pmar_gm %wnin% pmar_mm # UNC28724761 UNC28725371 UNC28726152
-# latter are on 18 in MM
-pmar_mm %wnin% pmar_gm # NNT001      NNT002      SAbGeoEUCOMM001
-# latter are on 5,13 in GM</code></pre>
-<pre class="r"><code># MM probes with the same sequence
-tab &lt;- table(mm_unc$seq.A)
-dup &lt;- names(tab)[tab &gt; 1] # 51 sets
-z &lt;- lapply(dup, function(d) { z &lt;- mm_unc[mm_unc$seq.A == d,]
-         if(length(unique(z$chr[!is.na(z$chr)])) &gt; 1) return(rownames(z)) })
-z &lt;- z[sapply(z, length)&gt;0]
+# omit them from other pieces I'm using
+gm_nhits &lt;- gm_nhits[gm_uwisc$marker]</code></pre>
+<p>In the blast results, I find that 137,359 markers have a single, unique hit in the mouse genome (build mm10), while 3,150 hit to multiple locations (median 3 locations and maximum 18,855), and 2,750 have no perfect match in the mm10 build of the mouse genome.</p>
+</div>
+<div id="unique-markers-1" class="section level3">
+<h3>Unique markers</h3>
+<p>If we look at the inferred chromosome assignments of the 137,359 markers with a unique hit to the genome, <strong>all of them</strong> match the chromosome in the UNC annotation file.</p>
+<pre class="r"><code># all of the unique ones match
+stopifnot( all(gm_unc[gm_uwisc$marker[gm_uwisc$unique], &quot;chr&quot;] == gm_uwisc$chr[gm_uwisc$unique]) )
 
-# MM UNC88694 (chr 1), UNC2512583 (chr 2)
-[only 2nd one in GM]
-# MM UNC23833145 (chr 14), UNC4368900 (chr 2)
-[in GM, both said to be unique, but same probe and on different chromosomes]
-# MM UNC20251282 (chr 11), UNC5746160 (chr 3)
-[in GM, both said to be unique, but same probe and on different chromosomes]
-# MM UNC27690624 (chr 17), UNC30009421 (chr 19)
-[only 2nd one in GM]
-# MM UNC19598208 (chr 11)  UNC24941679 (chr 14)
-[in GM, both said to be unique, but same probe and on different chromosomes]
-
-# GM has *a lot* of markers with the same sequence
-tab &lt;- table(gm_unc$seq.A)
-dup &lt;- names(tab)[tab &gt; 1] # 2672 sets
-z &lt;- lapply(dup, function(d) { z &lt;- gm_unc[gm_unc$seq.A == d,]
-         if(length(unique(z$chr[!is.na(z$chr)])) &gt; 1) return(rownames(z)) })
-z &lt;- z[sapply(z, length)&gt;0]
-# only 10 sets that are on different chromosomes: 3 above, and these 7:
-# UNCrs52300311 complement008 complement018 complement016 (repetitive sequence that doesn't map)
-# Mit016 Mit030             # Mit016 placed on M
-# sanger1454  sanger1454q   # both map multiply, but in unc annotations said unique
-# UNC9964748  UNC10237349   # &quot;
-# sanger2519  sanger2519q
-# sanger2310  sanger2310q
-# JAX00187253q JAX00187253</code></pre>
+# reorder gm_unc and gm_gs
+gm_unc &lt;- gm_unc[gm_uwisc$marker,]</code></pre>
+<p>The SNP positions match for 136,965 markers, but are off by ±1 for the other 394 markers. These off-by-1 markers are exactly the ones where the probe sequence in the GeneSeek annotation file included the SNP, which I trimmed off. Moreover, the ones that I have at +1 relative to the UNC annotation are the ones on the minus strand, and the ones I have at -1 relative to the UNC annotation are the ones on the plus strand. And so these off-by-one values are due to the handling of the cases where the probe sequences included the SNP. And I am confident that my positions are the correct values.</p>
+<p>``{r gm_verify_off_by_1} # verify the statements above # markers where position is off by one are the cases where AlleleB is provided off_by_plus1 &lt;- gm_uwisc<span class="math inline">\(marker[gm_uwisc\)</span>pos == gm_unc<span class="math inline">\(pos+1 &amp; gm_uwisc\)</span>unique] off_by_minus1 &lt;- gm_uwisc<span class="math inline">\(marker[gm_uwisc\)</span>pos == gm_unc<span class="math inline">\(pos-1 &amp; gm_uwisc\)</span>unique] off_by_pm1 &lt;- c(off_by_plus1, off_by_minus1) stopifnot( sort(off_by_pm1) == sort(gm_gs<span class="math inline">\(Name[gm_gs\)</span>AlleleB_ProbeSeq != “” &amp; gm_uwisc<span class="math inline">\(unique]) ) stopifnot( sort(off_by_plus1) == sort(gm_gs\)</span>Name[gm_gs<span class="math inline">\(AlleleB_ProbeSeq != &quot;&quot; &amp; gm_uwisc\)</span>unique &amp; gm_uwisc$strand==“minus”]) ) stopifnot( sort(off_by_minus1) == sort(gm_gs<span class="math inline">\(Name[gm_gs\)</span>AlleleB_ProbeSeq != “” &amp; gm_uwisc<span class="math inline">\(unique &amp; gm_uwisc\)</span>strand==“plus”]) ) ```</p>
+</div>
+<div id="multiple-hits-to-one-chromosome-1" class="section level3">
+<h3>Multiple hits to one chromosome</h3>
+<p>There are 1,840 markers on the GigaMUGA array that have multiple perfect hits in the mouse genome, but all on the same chromosome. I looked at the range in SNP positions, for these multiple hits, which varied from 33 bp to 147 Mbp, with a median of 596 kbp.</p>
+<p>There are 55 markers with multiple hits but all on a single chromosome and all within a 1000 bp interval. We could maybe keep these, and assign each to the median of the observed positions. But for now we’ll leave them with missing genomic coordinates.</p>
+</div>
+<div id="pseudoautosomal-region-1" class="section level3">
+<h3>Pseudoautosomal region</h3>
+<p>Returning to the dreaded pseudoautosomal markers, we’ve got these 80 GigaMUGA markers where the chromosome ID was missing in the UNC annotation file, and which we’re interpreting here as <code>P</code>. <strong>None</strong> of them have a hit to the mm10 mouse genome build.</p>
+<p>There are 60 markers with names like <code>PAR10</code> or <code>PARv2S06</code>. 29 of these have unique hits in the mouse genome, all to the X chromosome. One PAR marker (PARv2S58) has no hits to the mouse genome. The other 30 have multiple hits</p>
+<p>There are 42 markers that have hits on both the X and Y chromosomes and not to any autosomes. These include 16 of these PAR markers, but also sum(grepl(“^PAR”, gm_hitXY))` of these PAR markers, but also another 26 markers with names starting JAX or UNC. Seven of these markers have a single hit on each of the X and Y chromosomes, which sounds like what we’d want for a pseudoautosomal marker: PAR4, PARv2S15, PARv2S18, PARv2S44, UNC31596388, UNCHS049772, and UNCJPD007636.</p>
+<p>But again, I’m not quite sure what to do with these.</p>
+</div>
+<div id="what-the-heck-is-ilmnstrand-1" class="section level3">
+<h3>What the heck is <code>IlmnStrand</code>?</h3>
+<p>As with the MegaMUGA array, the annotation file from GeneSeek has a column <code>IlmnStrand</code> with values <code>TOP</code> and <code>BOT</code>, which doen’t have any relation to the mapping of probes to the plus and minus strands of the mouse genome.</p>
+</div>
+<div id="markers-with-the-same-probes-1" class="section level3">
+<h3>Markers with the same probes</h3>
+<p>As with the MegaMUGA array, there are a number of sets of probes with the same sequence: 2,620 pairs of markers with the same probe sequence, 49 trios, and 2 groups of four.</p>
+<p>One of the quartets is for markers UNCrs52300311, complement008, complement016, and complement018, with the absurd probe sequence AGAAAGAAAGAAAGAAAGAAAGAAAGAAAGAAAGAAAGAAAGAAAGAAAG, which doesn’t have a blast hit to the mouse genome.</p>
+<p>The other quartet is for markers JAX00076336, JAX00076336q, UNC27974559, and UNCHS044416, whose sequence has a unique hit in the mouse genome, on chr 17. Of these four markers, only UNC27974559 was on the MegaMUGA array. In the UNC annotation file for the GigaMUGA array, these were all placed at the same location on chr 17, and at the same location as the blast hit.</p>
+<p>I’m a bit tired to check all these others, but I guess I have to.</p>
+</div>
+<div id="unique-column-in-the-gm-array" class="section level3">
+<h3>Unique column in the GM array</h3>
+<p>Has little relationship with my blast results.</p>
+</div>
+</div>
+<div id="markers-on-both-gigamuga-and-megamuga" class="section level2">
+<h2>Markers on both GigaMUGA and MegaMUGA</h2>
+<p>There are some markers that are on both arrays but have different sequences in the two annotation files.</p>
+<p>Also consider the <code>is.MM</code> column in the UNC annotations for GM. Seems like it has all of the markers that match by name, but also some additional ones.</p>
+<pre class="r"><code>table(gm_unc$marker %in% mm_unc$marker, gm_unc$is.MM)</code></pre>
+<pre><code>##        
+##         FALSE  TRUE
+##   FALSE 75614   653
+##   TRUE      0 66992</code></pre>
+<p>We could also ask: which probes for the GM array are also seen in the MM array? Here, we get rather a different answer, and it’s <strong>less</strong> like the <code>is.MM</code> column.</p>
+<pre class="r"><code>table(gm_uwisc$probe %in% mm_uwisc$probe, gm_unc$is.MM)</code></pre>
+<pre><code>##        
+##         FALSE  TRUE
+##   FALSE 74641    46
+##   TRUE    973 67599</code></pre>
+</div>
+<div id="marker-tier-information" class="section level2">
+<h2>Marker tier information</h2>
+<p>Reconstruct the tiers 1,2,3,4: Is the tier column in the UNC annotation file for GM correct?</p>
 </div>
 <div id="session-info" class="section level2">
 <h2>Session info</h2>
