@@ -157,6 +157,10 @@ mm_blast <- readRDS("../Blast/results_mm/mm_blastn_results.rds")
 mm_blast <- mm_blast[mm_blast$tot_mismatch==0,]
 gm_blast <- readRDS("../Blast/results_gm/gm_blastn_results.rds")
 gm_blast <- gm_blast[gm_blast$tot_mismatch==0,]
+
+# blast results for untrimmed sequences
+gm_untrimmed_blast <- readRDS("../Blast/results_gm_untrimmed/gm_untrimmed_blastn_results.rds")
+gm_untrimmed_blast <- gm_untrimmed_blast[gm_untrimmed_blast$tot_mismatch==0,]
 ```
 
 
@@ -565,7 +569,7 @@ Moreover, the ones that I have at +1 relative to the UNC annotation
 are the ones on the minus strand, and the ones I have at -1 relative
 to the UNC annotation are the ones on the plus strand. And so these
 off-by-one values are due to the handling of the cases where the probe
-sequences included the SNP. And I am confident that my positions are
+sequences included the SNP. And I think that my positions are
 the correct values.
 
 ```{r gm_verify_off_by_1}
@@ -578,6 +582,33 @@ stopifnot( sort(off_by_pm1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != "" & gm
 stopifnot( sort(off_by_plus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != "" & gm_uwisc$unique & gm_uwisc$strand=="minus"]) )
 stopifnot( sort(off_by_minus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != "" & gm_uwisc$unique & gm_uwisc$strand=="plus"]) )
 ```
+
+Here's an example of this:
+
+```{r off_by_1_example}
+marker <- "UNCrs220914250"
+cbind(chr=gm_uwisc[marker, "chr",drop=FALSE],
+      pos_uwisc=gm_uwisc[marker, "pos"],
+      pos_unc=gm_unc[marker, "pos"])
+cat("probe A:",  rep("", 1), gm_gs[marker,"AlleleA_ProbeSeq"], "\n")
+cat("probe B:",  rep("", 1), gm_gs[marker,"AlleleB_ProbeSeq"], "\n")
+cat("source:",  gm_gs[marker,"SourceSeq"], "\n")
+```
+
+The blast result for the trimmed sequence has it matching to chr
+`r gm_blast[gm_blast$query=="marker", "chr"]` from
+`r gm_blast[gm_blast$query=="marker", "start_chr"]` to
+`r gm_blast[gm_blast$query=="marker", "end_chr"]`, putting the SNP at
+`r gm_blast[gm_blast$query=="marker", "snp_pos"]`.
+
+The blast results for the **untrimmed** sequence
+has it matching to chr
+`r gm_untrimmed_blast[gm_untrimmed_blast$query=="marker", "chr"]` from
+`r gm_untrimmed_blast[gm_untrimmed_blast$query=="marker", "start_chr"]` to
+`r gm_untrimmed_blast[gm_untrimmed_blast$query=="marker", "end_chr"]`,
+but since the probe includes the SNP, that would place the SNP at the
+end position, `r gm_untrimmed_blast[gm_blast$query=="marker", "end_chr"]`.
+
 
 
 
@@ -837,8 +868,12 @@ same marker.
 
 ## Marker tier information
 
-Reconstruct the tiers 1,2,3,4: Is the tier column in the UNC
-annotation file for GM correct?
+I was going to check the `tier` column in the UNC annotation file,
+with quality tiers 1-4, but I can't find the data from
+[Morgan et al. (2016)](https://doi.org/10.1534/g3.115.022087). It's
+reported to be at <http://csbio.unc.edu/MUGA>, but they no longer seem
+to be there (just the annotation files and information on SNP
+intensity clusters).
 
 
 
