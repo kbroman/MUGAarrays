@@ -1,0 +1,12 @@
+column,description
+marker,Name of SNP marker
+chr,Chromosome
+bp_mm10,Physical positions in basepairs for mm10 mouse genome build
+strand,Strand (plus/minus) from which the probe sequence was taken
+snp,SNP alleles as a two-character string
+unique,TRUE indicates that the probe sequence appears exactly once in mm10 mouse genome build
+multi,TRUE indicates that the probe sequence appears >1 time in mm10 mouse genome build
+unmapped,TRUE indicates that the probe sequence has no perfect match in mm10 mouse genome build
+n_blast_hits,Number of perfect matches in the mm10 mouse genome build
+n_blast_chr,Number of chromosomes (out of 22) with at least one perfect match
+probe,Probe sequence (49 or 50 bases); the SNP occurs immediately after

@@ -1,0 +1,5 @@
+column,description
+chr,Chromosome ID
+bp_mm10,Physical positions in basepairs for mm10 mouse genome build
+megamuga,MegaMUGA markers at that position (separated by semi-colons); blank means no markers
+gigamuga,GigaMUGA markers at that position (separated by semi-colons); blank means no markers
