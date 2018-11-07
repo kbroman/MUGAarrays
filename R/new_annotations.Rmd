@@ -1004,8 +1004,37 @@ determine which ones are identical
 # common markers
 ```
 
+```{r write_bp_to_file}
+# write just chr, bp to files, for use with mouse map converter
+# (want to get interpolated cM positions from the Cox and G2F1 maps)
+write.table(mm_uwisc[!is.na(mm_uwisc$chr) & mm_uwisc$chr %in% c(1:19,"X"), c("chr", "bp_mm10")],
+            "../UWisc/mm_bp.txt", sep=" ", quote=FALSE,
+            row.names=FALSE, col.names=FALSE)
+
+write.table(gm_uwisc[!is.na(gm_uwisc$chr) & gm_uwisc$chr %in% c(1:19,"X"), c("chr", "bp_mm10")],
+            "../UWisc/gm_bp.txt", sep=" ", quote=FALSE,
+            row.names=FALSE, col.names=FALSE)
+```
+
 ### Version 1, with genetic maps
 
+```{r dict_files_v1}
+cols_new <- c(cols_new[1:3], "cM_cox", "cM_g2f1", cols_new[-(1:3)])
+descriptions <- c(descriptions[1:3]
+                  "Sex-averaged cM positions from Cox et al. https://doi.org/10.1534/genetics.109.105486",
+                  "Sex-averaged cM positions from Liu et al. https://doi.org/10.1534/genetics.114.161653",
+                  descriptions[-(1:3)])
+
+mm_dict_file <- "../UWisc/mm_uwisc_dict_v1.csv"
+output <- data.frame(column=cols_new,
+                     description=descriptions,
+                     stringsAsFactors=FALSE)
+write.table(output, mm_dict_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+gm_dict_file <- sub("mm", "gm", mm_dict_file)
+write.table(output, gm_dict_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
 
 ## Session info
 
