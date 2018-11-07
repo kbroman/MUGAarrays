@@ -24,11 +24,15 @@ My goals are to:
 
 The following document describes what I've found:
 
-- [New annotations](https://kbroman.org/MUGAarrays/new_annotations.html)
+- [New MegaMUGA/GigaMUGA Annotations](https://kbroman.org/MUGAarrays/new_annotations.html)
+
+The new annotation files are in the [`UWisc`](UWisc) directory of this repository.
 
 ---
 
 ## Contents
+
+- [`UWisc`](UWisc) - the new annotation files
 
 - [`Blast`](Blast) - includes R code for constructing fasta files
   with the array sequences, and for using `blastn` map them to the
@@ -46,6 +50,9 @@ The following document describes what I've found:
 
 - [`UNC`](UNC) - the [ReadMe file](UNC/ReadMe.md) has URLs
   for the UNC annotation files.
+
+- [`GenMaps`](GenMaps) - raw genetic map files derived using the
+  [Mouse Map Converter](http://cgd.jax.org/mousemapconverter/).
 
 - [`docs`](docs) - compiled RMarkdown files, available on the web:
 
