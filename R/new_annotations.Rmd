@@ -918,8 +918,91 @@ intensity clusters).
 
 ## New annotation files
 
+I now want to save my findings as new annotations files for the
+MegaMUGA and GigaMUGA arrays. I'll also create a metadata file ("data
+dictionary") that explains the columns. Finally, I'll create a file
+that indicates which
+
 ### Version 0
 
+We'll call this version 0. In the MegaMUGA and GigaMUGA files, I'll
+include marker, chromosome, mm10 bp position, strand, snp, unique, multi,
+unmapped, n_blast_hits, n_blast_chr, and the probe sequence. So just
+what I've already assembled, but with the columns reordered a bit.
+
+```{r write_v0_files}
+# order of columns
+cols <- c("marker", "chr", "pos", "strand", "snp", "unique", "multi",
+          "unmapped", "n_blast_hits", "n_blast_chr", "probe")
+# revised names
+cols_new <- c("marker", "chr", "bp_mm10", "strand", "snp", "unique", "multi",
+              "unmapped", "n_blast_hits", "n_blast_chr", "probe")
+
+# MegaMUGA file
+mm_file <- "../UWisc/mm_uwisc_v0.csv"
+
+# reorder and rename columns
+mm_uwisc <- mm_uwisc[,cols]
+colnames(mm_uwisc) <- cols_new
+
+# reorder rows
+mm_uwisc <- mm_uwisc[order(factor(mm_uwisc$chr, levels=c(1:19,"X","Y","M")),
+                           mm_uwisc$bp_mm10),]
+
+# write to CSV file
+write.table(mm_uwisc, mm_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+
+# GigaMUGA file
+gm_file <- sub("mm", "gm", mm_file)
+
+# reorder and rename columns
+gm_uwisc <- gm_uwisc[,cols]
+colnames(gm_uwisc) <- cols_new
+
+# reorder rows
+gm_uwisc <- gm_uwisc[order(factor(gm_uwisc$chr, levels=c(1:19,"X","Y","M")),
+                           gm_uwisc$bp_mm10),]
+
+# write to CSV file
+write.table(gm_uwisc, gm_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+I'll also create a dictionary for each file, which explains what the
+columns are.
+
+```{r create_dictionaries}
+descriptions <- c("Name of SNP marker",
+                  "Chromosome",
+                  "Physical positions in basepairs for mm10 mouse genome build",
+                  "Strand (plus/minus) from which the probe sequence was taken",
+                  "SNP alleles as a two-character string",
+                  "TRUE indicates that the probe sequence appears exactly once in mm10 mouse genome build",
+                  "TRUE indicates that the probe sequence appears >1 time in mm10 mouse genome build",
+                  "TRUE indicates that the probe sequence has no perfect match in mm10 mouse genome build",
+                  "Number of perfect matches in the mm10 mouse genome build",
+                  "Number of chromosomes (out of 22) with at least one perfect match",
+                  "Probe sequence (49 or 50 bases); the SNP occurs immediately after")
+
+mm_dict_file <- "../UWisc/mm_uwisc_dict_v0.csv"
+output <- data.frame(column=cols_new,
+                     description=descriptions,
+                     stringsAsFactors=FALSE)
+write.table(output, mm_dict_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+gm_dict_file <- sub("mm", "gm", mm_dict_file)
+write.table(output, gm_dict_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+Finally, I want to make a file that indicates the common markers,
+within and between the two arrays, using the SNP positions to
+determine which ones are identical
+
+```{r write_common_markers_to_file}
+# common markers
+```
 
 ### Version 1, with genetic maps
 
