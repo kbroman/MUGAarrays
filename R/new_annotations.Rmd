@@ -998,11 +998,72 @@ write.table(output, gm_dict_file, sep=",", quote=FALSE,
 
 Finally, I want to make a file that indicates the common markers,
 within and between the two arrays, using the SNP positions to
-determine which ones are identical
+determine which ones are identical.
 
 ```{r write_common_markers_to_file}
-# common markers
+# unique marker positions between the arrays
+mm_pos <- setNames(paste(mm_uwisc$chr, mm_uwisc$bp_mm10, sep=":"), mm_uwisc$marker)[mm_uwisc$unique]
+gm_pos <- setNames(paste(gm_uwisc$chr, gm_uwisc$bp_mm10, sep=":"), gm_uwisc$marker)[gm_uwisc$unique]
+all_pos <- unique(c(mm_pos, gm_pos))
+
+# find the positions that are in duplicate within each array
+tab <- table(mm_pos)
+dup_mm <- names(tab)[tab > 1]
+tab <- table(gm_pos)
+dup_gm <- names(tab)[tab > 1]
+
+# find the positions that are in both arrays
+in_both <- all_pos[all_pos %in% mm_pos & all_pos %in% gm_pos]
+
+# find the markers that have pos in both arrays
+all_pos_mm <- setNames(rep("", length(all_pos)), all_pos)
+all_pos_mm[in_both] <- names(mm_pos)[match(in_both, mm_pos)]
+all_pos_gm <- setNames(rep("", length(all_pos)), all_pos)
+all_pos_gm[in_both] <- names(mm_pos)[match(in_both, mm_pos)]
+
+# find the markers that at the duplicate positions within each array
+dup_mm <- sapply(dup_mm, function(a) paste(names(mm_pos)[mm_pos == a], collapse=";"))
+all_pos_mm[names(dup_mm)] <- dup_mm
+dup_gm <- sapply(dup_gm, function(a) paste(names(gm_pos)[gm_pos == a], collapse=";"))
+all_pos_gm[names(dup_gm)] <- dup_gm
+
+# subset to the positions that are duplicated within or between
+keep <- (all_pos_mm != "" | all_pos_gm != "")
+all_pos <- all_pos[keep]
+all_pos_mm <- all_pos_mm[keep]
+all_pos_gm <- all_pos_gm[keep]
+
+# split the positions back into chr and pos
+all_pos_spl <- strsplit(all_pos, ":")
+
+# create data frame with the results
+common <- data.frame(chr=sapply(all_pos_spl, "[", 1),
+                     bp_mm10=sapply(all_pos_spl, "[", 2),
+                     megamuga=all_pos_mm,
+                     gigamuga=all_pos_gm,
+                     stringsAsFactors=FALSE)
+# reorder by genomic position
+common <- common[order(factor(common$chr, c(1:19,"X","Y","M")), common$bp_mm10),]
+
+# write to a CSV file
+write.table(common, "../UWisc/mm_gm_commonmark_uwisc_v1.csv",
+            sep=",", quote=FALSE, row.names=FALSE, col.names=TRUE)
+
+# data dictionary
+common_cols <- colnames(common)
+common_descriptions <- c("Chromosome ID",
+                         "Physical positions in basepairs for mm10 mouse genome build",
+                         "MegaMUGA markers at that position (separated by semi-colons); blank means no markers",
+                         "GigaMUGA markers at that position (separated by semi-colons); blank means no markers")
+common_dict <- data.frame(column=common_cols,
+                          description=common_descriptions,
+                          stringsAsFactors=FALSE)
+# write to file
+write.table(common_dict, "../UWisc/mm_gm_commonmark_uwisc_dict_v1.csv",
+            sep=",", quote=FALSE, row.names=FALSE, col.names=TRUE)
 ```
+
+
 
 ```{r write_bp_to_file}
 # write just chr, bp to files, for use with mouse map converter
