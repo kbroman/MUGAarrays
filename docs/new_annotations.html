@@ -11,7 +11,7 @@
 
 <meta name="author" content="Karl Broman" />
 
-<meta name="date" content="2018-11-06" />
+<meta name="date" content="2018-11-07" />
 
 <title>New MegaMUGA/GigaMUGA annotations</title>
 
@@ -239,7 +239,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">New MegaMUGA/GigaMUGA annotations</h1>
 <h4 class="author"><em>Karl Broman</em></h4>
-<h4 class="date"><em>2018-11-06</em></h4>
+<h4 class="date"><em>2018-11-07</em></h4>
 
 </div>
 
@@ -662,11 +662,196 @@ mm_pos &lt;- apply(mm_uwisc[mm_uwisc$unique,c(&quot;chr&quot;, &quot;pos&quot;)]
 </div>
 <div id="new-annotation-files" class="section level2">
 <h2>New annotation files</h2>
+<p>I now want to save my findings as new annotations files for the MegaMUGA and GigaMUGA arrays. I’ll also create a metadata file (“data dictionary”) that explains the columns. Finally, I’ll create a file that indicates which</p>
 <div id="version-0" class="section level3">
 <h3>Version 0</h3>
+<p>We’ll call this version 0. In the MegaMUGA and GigaMUGA files, I’ll include marker, chromosome, mm10 bp position, strand, snp, unique, multi, unmapped, n_blast_hits, n_blast_chr, and the probe sequence. So just what I’ve already assembled, but with the columns reordered a bit.</p>
+<pre class="r"><code># order of columns
+cols &lt;- c(&quot;marker&quot;, &quot;chr&quot;, &quot;pos&quot;, &quot;strand&quot;, &quot;snp&quot;, &quot;unique&quot;, &quot;multi&quot;,
+          &quot;unmapped&quot;, &quot;n_blast_hits&quot;, &quot;n_blast_chr&quot;, &quot;probe&quot;)
+# revised names
+cols_new &lt;- c(&quot;marker&quot;, &quot;chr&quot;, &quot;bp_mm10&quot;, &quot;strand&quot;, &quot;snp&quot;, &quot;unique&quot;, &quot;multi&quot;,
+              &quot;unmapped&quot;, &quot;n_blast_hits&quot;, &quot;n_blast_chr&quot;, &quot;probe&quot;)
+
+# MegaMUGA file
+mm_file &lt;- &quot;../UWisc/mm_uwisc_v0.csv&quot;
+
+# reorder and rename columns
+mm_uwisc &lt;- mm_uwisc[,cols]
+colnames(mm_uwisc) &lt;- cols_new
+
+# reorder rows
+mm_uwisc &lt;- mm_uwisc[order(factor(mm_uwisc$chr, levels=c(1:19,&quot;X&quot;,&quot;Y&quot;,&quot;M&quot;)),
+                           mm_uwisc$bp_mm10),]
+
+# write to CSV file
+write.table(mm_uwisc, mm_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+
+# GigaMUGA file
+gm_file &lt;- sub(&quot;mm&quot;, &quot;gm&quot;, mm_file)
+
+# reorder and rename columns
+gm_uwisc &lt;- gm_uwisc[,cols]
+colnames(gm_uwisc) &lt;- cols_new
+
+# reorder rows
+gm_uwisc &lt;- gm_uwisc[order(factor(gm_uwisc$chr, levels=c(1:19,&quot;X&quot;,&quot;Y&quot;,&quot;M&quot;)),
+                           gm_uwisc$bp_mm10),]
+
+# write to CSV file
+write.table(gm_uwisc, gm_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)</code></pre>
+<p>I’ll also create a dictionary for each file, which explains what the columns are.</p>
+<pre class="r"><code>descriptions &lt;- c(&quot;Name of SNP marker&quot;,
+                  &quot;Chromosome&quot;,
+                  &quot;Physical positions in basepairs for mm10 mouse genome build&quot;,
+                  &quot;Strand (plus/minus) from which the probe sequence was taken&quot;,
+                  &quot;SNP alleles as a two-character string&quot;,
+                  &quot;TRUE indicates that the probe sequence appears exactly once in mm10 mouse genome build&quot;,
+                  &quot;TRUE indicates that the probe sequence appears &gt;1 time in mm10 mouse genome build&quot;,
+                  &quot;TRUE indicates that the probe sequence has no perfect match in mm10 mouse genome build&quot;,
+                  &quot;Number of perfect matches in the mm10 mouse genome build&quot;,
+                  &quot;Number of chromosomes (out of 22) with at least one perfect match&quot;,
+                  &quot;Probe sequence (49 or 50 bases); the SNP occurs immediately after&quot;)
+
+mm_dict_file &lt;- &quot;../UWisc/mm_uwisc_dict_v0.csv&quot;
+output &lt;- data.frame(column=cols_new,
+                     description=descriptions,
+                     stringsAsFactors=FALSE)
+write.table(output, mm_dict_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+gm_dict_file &lt;- sub(&quot;mm&quot;, &quot;gm&quot;, mm_dict_file)
+write.table(output, gm_dict_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)</code></pre>
+<p>Finally, I want to make a file that indicates the common markers, within and between the two arrays, using the SNP positions to determine which ones are identical.</p>
+<pre class="r"><code># unique marker positions between the arrays
+mm_pos &lt;- setNames(paste(mm_uwisc$chr, mm_uwisc$bp_mm10, sep=&quot;:&quot;), mm_uwisc$marker)[mm_uwisc$unique]
+gm_pos &lt;- setNames(paste(gm_uwisc$chr, gm_uwisc$bp_mm10, sep=&quot;:&quot;), gm_uwisc$marker)[gm_uwisc$unique]
+all_pos &lt;- unique(c(mm_pos, gm_pos))
+
+# find the positions that are in duplicate within each array
+tab &lt;- table(mm_pos)
+dup_mm &lt;- names(tab)[tab &gt; 1]
+tab &lt;- table(gm_pos)
+dup_gm &lt;- names(tab)[tab &gt; 1]
+
+# find the positions that are in both arrays
+in_both &lt;- all_pos[all_pos %in% mm_pos &amp; all_pos %in% gm_pos]
+
+# find the markers that have pos in both arrays
+all_pos_mm &lt;- setNames(rep(&quot;&quot;, length(all_pos)), all_pos)
+all_pos_mm[in_both] &lt;- names(mm_pos)[match(in_both, mm_pos)]
+all_pos_gm &lt;- setNames(rep(&quot;&quot;, length(all_pos)), all_pos)
+all_pos_gm[in_both] &lt;- names(mm_pos)[match(in_both, mm_pos)]
+
+# find the markers that at the duplicate positions within each array
+dup_mm &lt;- sapply(dup_mm, function(a) paste(names(mm_pos)[mm_pos == a], collapse=&quot;;&quot;))
+all_pos_mm[names(dup_mm)] &lt;- dup_mm
+dup_gm &lt;- sapply(dup_gm, function(a) paste(names(gm_pos)[gm_pos == a], collapse=&quot;;&quot;))
+all_pos_gm[names(dup_gm)] &lt;- dup_gm
+
+# subset to the positions that are duplicated within or between
+keep &lt;- (all_pos_mm != &quot;&quot; | all_pos_gm != &quot;&quot;)
+all_pos &lt;- all_pos[keep]
+all_pos_mm &lt;- all_pos_mm[keep]
+all_pos_gm &lt;- all_pos_gm[keep]
+
+# split the positions back into chr and pos
+all_pos_spl &lt;- strsplit(all_pos, &quot;:&quot;)
+
+# create data frame with the results
+common &lt;- data.frame(chr=sapply(all_pos_spl, &quot;[&quot;, 1),
+                     bp_mm10=sapply(all_pos_spl, &quot;[&quot;, 2),
+                     megamuga=all_pos_mm,
+                     gigamuga=all_pos_gm,
+                     stringsAsFactors=FALSE)
+# reorder by genomic position
+common &lt;- common[order(factor(common$chr, c(1:19,&quot;X&quot;,&quot;Y&quot;,&quot;M&quot;)), common$bp_mm10),]
+
+# write to a CSV file
+write.table(common, &quot;../UWisc/mm_gm_commonmark_uwisc_v1.csv&quot;,
+            sep=&quot;,&quot;, quote=FALSE, row.names=FALSE, col.names=TRUE)
+
+# data dictionary
+common_cols &lt;- colnames(common)
+common_descriptions &lt;- c(&quot;Chromosome ID&quot;,
+                         &quot;Physical positions in basepairs for mm10 mouse genome build&quot;,
+                         &quot;MegaMUGA markers at that position (separated by semi-colons); blank means no markers&quot;,
+                         &quot;GigaMUGA markers at that position (separated by semi-colons); blank means no markers&quot;)
+common_dict &lt;- data.frame(column=common_cols,
+                          description=common_descriptions,
+                          stringsAsFactors=FALSE)
+# write to file
+write.table(common_dict, &quot;../UWisc/mm_gm_commonmark_uwisc_dict_v1.csv&quot;,
+            sep=&quot;,&quot;, quote=FALSE, row.names=FALSE, col.names=TRUE)</code></pre>
+<pre class="r"><code># write just chr, bp to files, for use with mouse map converter
+# (want to get interpolated cM positions from the Cox and G2F1 maps)
+write.table(mm_uwisc[!is.na(mm_uwisc$chr) &amp; mm_uwisc$chr %in% c(1:19,&quot;X&quot;), c(&quot;chr&quot;, &quot;bp_mm10&quot;)],
+            &quot;../UWisc/mm_bp.txt&quot;, sep=&quot; &quot;, quote=FALSE,
+            row.names=FALSE, col.names=FALSE)
+
+write.table(gm_uwisc[!is.na(gm_uwisc$chr) &amp; gm_uwisc$chr %in% c(1:19,&quot;X&quot;), c(&quot;chr&quot;, &quot;bp_mm10&quot;)],
+            &quot;../UWisc/gm_bp.txt&quot;, sep=&quot; &quot;, quote=FALSE,
+            row.names=FALSE, col.names=FALSE)</code></pre>
 </div>
 <div id="version-1-with-genetic-maps" class="section level3">
 <h3>Version 1, with genetic maps</h3>
+<p>I used the <a href="http://cgd.jax.org/mousemapconverter/">mouse map converter</a> to convert the mm10 basepair positions of the autosome and X chromosome markers to sex-averaged cM from the <a href="https://doi.org/10.1534/genetics.109.105486">Cox et al.</a> and <a href="https://doi.org/10.1534/genetics.114.161653">Liu et al. (aka G2F1)</a> genetic maps.</p>
+<pre class="r"><code>gm_cox &lt;- data.table::fread(&quot;../UWisc/gm_cox.txt&quot;, header=FALSE, data.table=FALSE)
+gm_g2f1 &lt;- data.table::fread(&quot;../UWisc/gm_g2f1.txt&quot;, header=FALSE, data.table=FALSE)
+mm_cox &lt;- data.table::fread(&quot;../UWisc/mm_cox.txt&quot;, header=FALSE, data.table=FALSE)
+mm_g2f1 &lt;- data.table::fread(&quot;../UWisc/mm_g2f1.txt&quot;, header=FALSE, data.table=FALSE)
+
+# verify stuff
+stopifnot( all(gm_cox[,1] == gm_uwisc$chr[1:nrow(gm_cox)]) )
+stopifnot( all(gm_cox[,2] == gm_uwisc$bp_mm10[1:nrow(gm_cox)]) )
+stopifnot( all(gm_g2f1[,1] == gm_uwisc$chr[1:nrow(gm_g2f1)]) )
+stopifnot( all(gm_g2f1[,2] == gm_uwisc$bp_mm10[1:nrow(gm_g2f1)]) )
+stopifnot( all(mm_cox[,1] == mm_uwisc$chr[1:nrow(mm_cox)]) )
+stopifnot( all(mm_cox[,2] == mm_uwisc$bp_mm10[1:nrow(mm_cox)]) )
+stopifnot( all(mm_g2f1[,1] == mm_uwisc$chr[1:nrow(mm_g2f1)]) )
+stopifnot( all(mm_g2f1[,2] == mm_uwisc$bp_mm10[1:nrow(mm_g2f1)]) )
+
+nas &lt;- rep(NA, nrow(gm_uwisc)-nrow(gm_cox))
+gm_uwisc &lt;- cbind(gm_uwisc,
+                  cM_cox=c(gm_cox[,5], nas),
+                  cM_g2f1=c(gm_g2f1[,5], nas))
+
+
+nas &lt;- rep(NA, nrow(mm_uwisc)-nrow(mm_cox))
+mm_uwisc &lt;- cbind(mm_uwisc,
+                  cM_cox=c(mm_cox[,5], nas),
+                  cM_g2f1=c(mm_g2f1[,5], nas))</code></pre>
+<p>Now I can write the new annotation files.</p>
+<pre class="r"><code>cols_new &lt;- c(cols_new[1:3], &quot;cM_cox&quot;, &quot;cM_g2f1&quot;, cols_new[-(1:3)])
+mm_uwisc &lt;- mm_uwisc[,cols_new]
+gm_uwisc &lt;- gm_uwisc[,cols_new]
+
+# write MegaMUGA file
+mm_file &lt;- &quot;../UWisc/mm_uwisc_v1.csv&quot;
+write.table(mm_uwisc, mm_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+
+# GigaMUGA file
+gm_file &lt;- sub(&quot;mm&quot;, &quot;gm&quot;, mm_file)
+write.table(gm_uwisc, gm_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)</code></pre>
+<p>And finally, the new data dictionary files.</p>
+<pre class="r"><code>descriptions &lt;- c(descriptions[1:3],
+                  &quot;Sex-averaged cM positions from Cox et al. https://doi.org/10.1534/genetics.109.105486&quot;,
+                  &quot;Sex-averaged cM positions from Liu et al. https://doi.org/10.1534/genetics.114.161653&quot;,
+                  descriptions[-(1:3)])
+
+mm_dict_file &lt;- &quot;../UWisc/mm_uwisc_dict_v1.csv&quot;
+output &lt;- data.frame(column=cols_new,
+                     description=descriptions,
+                     stringsAsFactors=FALSE)
+write.table(output, mm_dict_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+gm_dict_file &lt;- sub(&quot;mm&quot;, &quot;gm&quot;, mm_dict_file)
+write.table(output, gm_dict_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)</code></pre>
 </div>
 </div>
 <div id="session-info" class="section level2">
@@ -676,14 +861,14 @@ mm_pos &lt;- apply(mm_uwisc[mm_uwisc$unique,c(&quot;chr&quot;, &quot;pos&quot;)]
 <pre><code>## ─ Session info ─────────────────────────────────────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 3.5.1 (2018-07-02)
-##  os       macOS High Sierra 10.13.6   
-##  system   x86_64, darwin15.6.0        
+##  os       Pop!_OS 18.04 LTS           
+##  system   x86_64, linux-gnu           
 ##  ui       X11                         
-##  language en_US.UTF-8                 
+##  language en_US:en                    
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       America/Chicago             
-##  date     2018-11-06                  
+##  date     2018-11-07                  
 ## 
 ## ─ Packages ─────────────────────────────────────────────────────────────────────────────────────────────────
 ##  package     * version date       lib source        
@@ -691,42 +876,44 @@ mm_pos &lt;- apply(mm_uwisc[mm_uwisc$unique,c(&quot;chr&quot;, &quot;pos&quot;)]
 ##  backports     1.1.2   2017-12-13 [1] CRAN (R 3.5.0)
 ##  base64enc     0.1-3   2015-07-28 [1] CRAN (R 3.5.0)
 ##  broman      * 0.68-4  2018-08-17 [1] local         
-##  callr         3.0.0   2018-08-24 [1] CRAN (R 3.5.0)
-##  cli           1.0.1   2018-09-25 [1] CRAN (R 3.5.0)
+##  callr         3.0.0   2018-08-24 [1] CRAN (R 3.5.1)
+##  cli           1.0.1   2018-09-25 [1] CRAN (R 3.5.1)
 ##  crayon        1.3.4   2017-09-16 [1] CRAN (R 3.5.0)
-##  data.table  * 1.11.8  2018-09-30 [1] CRAN (R 3.5.0)
+##  data.table  * 1.11.8  2018-09-30 [1] CRAN (R 3.5.1)
 ##  debugme       1.1.0   2017-10-22 [1] CRAN (R 3.5.0)
 ##  desc          1.2.0   2018-05-01 [1] CRAN (R 3.5.0)
 ##  devtools    * 2.0.1   2018-10-26 [1] CRAN (R 3.5.1)
-##  digest        0.6.18  2018-10-10 [1] CRAN (R 3.5.0)
-##  evaluate      0.12    2018-10-09 [1] CRAN (R 3.5.0)
-##  fs            1.2.6   2018-08-23 [1] CRAN (R 3.5.0)
-##  glue          1.3.0   2018-07-17 [1] CRAN (R 3.5.0)
+##  digest        0.6.18  2018-10-10 [1] CRAN (R 3.5.1)
+##  evaluate      0.12    2018-10-09 [1] CRAN (R 3.5.1)
+##  fs            1.2.6   2018-08-23 [1] CRAN (R 3.5.1)
+##  glue          1.3.0   2018-07-17 [1] CRAN (R 3.5.1)
 ##  htmltools     0.3.6   2017-04-28 [1] CRAN (R 3.5.0)
 ##  knitr         1.20    2018-02-20 [1] CRAN (R 3.5.0)
 ##  magrittr      1.5     2014-11-22 [1] CRAN (R 3.5.0)
 ##  memoise       1.1.0   2017-04-21 [1] CRAN (R 3.5.0)
-##  pkgbuild      1.0.2   2018-10-16 [1] CRAN (R 3.5.0)
-##  pkgload       1.0.2   2018-10-29 [1] CRAN (R 3.5.0)
+##  pkgbuild      1.0.2   2018-10-16 [1] CRAN (R 3.5.1)
+##  pkgload       1.0.2   2018-10-29 [1] CRAN (R 3.5.1)
 ##  prettyunits   1.0.2   2015-07-13 [1] CRAN (R 3.5.0)
 ##  processx      3.2.0   2018-08-16 [1] CRAN (R 3.5.1)
-##  ps            1.2.0   2018-10-16 [1] CRAN (R 3.5.0)
+##  ps            1.2.0   2018-10-16 [1] CRAN (R 3.5.1)
 ##  R6            2.3.0   2018-10-04 [1] CRAN (R 3.5.1)
-##  Rcpp          0.12.19 2018-10-01 [1] CRAN (R 3.5.0)
-##  remotes       2.0.2   2018-10-30 [1] CRAN (R 3.5.0)
-##  rlang         0.3.0.1 2018-10-25 [1] CRAN (R 3.5.0)
+##  Rcpp          0.12.19 2018-10-01 [1] CRAN (R 3.5.1)
+##  remotes       2.0.2   2018-10-30 [1] CRAN (R 3.5.1)
+##  rlang         0.3.0.1 2018-10-25 [1] CRAN (R 3.5.1)
 ##  rmarkdown     1.10    2018-06-11 [1] CRAN (R 3.5.0)
 ##  rprojroot     1.3-2   2018-01-03 [1] CRAN (R 3.5.0)
-##  sessioninfo   1.1.0   2018-09-25 [1] CRAN (R 3.5.0)
-##  stringi       1.2.4   2018-07-20 [1] CRAN (R 3.5.0)
+##  sessioninfo   1.1.0   2018-09-25 [1] CRAN (R 3.5.1)
+##  stringi       1.2.4   2018-07-20 [1] CRAN (R 3.5.1)
 ##  stringr       1.3.1   2018-05-10 [1] CRAN (R 3.5.0)
-##  testthat      2.0.1   2018-10-13 [1] CRAN (R 3.5.0)
-##  usethis     * 1.4.0   2018-08-14 [1] CRAN (R 3.5.0)
+##  testthat      2.0.1   2018-10-13 [1] CRAN (R 3.5.1)
+##  usethis     * 1.4.0   2018-08-14 [1] CRAN (R 3.5.1)
 ##  withr         2.1.2   2018-03-15 [1] CRAN (R 3.5.0)
-##  yaml          2.2.0   2018-07-25 [1] CRAN (R 3.5.0)
+##  yaml          2.2.0   2018-07-25 [1] CRAN (R 3.5.1)
 ## 
-## [1] /Users/kbroman/Rlibs
-## [2] /Library/Frameworks/R.framework/Versions/3.5/Resources/library</code></pre>
+## [1] /home/kbroman/Rlibs
+## [2] /usr/local/lib/R/site-library
+## [3] /usr/lib/R/site-library
+## [4] /usr/lib/R/library</code></pre>
 </div>
 
 
