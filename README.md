@@ -11,7 +11,7 @@ arrays, and on 2018-11-02 I received a `.xlsx` file by email from Ben
 Pejsar, Genomic Market Development Manager, Neogen GeneSeek
 Operations.
 
-My goals are to:
+My goals were to:
 
 - blast the sequences for all markers in each of the arrays against
   the mouse genome
@@ -22,11 +22,43 @@ My goals are to:
 - compare the sequences and probe locations, and the markers with
   multiple hits, to the UNC annotation file
 
+Summary of findings:
+
+- the `unique` column in the UNC annotation file for the GigaMUGA
+  array was messed up.
+
+- we should use `NA` for chromosome and position of markers whose
+  probe does not have a single perfect match in the mouse genome
+  assembly
+
+- for a small number of markers (the transversions, with two-bead
+  Illumina probes), the probe sequence in the GeneSeek file includes
+  the SNP and the SNP basepair positions in the UNC GigaMUGA file were
+  off by 1.
+
+- For the markers with unique probes, the GigaMUGA annotation
+  file has the correct chromosome and position (except for the
+  off-by-1 cases), while the MegaMUGA annotation file has six markers
+  with incorrect chromosome assignment.
+
+- There are a bunch of markers with different names but the same probe
+  sequence. More troubling, there are 29 markers that are on both the
+  MegaMUGA and GigaMUGA arrays but with different probes on the two
+  arrays. These are switches from plus to minus strand but without
+  changing the marker name, and for 8 of them, the sequence on one
+  array is either not unique or has no perfect match in the genome.
+
+- I'm not sure what to do with the markers on the "P" chromosome
+  (pseudoautosomal?)
+
 The following document describes what I've found:
 
 - [New MegaMUGA/GigaMUGA Annotations](https://kbroman.org/MUGAarrays/new_annotations.html)
 
 The new annotation files are in the [`UWisc`](UWisc) directory of this repository.
+This includes a file, [`mm_gm_commonmark_uwisc_v1.csv`](UWisc/mm_gm_commonmark_uwisc_v1.csv),
+indicating which markers are assaying common SNPs, within and between
+the two arrays.
 
 ---
 
