@@ -72,6 +72,8 @@ A summary of my findings:
   which I understand to be the pseudoautosomal region, as the markers
   are not mapping to the mm10 mouse genome build.
 
+The final annotation files and all source materials are at
+<https://github.com/kbroman/MUGAarrays>.
 
 
 ## Procedures
@@ -921,7 +923,12 @@ intensity clusters).
 I now want to save my findings as new annotations files for the
 MegaMUGA and GigaMUGA arrays. I'll also create a metadata file ("data
 dictionary") that explains the columns. Finally, I'll create a file
-that indicates which
+that indicates which markers are assaying a common SNP, between and
+within the two arrays.
+
+The final annotation files and all source materials are at
+<https://github.com/kbroman/MUGAarrays>.
+
 
 ### Version 0
 

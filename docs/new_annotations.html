@@ -262,6 +262,7 @@ div.tocify {
 <li><p>Of the markers in common between the two arrays, some have different probe sequences on the two arrays, and there are cases where the sequence on one array maps uniquely but the other does not.</p></li>
 <li><p>I’m not sure what to do with the markers on the “P” chromosome, which I understand to be the pseudoautosomal region, as the markers are not mapping to the mm10 mouse genome build.</p></li>
 </ul>
+<p>The final annotation files and all source materials are at <a href="https://github.com/kbroman/MUGAarrays" class="uri">https://github.com/kbroman/MUGAarrays</a>.</p>
 </div>
 <div id="procedures" class="section level2">
 <h2>Procedures</h2>
@@ -662,7 +663,8 @@ mm_pos &lt;- apply(mm_uwisc[mm_uwisc$unique,c(&quot;chr&quot;, &quot;pos&quot;)]
 </div>
 <div id="new-annotation-files" class="section level2">
 <h2>New annotation files</h2>
-<p>I now want to save my findings as new annotations files for the MegaMUGA and GigaMUGA arrays. I’ll also create a metadata file (“data dictionary”) that explains the columns. Finally, I’ll create a file that indicates which</p>
+<p>I now want to save my findings as new annotations files for the MegaMUGA and GigaMUGA arrays. I’ll also create a metadata file (“data dictionary”) that explains the columns. Finally, I’ll create a file that indicates which markers are assaying a common SNP, between and within the two arrays.</p>
+<p>The final annotation files and all source materials are at <a href="https://github.com/kbroman/MUGAarrays" class="uri">https://github.com/kbroman/MUGAarrays</a>.</p>
 <div id="version-0" class="section level3">
 <h3>Version 0</h3>
 <p>We’ll call this version 0. In the MegaMUGA and GigaMUGA files, I’ll include marker, chromosome, mm10 bp position, strand, snp, unique, multi, unmapped, n_blast_hits, n_blast_chr, and the probe sequence. So just what I’ve already assembled, but with the columns reordered a bit.</p>
