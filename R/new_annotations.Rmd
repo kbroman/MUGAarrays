@@ -1018,9 +1018,62 @@ write.table(gm_uwisc[!is.na(gm_uwisc$chr) & gm_uwisc$chr %in% c(1:19,"X"), c("ch
 
 ### Version 1, with genetic maps
 
-```{r dict_files_v1}
+I used the [mouse map
+converter](http://cgd.jax.org/mousemapconverter/) to convert the mm10
+basepair positions of the autosome and X chromosome markers to
+sex-averaged cM from the [Cox et al.](https://doi.org/10.1534/genetics.109.105486)
+and [Liu et al. (aka G2F1)](https://doi.org/10.1534/genetics.114.161653) genetic maps.
+
+```{r load_maps}
+gm_cox <- data.table::fread("../UWisc/gm_cox.txt", header=FALSE, data.table=FALSE)
+gm_g2f1 <- data.table::fread("../UWisc/gm_g2f1.txt", header=FALSE, data.table=FALSE)
+mm_cox <- data.table::fread("../UWisc/mm_cox.txt", header=FALSE, data.table=FALSE)
+mm_g2f1 <- data.table::fread("../UWisc/mm_g2f1.txt", header=FALSE, data.table=FALSE)
+
+# verify stuff
+stopifnot( all(gm_cox[,1] == gm_uwisc$chr[1:nrow(gm_cox)]) )
+stopifnot( all(gm_cox[,2] == gm_uwisc$bp_mm10[1:nrow(gm_cox)]) )
+stopifnot( all(gm_g2f1[,1] == gm_uwisc$chr[1:nrow(gm_g2f1)]) )
+stopifnot( all(gm_g2f1[,2] == gm_uwisc$bp_mm10[1:nrow(gm_g2f1)]) )
+stopifnot( all(mm_cox[,1] == mm_uwisc$chr[1:nrow(mm_cox)]) )
+stopifnot( all(mm_cox[,2] == mm_uwisc$bp_mm10[1:nrow(mm_cox)]) )
+stopifnot( all(mm_g2f1[,1] == mm_uwisc$chr[1:nrow(mm_g2f1)]) )
+stopifnot( all(mm_g2f1[,2] == mm_uwisc$bp_mm10[1:nrow(mm_g2f1)]) )
+
+nas <- rep(NA, nrow(gm_uwisc)-nrow(gm_cox))
+gm_uwisc <- cbind(gm_uwisc,
+                  cM_cox=c(gm_cox[,5], nas),
+                  cM_g2f1=c(gm_g2f1[,5], nas))
+
+
+nas <- rep(NA, nrow(mm_uwisc)-nrow(mm_cox))
+mm_uwisc <- cbind(mm_uwisc,
+                  cM_cox=c(mm_cox[,5], nas),
+                  cM_g2f1=c(mm_g2f1[,5], nas))
+```
+
+Now I can write the new annotation files.
+
+```{r write_v1_files}
 cols_new <- c(cols_new[1:3], "cM_cox", "cM_g2f1", cols_new[-(1:3)])
-descriptions <- c(descriptions[1:3]
+mm_uwisc <- mm_uwisc[,cols_new]
+gm_uwisc <- gm_uwisc[,cols_new]
+
+# write MegaMUGA file
+mm_file <- "../UWisc/mm_uwisc_v1.csv"
+write.table(mm_uwisc, mm_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+
+# GigaMUGA file
+gm_file <- sub("mm", "gm", mm_file)
+write.table(gm_uwisc, gm_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+And finally, the new data dictionary files.
+
+```{r dict_files_v1}
+descriptions <- c(descriptions[1:3],
                   "Sex-averaged cM positions from Cox et al. https://doi.org/10.1534/genetics.109.105486",
                   "Sex-averaged cM positions from Liu et al. https://doi.org/10.1534/genetics.114.161653",
                   descriptions[-(1:3)])
