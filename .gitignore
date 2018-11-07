@@ -3,7 +3,6 @@ GeneSeek/*muga_geneseek.csv
 UNC/snps.*muga.Rdata
 Sequences/*.csv
 R/new_annotations.R
-UWisc/gm_bp.txt
-UWisc/mm_bp.txt
+GenMaps/?m_bp.txt
 UWisc/mmc_results.tgz
 UWisc/?m_uwisc*v0.csv

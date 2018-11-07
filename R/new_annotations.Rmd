@@ -1069,11 +1069,11 @@ write.table(common_dict, "../UWisc/mm_gm_commonmark_uwisc_dict_v1.csv",
 # write just chr, bp to files, for use with mouse map converter
 # (want to get interpolated cM positions from the Cox and G2F1 maps)
 write.table(mm_uwisc[!is.na(mm_uwisc$chr) & mm_uwisc$chr %in% c(1:19,"X"), c("chr", "bp_mm10")],
-            "../UWisc/mm_bp.txt", sep=" ", quote=FALSE,
+            "../GenMaps/mm_bp.txt", sep=" ", quote=FALSE,
             row.names=FALSE, col.names=FALSE)
 
 write.table(gm_uwisc[!is.na(gm_uwisc$chr) & gm_uwisc$chr %in% c(1:19,"X"), c("chr", "bp_mm10")],
-            "../UWisc/gm_bp.txt", sep=" ", quote=FALSE,
+            "../GenMaps/gm_bp.txt", sep=" ", quote=FALSE,
             row.names=FALSE, col.names=FALSE)
 ```
 
@@ -1086,10 +1086,10 @@ sex-averaged cM from the [Cox et al.](https://doi.org/10.1534/genetics.109.10548
 and [Liu et al. (aka G2F1)](https://doi.org/10.1534/genetics.114.161653) genetic maps.
 
 ```{r load_maps}
-gm_cox <- data.table::fread("../UWisc/gm_cox.txt", header=FALSE, data.table=FALSE)
-gm_g2f1 <- data.table::fread("../UWisc/gm_g2f1.txt", header=FALSE, data.table=FALSE)
-mm_cox <- data.table::fread("../UWisc/mm_cox.txt", header=FALSE, data.table=FALSE)
-mm_g2f1 <- data.table::fread("../UWisc/mm_g2f1.txt", header=FALSE, data.table=FALSE)
+gm_cox <- data.table::fread("../GenMaps/gm_cox.txt", header=FALSE, data.table=FALSE)
+gm_g2f1 <- data.table::fread("../GenMaps/gm_g2f1.txt", header=FALSE, data.table=FALSE)
+mm_cox <- data.table::fread("../GenMaps/mm_cox.txt", header=FALSE, data.table=FALSE)
+mm_g2f1 <- data.table::fread("../GenMaps/mm_g2f1.txt", header=FALSE, data.table=FALSE)
 
 # verify stuff
 stopifnot( all(gm_cox[,1] == gm_uwisc$chr[1:nrow(gm_cox)]) )

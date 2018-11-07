@@ -489,21 +489,21 @@ dup_pairs &lt;- t(apply(dup_pairs, 1, sort))
 rownames(dup_pairs) &lt;- 1:nrow(dup_pairs)
 colnames(dup_pairs) &lt;- c(&quot;snp1&quot;, &quot;snp2&quot;)
 dup_pairs</code></pre>
-<pre><code>##    snp1             snp2         
-## 1  &quot;Prdm9001&quot;       &quot;Prdm9005&quot;   
-## 2  &quot;Mit020&quot;         &quot;Mit031&quot;     
-## 3  &quot;UNC2512583&quot;     &quot;UNC88694&quot;   
-## 4  &quot;Mit001&quot;         &quot;Mit002&quot;     
-## 5  &quot;NNT001&quot;         &quot;NNT002&quot;     
-## 6  &quot;UNC23833145&quot;    &quot;UNC4368900&quot; 
-## 7  &quot;UNC20251282&quot;    &quot;UNC5746160&quot; 
+<pre><code>##    snp1             snp2
+## 1  &quot;Prdm9001&quot;       &quot;Prdm9005&quot;
+## 2  &quot;Mit020&quot;         &quot;Mit031&quot;
+## 3  &quot;UNC2512583&quot;     &quot;UNC88694&quot;
+## 4  &quot;Mit001&quot;         &quot;Mit002&quot;
+## 5  &quot;NNT001&quot;         &quot;NNT002&quot;
+## 6  &quot;UNC23833145&quot;    &quot;UNC4368900&quot;
+## 7  &quot;UNC20251282&quot;    &quot;UNC5746160&quot;
 ## 8  &quot;UNC27690624&quot;    &quot;UNC30009421&quot;
-## 9  &quot;UNC10237349&quot;    &quot;UNC9964748&quot; 
-## 10 &quot;Mx1002&quot;         &quot;Mx1004&quot;     
-## 11 &quot;Mx1001&quot;         &quot;Mx1003&quot;     
+## 9  &quot;UNC10237349&quot;    &quot;UNC9964748&quot;
+## 10 &quot;Mx1002&quot;         &quot;Mx1004&quot;
+## 11 &quot;Mx1001&quot;         &quot;Mx1003&quot;
 ## 12 &quot;UNC19598208&quot;    &quot;UNC24941679&quot;
-## 13 &quot;NRAMP1001&quot;      &quot;NRAMP1002&quot;  
-## 14 &quot;Mit017&quot;         &quot;Mit018&quot;     
+## 13 &quot;NRAMP1001&quot;      &quot;NRAMP1002&quot;
+## 14 &quot;Mit017&quot;         &quot;Mit018&quot;
 ## 15 &quot;CEAJAX00012397&quot; &quot;UNC2165985&quot;</code></pre>
 <p>This begs the question: are there other marker pairs whose names indicate that they should be duplicates, but where they’re not really duplicates?</p>
 <pre class="r"><code>mn &lt;- mm_uwisc$marker
@@ -788,20 +788,20 @@ write.table(common_dict, &quot;../UWisc/mm_gm_commonmark_uwisc_dict_v1.csv&quot;
 <pre class="r"><code># write just chr, bp to files, for use with mouse map converter
 # (want to get interpolated cM positions from the Cox and G2F1 maps)
 write.table(mm_uwisc[!is.na(mm_uwisc$chr) &amp; mm_uwisc$chr %in% c(1:19,&quot;X&quot;), c(&quot;chr&quot;, &quot;bp_mm10&quot;)],
-            &quot;../UWisc/mm_bp.txt&quot;, sep=&quot; &quot;, quote=FALSE,
+            &quot;../GenMaps/mm_bp.txt&quot;, sep=&quot; &quot;, quote=FALSE,
             row.names=FALSE, col.names=FALSE)
 
 write.table(gm_uwisc[!is.na(gm_uwisc$chr) &amp; gm_uwisc$chr %in% c(1:19,&quot;X&quot;), c(&quot;chr&quot;, &quot;bp_mm10&quot;)],
-            &quot;../UWisc/gm_bp.txt&quot;, sep=&quot; &quot;, quote=FALSE,
+            &quot;../GenMaps/gm_bp.txt&quot;, sep=&quot; &quot;, quote=FALSE,
             row.names=FALSE, col.names=FALSE)</code></pre>
 </div>
 <div id="version-1-with-genetic-maps" class="section level3">
 <h3>Version 1, with genetic maps</h3>
 <p>I used the <a href="http://cgd.jax.org/mousemapconverter/">mouse map converter</a> to convert the mm10 basepair positions of the autosome and X chromosome markers to sex-averaged cM from the <a href="https://doi.org/10.1534/genetics.109.105486">Cox et al.</a> and <a href="https://doi.org/10.1534/genetics.114.161653">Liu et al. (aka G2F1)</a> genetic maps.</p>
-<pre class="r"><code>gm_cox &lt;- data.table::fread(&quot;../UWisc/gm_cox.txt&quot;, header=FALSE, data.table=FALSE)
-gm_g2f1 &lt;- data.table::fread(&quot;../UWisc/gm_g2f1.txt&quot;, header=FALSE, data.table=FALSE)
-mm_cox &lt;- data.table::fread(&quot;../UWisc/mm_cox.txt&quot;, header=FALSE, data.table=FALSE)
-mm_g2f1 &lt;- data.table::fread(&quot;../UWisc/mm_g2f1.txt&quot;, header=FALSE, data.table=FALSE)
+<pre class="r"><code>gm_cox &lt;- data.table::fread(&quot;../GenMaps/gm_cox.txt&quot;, header=FALSE, data.table=FALSE)
+gm_g2f1 &lt;- data.table::fread(&quot;../GenMaps/gm_g2f1.txt&quot;, header=FALSE, data.table=FALSE)
+mm_cox &lt;- data.table::fread(&quot;../GenMaps/mm_cox.txt&quot;, header=FALSE, data.table=FALSE)
+mm_g2f1 &lt;- data.table::fread(&quot;../GenMaps/mm_g2f1.txt&quot;, header=FALSE, data.table=FALSE)
 
 # verify stuff
 stopifnot( all(gm_cox[,1] == gm_uwisc$chr[1:nrow(gm_cox)]) )
@@ -859,23 +859,23 @@ write.table(output, gm_dict_file, sep=&quot;,&quot;, quote=FALSE,
 <p>Here are the versions of R and R packages that I am using.</p>
 <pre class="r"><code>devtools::session_info()</code></pre>
 <pre><code>## ─ Session info ─────────────────────────────────────────────────────────────────────────────────────────────
-##  setting  value                       
+##  setting  value
 ##  version  R version 3.5.1 (2018-07-02)
-##  os       Pop!_OS 18.04 LTS           
-##  system   x86_64, linux-gnu           
-##  ui       X11                         
-##  language en_US:en                    
-##  collate  en_US.UTF-8                 
-##  ctype    en_US.UTF-8                 
-##  tz       America/Chicago             
-##  date     2018-11-07                  
-## 
+##  os       Pop!_OS 18.04 LTS
+##  system   x86_64, linux-gnu
+##  ui       X11
+##  language en_US:en
+##  collate  en_US.UTF-8
+##  ctype    en_US.UTF-8
+##  tz       America/Chicago
+##  date     2018-11-07
+##
 ## ─ Packages ─────────────────────────────────────────────────────────────────────────────────────────────────
-##  package     * version date       lib source        
+##  package     * version date       lib source
 ##  assertthat    0.2.0   2017-04-11 [1] CRAN (R 3.5.0)
 ##  backports     1.1.2   2017-12-13 [1] CRAN (R 3.5.0)
 ##  base64enc     0.1-3   2015-07-28 [1] CRAN (R 3.5.0)
-##  broman      * 0.68-4  2018-08-17 [1] local         
+##  broman      * 0.68-4  2018-08-17 [1] local
 ##  callr         3.0.0   2018-08-24 [1] CRAN (R 3.5.1)
 ##  cli           1.0.1   2018-09-25 [1] CRAN (R 3.5.1)
 ##  crayon        1.3.4   2017-09-16 [1] CRAN (R 3.5.0)
@@ -909,7 +909,7 @@ write.table(output, gm_dict_file, sep=&quot;,&quot;, quote=FALSE,
 ##  usethis     * 1.4.0   2018-08-14 [1] CRAN (R 3.5.1)
 ##  withr         2.1.2   2018-03-15 [1] CRAN (R 3.5.0)
 ##  yaml          2.2.0   2018-07-25 [1] CRAN (R 3.5.1)
-## 
+##
 ## [1] /home/kbroman/Rlibs
 ## [2] /usr/local/lib/R/site-library
 ## [3] /usr/lib/R/site-library
