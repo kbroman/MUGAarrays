@@ -3,7 +3,7 @@ marker,Name of SNP marker
 chr,Chromosome
 bp_mm10,Physical positions in basepairs for mm10 mouse genome build
 cM_cox,Sex-averaged cM positions from Cox et al. https://doi.org/10.1534/genetics.109.105486
-cM_g2f1,Sex-averaged cM positions from Liu et al. https://doi.org/10.1534/genetics.114.161653
+cM_g2f1,Sex-averaged cM positions from Liu et al. https://doi.org/10.1534/genetics.114.161653 (shifted to avoid cM positions < 0)
 strand,Strand (plus/minus) from which the probe sequence was taken
 snp,SNP alleles as a two-character string
 unique,TRUE indicates that the probe sequence appears exactly once in mm10 mouse genome build

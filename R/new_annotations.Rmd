@@ -1085,7 +1085,7 @@ basepair positions of the autosome and X chromosome markers to
 sex-averaged cM from the [Cox et al.](https://doi.org/10.1534/genetics.109.105486)
 and [Liu et al. (aka G2F1)](https://doi.org/10.1534/genetics.114.161653) genetic maps.
 
-```{r load_maps}
+```{r load_genetic_maps}
 gm_cox <- data.table::fread("../GenMaps/gm_cox.txt", header=FALSE, data.table=FALSE)
 gm_g2f1 <- data.table::fread("../GenMaps/gm_g2f1.txt", header=FALSE, data.table=FALSE)
 mm_cox <- data.table::fread("../GenMaps/mm_cox.txt", header=FALSE, data.table=FALSE)
@@ -1100,7 +1100,45 @@ stopifnot( all(mm_cox[,1] == mm_uwisc$chr[1:nrow(mm_cox)]) )
 stopifnot( all(mm_cox[,2] == mm_uwisc$bp_mm10[1:nrow(mm_cox)]) )
 stopifnot( all(mm_g2f1[,1] == mm_uwisc$chr[1:nrow(mm_g2f1)]) )
 stopifnot( all(mm_g2f1[,2] == mm_uwisc$bp_mm10[1:nrow(mm_g2f1)]) )
+```
 
+The G2F1 genetic maps include positions < 0 cM. Seems perfectly okay,
+but I'm going to shift the maps, using the overall cM:Mbp ratio on
+each chromosome, to make 3 Mbp (the conventional start position for
+the mouse genome builds) equal to 0 cM.
+
+```{r shift_g2f1_maps}
+for(chr in c(1:19,"X")) {
+    # grab positions
+    gm_g2f1_bp <- gm_g2f1[gm_g2f1[,1]==chr,2]
+    gm_g2f1_cM <- gm_g2f1[gm_g2f1[,1]==chr,5]
+
+    # Overall cM:Mb ratio
+    ratio <- diff(range(gm_g2f1_cM))/(diff(range(gm_g2f1_bp))/1e6)
+
+    # shift to make 3 Mbp == 0 cM
+    delta <- -min(gm_g2f1_cM) + ratio * (min(gm_g2f1_bp)/1e6 - 3)
+
+    # do the shift
+    gm_g2f1[gm_g2f1[,1]==chr,5] <- round(gm_g2f1_cM + delta, 3)
+
+    ## Repeat for MegaMUGA
+    # grab positions
+    mm_g2f1_bp <- mm_g2f1[mm_g2f1[,1]==chr,2]
+    mm_g2f1_cM <- mm_g2f1[mm_g2f1[,1]==chr,5]
+
+    # Overall cM:Mb ratio
+    ratio <- diff(range(mm_g2f1_cM))/(diff(range(mm_g2f1_bp))/1e6)
+
+    # shift to make 3 Mbp == 0 cM
+    delta <- -min(mm_g2f1_cM) + ratio * (min(mm_g2f1_bp)/1e6 - 3)
+
+    # do the shift
+    mm_g2f1[mm_g2f1[,1]==chr,5] <- round(mm_g2f1_cM + delta, 3)
+}
+```
+
+```{r incorporate_genetic_maps}
 nas <- rep(NA, nrow(gm_uwisc)-nrow(gm_cox))
 gm_uwisc <- cbind(gm_uwisc,
                   cM_cox=c(gm_cox[,5], nas),
@@ -1136,7 +1174,9 @@ And finally, the new data dictionary files.
 ```{r dict_files_v1}
 descriptions <- c(descriptions[1:3],
                   "Sex-averaged cM positions from Cox et al. https://doi.org/10.1534/genetics.109.105486",
-                  "Sex-averaged cM positions from Liu et al. https://doi.org/10.1534/genetics.114.161653",
+                  paste("Sex-averaged cM positions from Liu et al.",
+                        "https://doi.org/10.1534/genetics.114.161653",
+                        "(shifted to avoid cM positions < 0)"),
                   descriptions[-(1:3)])
 
 mm_dict_file <- "../UWisc/mm_uwisc_dict_v1.csv"
