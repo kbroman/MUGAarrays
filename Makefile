@@ -1,7 +1,7 @@
 R_OPTS=--no-save --no-restore --no-init-file --no-site-file
 .PHONY : all
 
-all: docs/new_annotations.html docs/study_sequences.html R/new_annotations.R
+all: docs/new_annotations.html docs/study_sequences.html docs/mini_annotations.html R/new_annotations.R R/mini_annotations.R
 
 docs/study_sequences.html: R/study_sequences.Rmd $(GENESEEK) $(UNC)
 	cd R;R $(R_OPTS) -e "rmarkdown::render('$(<F)')"
@@ -11,7 +11,16 @@ docs/new_annotations.html: R/new_annotations.Rmd $(GENESEEK) $(UNC) $(BLAST)
 	cd R;R $(R_OPTS) -e "rmarkdown::render('$(<F)')"
 	mv R/$(@F) $@
 
+docs/mini_annotations.html: R/mini_annotations.Rmd \
+							Blast/results_mini/mini_blastn_results.rds \
+							UNC/miniMUGA-Marker-Annotations.csv
+	cd R;R $(R_OPTS) -e "rmarkdown::render('$(<F)')"
+	mv R/$(@F) $@
+
 R/new_annotations.R: R/new_annotations.Rmd
+	cd R;R $(R_OPTS) -e "knitr::purl('$(<F)')"
+
+R/mini_annotations.R: R/mini_annotations.Rmd
 	cd R;R $(R_OPTS) -e "knitr::purl('$(<F)')"
 
 Blast/R/gigamuga.fa: Blast/R/create_gm_fasta.R Sequences/gm_seq.csv
