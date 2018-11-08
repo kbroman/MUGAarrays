@@ -449,41 +449,34 @@ write.table(mini_uwisc[!is.na(mini_uwisc$chr) &amp; mini_uwisc$chr %in% c(1:19,&
 <h3>Version 1, with genetic maps</h3>
 <p><strong>I’ve not done this part yet, so the code is suppressed.</strong></p>
 <p>I used the <a href="http://cgd.jax.org/mousemapconverter/">mouse map converter</a> to convert the mm10 basepair positions of the autosome and X chromosome markers to sex-averaged cM from the <a href="https://doi.org/10.1534/genetics.109.105486">Cox et al.</a> and <a href="https://doi.org/10.1534/genetics.114.161653">Liu et al. (aka G2F1)</a> genetic maps.</p>
-<pre class="r"><code>#mini_cox &lt;- data.table::fread(&quot;../GenMaps/mini_cox.txt&quot;, header=FALSE, data.table=FALSE)
-#mini_g2f1 &lt;- data.table::fread(&quot;../GenMaps/mini_g2f1.txt&quot;, header=FALSE, data.table=FALSE)
+<pre class="r"><code>mini_cox &lt;- data.table::fread(&quot;../GenMaps/mini_cox.txt&quot;, header=FALSE, data.table=FALSE)
+mini_g2f1 &lt;- data.table::fread(&quot;../GenMaps/mini_g2f1.txt&quot;, header=FALSE, data.table=FALSE)
 
 # verify stuff
-#stopifnot( all(mini_cox[,1] == mini_uwisc$chr[1:nrow(mini_cox)]) )
-#stopifnot( all(mini_cox[,2] == mini_uwisc$bp_mm10[1:nrow(mini_cox)]) )
-#stopifnot( all(mini_g2f1[,1] == mini_uwisc$chr[1:nrow(mini_g2f1)]) )
-#stopifnot( all(mini_g2f1[,2] == mini_uwisc$bp_mm10[1:nrow(mini_g2f1)]) )</code></pre>
+stopifnot( all(mini_cox[,1] == mini_uwisc$chr[1:nrow(mini_cox)]) )
+stopifnot( all(mini_cox[,2] == mini_uwisc$bp_mm10[1:nrow(mini_cox)]) )
+stopifnot( all(mini_g2f1[,1] == mini_uwisc$chr[1:nrow(mini_g2f1)]) )
+stopifnot( all(mini_g2f1[,2] == mini_uwisc$bp_mm10[1:nrow(mini_g2f1)]) )</code></pre>
 <p>The G2F1 genetic maps include positions &lt; 0 cM. Seems perfectly okay, but I’m going to shift the maps, using the overall cM:Mbp ratio on each chromosome, to make 3 Mbp (the conventional start position for the mouse genome builds) equal to 0 cM.</p>
-<pre class="r"><code>#for(chr in c(1:19,&quot;X&quot;)) {
-#    # grab positions
-#    mini_g2f1_bp &lt;- mini_g2f1[mini_g2f1[,1]==chr,2]
-#    mini_g2f1_cM &lt;- mini_g2f1[mini_g2f1[,1]==chr,5]
-#
-#    # Overall cM:Mb ratio
-#    ratio &lt;- diff(range(mini_g2f1_cM))/(diff(range(mini_g2f1_bp))/1e6)
-#
-#    # shift to make 3 Mbp == 0 cM
-#    delta &lt;- -min(mini_g2f1_cM) + ratio * (min(mini_g2f1_bp)/1e6 - 3)
-#
-#    # do the shift
-#    mini_g2f1[mini_g2f1[,1]==chr,5] &lt;- round(mini_g2f1_cM + delta, 3)
-#}</code></pre>
-<pre class="r"><code>#nas &lt;- rep(NA, nrow(mini_uwisc)-nrow(mini_cox))
-#mini_uwisc &lt;- cbind(mini_uwisc,
-#                  cM_cox=c(mini_cox[,5], nas),
-#                  cM_g2f1=c(mini_g2f1[,5], nas))</code></pre>
+<pre class="r"><code>shifts &lt;- read.csv(&quot;../GenMaps/g2f1_shift.csv&quot;,
+                   stringsAsFactors=FALSE)
+shifts &lt;- setNames(shifts[,2], shifts[,1])
+
+for(chr in c(1:19,&quot;X&quot;)) {
+    mini_g2f1[mini_g2f1[,1]==chr,5] &lt;- mini_g2f1[mini_g2f1[,1]==chr,5] + shifts[chr]
+}</code></pre>
+<pre class="r"><code>nas &lt;- rep(NA, nrow(mini_uwisc)-nrow(mini_cox))
+mini_uwisc &lt;- cbind(mini_uwisc,
+                  cM_cox=c(mini_cox[,5], nas),
+                  cM_g2f1=c(mini_g2f1[,5], nas))</code></pre>
 <p>Now I can write the new annotation files.</p>
-<pre class="r"><code>#cols_new &lt;- c(cols_new[1:3], &quot;cM_cox&quot;, &quot;cM_g2f1&quot;, cols_new[-(1:3)])
-#mini_uwisc &lt;- mini_uwisc[,cols_new]
+<pre class="r"><code>cols_new &lt;- c(cols_new[1:3], &quot;cM_cox&quot;, &quot;cM_g2f1&quot;, cols_new[-(1:3)])
+mini_uwisc &lt;- mini_uwisc[,cols_new]
 
 # write miniMUGA file
-#mini_file &lt;- &quot;../UWisc/mini_uwisc_v1.csv&quot;
-#write.table(mini_uwisc, mini_file, sep=&quot;,&quot;, quote=FALSE,
-#            row.names=FALSE, col.names=TRUE)</code></pre>
+mini_file &lt;- &quot;../UWisc/mini_uwisc_v1.csv&quot;
+write.table(mini_uwisc, mini_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)</code></pre>
 <p>And finally, the new data dictionary files.</p>
 <pre class="r"><code>descriptions &lt;- c(descriptions[1:3],
                   &quot;Sex-averaged cM positions from Cox et al. https://doi.org/10.1534/genetics.109.105486&quot;,
@@ -492,12 +485,12 @@ write.table(mini_uwisc[!is.na(mini_uwisc$chr) &amp; mini_uwisc$chr %in% c(1:19,&
                         &quot;(shifted to avoid cM positions &lt; 0)&quot;),
                   descriptions[-(1:3)])
 
-#mini_dict_file &lt;- &quot;../UWisc/mini_uwisc_dict_v1.csv&quot;
-#output &lt;- data.frame(column=cols_new,
-#                     description=descriptions,
-#                     stringsAsFactors=FALSE)
-#write.table(output, mini_dict_file, sep=&quot;,&quot;, quote=FALSE,
-#            row.names=FALSE, col.names=TRUE)</code></pre>
+mini_dict_file &lt;- &quot;../UWisc/mini_uwisc_dict_v1.csv&quot;
+output &lt;- data.frame(column=cols_new,
+                     description=descriptions,
+                     stringsAsFactors=FALSE)
+write.table(output, mini_dict_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)</code></pre>
 </div>
 </div>
 <div id="session-info" class="section level2">

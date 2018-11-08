@@ -354,14 +354,14 @@ sex-averaged cM from the [Cox et al.](https://doi.org/10.1534/genetics.109.10548
 and [Liu et al. (aka G2F1)](https://doi.org/10.1534/genetics.114.161653) genetic maps.
 
 ```{r load_genetic_maps}
-#mini_cox <- data.table::fread("../GenMaps/mini_cox.txt", header=FALSE, data.table=FALSE)
-#mini_g2f1 <- data.table::fread("../GenMaps/mini_g2f1.txt", header=FALSE, data.table=FALSE)
+mini_cox <- data.table::fread("../GenMaps/mini_cox.txt", header=FALSE, data.table=FALSE)
+mini_g2f1 <- data.table::fread("../GenMaps/mini_g2f1.txt", header=FALSE, data.table=FALSE)
 
 # verify stuff
-#stopifnot( all(mini_cox[,1] == mini_uwisc$chr[1:nrow(mini_cox)]) )
-#stopifnot( all(mini_cox[,2] == mini_uwisc$bp_mm10[1:nrow(mini_cox)]) )
-#stopifnot( all(mini_g2f1[,1] == mini_uwisc$chr[1:nrow(mini_g2f1)]) )
-#stopifnot( all(mini_g2f1[,2] == mini_uwisc$bp_mm10[1:nrow(mini_g2f1)]) )
+stopifnot( all(mini_cox[,1] == mini_uwisc$chr[1:nrow(mini_cox)]) )
+stopifnot( all(mini_cox[,2] == mini_uwisc$bp_mm10[1:nrow(mini_cox)]) )
+stopifnot( all(mini_g2f1[,1] == mini_uwisc$chr[1:nrow(mini_g2f1)]) )
+stopifnot( all(mini_g2f1[,2] == mini_uwisc$bp_mm10[1:nrow(mini_g2f1)]) )
 ```
 
 The G2F1 genetic maps include positions < 0 cM. Seems perfectly okay,
@@ -370,39 +370,32 @@ each chromosome, to make 3 Mbp (the conventional start position for
 the mouse genome builds) equal to 0 cM.
 
 ```{r shift_g2f1_maps}
-#for(chr in c(1:19,"X")) {
-#    # grab positions
-#    mini_g2f1_bp <- mini_g2f1[mini_g2f1[,1]==chr,2]
-#    mini_g2f1_cM <- mini_g2f1[mini_g2f1[,1]==chr,5]
-#
-#    # Overall cM:Mb ratio
-#    ratio <- diff(range(mini_g2f1_cM))/(diff(range(mini_g2f1_bp))/1e6)
-#
-#    # shift to make 3 Mbp == 0 cM
-#    delta <- -min(mini_g2f1_cM) + ratio * (min(mini_g2f1_bp)/1e6 - 3)
-#
-#    # do the shift
-#    mini_g2f1[mini_g2f1[,1]==chr,5] <- round(mini_g2f1_cM + delta, 3)
-#}
+shifts <- read.csv("../GenMaps/g2f1_shift.csv",
+                   stringsAsFactors=FALSE)
+shifts <- setNames(shifts[,2], shifts[,1])
+
+for(chr in c(1:19,"X")) {
+    mini_g2f1[mini_g2f1[,1]==chr,5] <- mini_g2f1[mini_g2f1[,1]==chr,5] + shifts[chr]
+}
 ```
 
 ```{r incorporate_genetic_maps}
-#nas <- rep(NA, nrow(mini_uwisc)-nrow(mini_cox))
-#mini_uwisc <- cbind(mini_uwisc,
-#                  cM_cox=c(mini_cox[,5], nas),
-#                  cM_g2f1=c(mini_g2f1[,5], nas))
+nas <- rep(NA, nrow(mini_uwisc)-nrow(mini_cox))
+mini_uwisc <- cbind(mini_uwisc,
+                  cM_cox=c(mini_cox[,5], nas),
+                  cM_g2f1=c(mini_g2f1[,5], nas))
 ```
 
 Now I can write the new annotation files.
 
 ```{r write_v1_files}
-#cols_new <- c(cols_new[1:3], "cM_cox", "cM_g2f1", cols_new[-(1:3)])
-#mini_uwisc <- mini_uwisc[,cols_new]
+cols_new <- c(cols_new[1:3], "cM_cox", "cM_g2f1", cols_new[-(1:3)])
+mini_uwisc <- mini_uwisc[,cols_new]
 
 # write miniMUGA file
-#mini_file <- "../UWisc/mini_uwisc_v1.csv"
-#write.table(mini_uwisc, mini_file, sep=",", quote=FALSE,
-#            row.names=FALSE, col.names=TRUE)
+mini_file <- "../UWisc/mini_uwisc_v1.csv"
+write.table(mini_uwisc, mini_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
 ```
 
 And finally, the new data dictionary files.
@@ -415,12 +408,12 @@ descriptions <- c(descriptions[1:3],
                         "(shifted to avoid cM positions < 0)"),
                   descriptions[-(1:3)])
 
-#mini_dict_file <- "../UWisc/mini_uwisc_dict_v1.csv"
-#output <- data.frame(column=cols_new,
-#                     description=descriptions,
-#                     stringsAsFactors=FALSE)
-#write.table(output, mini_dict_file, sep=",", quote=FALSE,
-#            row.names=FALSE, col.names=TRUE)
+mini_dict_file <- "../UWisc/mini_uwisc_dict_v1.csv"
+output <- data.frame(column=cols_new,
+                     description=descriptions,
+                     stringsAsFactors=FALSE)
+write.table(output, mini_dict_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
 ```
 
 ## Session info
