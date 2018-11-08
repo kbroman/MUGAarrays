@@ -1115,33 +1115,13 @@ each chromosome, to make 3 Mbp (the conventional start position for
 the mouse genome builds) equal to 0 cM.
 
 ```{r shift_g2f1_maps}
+shifts <- read.csv("../GenMaps/g2f1_shift.csv",
+                   stringsAsFactors=FALSE)
+shifts <- setNames(shifts[,2], shifts[,1])
+
 for(chr in c(1:19,"X")) {
-    # grab positions
-    gm_g2f1_bp <- gm_g2f1[gm_g2f1[,1]==chr,2]
-    gm_g2f1_cM <- gm_g2f1[gm_g2f1[,1]==chr,5]
-
-    # Overall cM:Mb ratio
-    ratio <- diff(range(gm_g2f1_cM))/(diff(range(gm_g2f1_bp))/1e6)
-
-    # shift to make 3 Mbp == 0 cM
-    delta <- -min(gm_g2f1_cM) + ratio * (min(gm_g2f1_bp)/1e6 - 3)
-
-    # do the shift
-    gm_g2f1[gm_g2f1[,1]==chr,5] <- round(gm_g2f1_cM + delta, 3)
-
-    ## Repeat for MegaMUGA
-    # grab positions
-    mm_g2f1_bp <- mm_g2f1[mm_g2f1[,1]==chr,2]
-    mm_g2f1_cM <- mm_g2f1[mm_g2f1[,1]==chr,5]
-
-    # Overall cM:Mb ratio
-    ratio <- diff(range(mm_g2f1_cM))/(diff(range(mm_g2f1_bp))/1e6)
-
-    # shift to make 3 Mbp == 0 cM
-    delta <- -min(mm_g2f1_cM) + ratio * (min(mm_g2f1_bp)/1e6 - 3)
-
-    # do the shift
-    mm_g2f1[mm_g2f1[,1]==chr,5] <- round(mm_g2f1_cM + delta, 3)
+    gm_g2f1[gm_g2f1[,1]==chr,5] <- gm_g2f1[gm_g2f1[,1]==chr,5] + shifts[chr]
+    mm_g2f1[mm_g2f1[,1]==chr,5] <- mm_g2f1[mm_g2f1[,1]==chr,5] + shifts[chr]
 }
 ```
 

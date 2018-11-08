@@ -7,7 +7,7 @@ docs/study_sequences.html: R/study_sequences.Rmd $(GENESEEK) $(UNC)
 	cd R;R $(R_OPTS) -e "rmarkdown::render('$(<F)')"
 	mv R/$(@F) $@
 
-docs/new_annotations.html: R/new_annotations.Rmd $(GENESEEK) $(UNC) $(BLAST)
+docs/new_annotations.html: R/new_annotations.Rmd $(GENESEEK) $(UNC) $(BLAST) GenMaps/g2f1_shift.csv
 	cd R;R $(R_OPTS) -e "rmarkdown::render('$(<F)')"
 	mv R/$(@F) $@
 
@@ -22,6 +22,12 @@ R/new_annotations.R: R/new_annotations.Rmd
 
 R/mini_annotations.R: R/mini_annotations.Rmd
 	cd R;R $(R_OPTS) -e "knitr::purl('$(<F)')"
+
+GenMaps/g2f1_shift.csv: R/amount_to_shift_g2f1.R \
+						GenMaps/gm_g2f1.txt \
+						GenMaps/mm_g2f1.txt \
+						GenMaps/mini_g2f1.txt
+	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
 
 Blast/R/gigamuga.fa: Blast/R/create_gm_fasta.R Sequences/gm_seq.csv
 	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
