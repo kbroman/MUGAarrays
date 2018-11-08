@@ -246,8 +246,9 @@ div.tocify {
 
 <div id="introduction" class="section level2">
 <h2>Introduction</h2>
-<p><a href="https://www.jax.org/research-and-faculty/faculty/vivek-kumar">Vivek Kumar</a> asked me to repeat <a href="https://kbroman.org/MUGAarrays/new_annotations.html">my analysis of the MegaMUGA/GigaMUGA annotation files</a> with the MiniMUGA array. He sent me <a href="https://github.com/kbroman/MUGAarrays/blob/minimuga/UNC/miniMUGA-Marker-Annotations.csv">a CSV file</a> that he received from <a href="https://www.med.unc.edu/genetics/people/primary-faculty/fernando-pardo-manuel-de-villena-phd">Fernando Pardo Manuel de Villena</a>, containing information for the ~10k markers: marker, chromosome, position (bp38), strand, probe sequence (and for some markers, a second probe sequence), and reference and alternate alleles.</p>
-<p>The probes are again 50 bp long, and only a portion of them have the second probe sequence, and in those cases it seems again that the two sequences contain the SNP. So I trimmed the 50th base off of those sequences before running blastn.</p>
+<p><a href="https://www.jax.org/research-and-faculty/faculty/vivek-kumar">Vivek Kumar</a> asked me to repeat <a href="https://kbroman.org/MUGAarrays/new_annotations.html">my analysis of the MegaMUGA/GigaMUGA annotation files</a> with the MiniMUGA array. He sent me <a href="https://github.com/kbroman/MUGAarrays/blob/master/UNC/miniMUGA-Marker-Annotations.csv">a CSV file</a> that he received from <a href="https://www.med.unc.edu/genetics/people/primary-faculty/fernando-pardo-manuel-de-villena-phd">Fernando Pardo Manuel de Villena</a>, containing information for the ~10k markers: marker, chromosome, position (bp38), strand, probe sequence (and for some markers, a second probe sequence), and reference and alternate alleles.</p>
+<p>The probes are again 50 bp long, and only a portion of them have the second probe sequence, and in those cases it seems again (like the MegaMUGA and GigaMUGA arrays) that the two sequences contain the SNP. So I trimmed the 50th base off of those sequences before running blastn.</p>
+<p>The annotation files I created are at <a href="https://github.com/kbroman/MUGAarrays/blob/master/UWisc" class="uri">https://github.com/kbroman/MUGAarrays/blob/master/UWisc</a>.</p>
 </div>
 <div id="preliminaries" class="section level2">
 <h2>Preliminaries</h2>
@@ -320,13 +321,14 @@ rownames(mini_uwisc) &lt;- mini_uwisc$marker</code></pre>
 <p>If we look at the inferred chromosome assignments of the markers with a unique hit to the genome, there are just 3 differences, and these are the cases where the UNC annotation file says chromosome <code>PAR</code> (for pseudoautosomal), while the blast results match to the X chromosome. I’m going to force these back to <code>PAR</code> in my annotations.</p>
 <pre class="r"><code>mini_uwisc$chr[mini_unc$chr==&quot;PAR&quot;] &lt;- &quot;PAR&quot;</code></pre>
 <p>There were 351 markers that didn’t have a perfect match in the mm10 mouse genome assembly. This included the 257 markers that the UNC annotation file has as chromosome <code>0</code> (transgene-related markers), and then a smattering of markers on all chromosomes except the mitochondria.</p>
-<div id="positions" class="section level3">
-<h3>Positions</h3>
+</div>
+<div id="positions" class="section level2">
+<h2>Positions</h2>
 <p>Of the 9,820 markers with a unique hit to the mouse genome, for all but 7 I get the exact same position as in the UNC annotation file. And this includes the 287 markers for which I’d trimmed off the last base of the probe before using blast. (So the off-by-1 problem in the GigaMUGA marker positions was not an issue for UNC annotations of the miniMUGA array.)</p>
 <p>The 7 markers where the positions are different are all mitochondrial, and 0 are off by -1 (UNC2203635, UNC2212395, UNC2212695, UNC2212752, UNC2213612, and mMit001), while the other (UNC2202344) is off by 50.</p>
 </div>
-<div id="markers-with-the-same-probes" class="section level3">
-<h3>Markers with the same probes</h3>
+<div id="markers-with-the-same-probes" class="section level2">
+<h2>Markers with the same probes</h2>
 <p>Not all of the probes are distinct.</p>
 <pre class="r"><code>tab_probe &lt;- table(mini_uwisc$probe)
 pairs &lt;- names(tab_probe)[tab_probe==&quot;2&quot;]
@@ -351,7 +353,6 @@ stopifnot( all(pairs_not0[,2] == paste0(pairs_not0[,1], &quot;b&quot;) |
 <p>The trios of markers with identical probe sequences are all on chr <code>0</code> in the UNC annotation file, for transgene-related markers.</p>
 <p>Of the 113 pairs, 36 are both on chromosome <code>0</code>.</p>
 <p>The other 154 pairs of markers with identical probe sequences appear to be intended duplicates: they all are such the one name is the same as the other but with <code>g</code> or <code>m</code> added to the beginning, or with <code>b</code> added to the end.</p>
-</div>
 </div>
 <div id="new-annotation-file" class="section level2">
 <h2>New annotation file</h2>
@@ -447,7 +448,6 @@ write.table(mini_uwisc[!is.na(mini_uwisc$chr) &amp; mini_uwisc$chr %in% c(1:19,&
 </div>
 <div id="version-1-with-genetic-maps" class="section level3">
 <h3>Version 1, with genetic maps</h3>
-<p><strong>I’ve not done this part yet, so the code is suppressed.</strong></p>
 <p>I used the <a href="http://cgd.jax.org/mousemapconverter/">mouse map converter</a> to convert the mm10 basepair positions of the autosome and X chromosome markers to sex-averaged cM from the <a href="https://doi.org/10.1534/genetics.109.105486">Cox et al.</a> and <a href="https://doi.org/10.1534/genetics.114.161653">Liu et al. (aka G2F1)</a> genetic maps.</p>
 <pre class="r"><code>mini_cox &lt;- data.table::fread(&quot;../GenMaps/mini_cox.txt&quot;, header=FALSE, data.table=FALSE)
 mini_g2f1 &lt;- data.table::fread(&quot;../GenMaps/mini_g2f1.txt&quot;, header=FALSE, data.table=FALSE)
@@ -534,14 +534,14 @@ write.table(output, mini_dict_file, sep=&quot;,&quot;, quote=FALSE,
 ##  pkgload       1.0.2   2018-10-29 [1] CRAN (R 3.5.1)
 ##  prettyunits   1.0.2   2015-07-13 [1] CRAN (R 3.5.0)
 ##  processx      3.2.0   2018-08-16 [1] CRAN (R 3.5.1)
-##  ps            1.2.0   2018-10-16 [1] CRAN (R 3.5.1)
+##  ps            1.2.1   2018-11-06 [1] CRAN (R 3.5.1)
 ##  R6            2.3.0   2018-10-04 [1] CRAN (R 3.5.1)
-##  Rcpp          0.12.19 2018-10-01 [1] CRAN (R 3.5.1)
+##  Rcpp          1.0.0   2018-11-07 [1] CRAN (R 3.5.1)
 ##  remotes       2.0.2   2018-10-30 [1] CRAN (R 3.5.1)
 ##  rlang         0.3.0.1 2018-10-25 [1] CRAN (R 3.5.1)
 ##  rmarkdown     1.10    2018-06-11 [1] CRAN (R 3.5.0)
 ##  rprojroot     1.3-2   2018-01-03 [1] CRAN (R 3.5.0)
-##  sessioninfo   1.1.0   2018-09-25 [1] CRAN (R 3.5.1)
+##  sessioninfo   1.1.1   2018-11-05 [1] CRAN (R 3.5.1)
 ##  stringi       1.2.4   2018-07-20 [1] CRAN (R 3.5.1)
 ##  stringr       1.3.1   2018-05-10 [1] CRAN (R 3.5.0)
 ##  testthat      2.0.1   2018-10-13 [1] CRAN (R 3.5.1)
