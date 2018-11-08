@@ -14,10 +14,13 @@ docs/new_annotations.html: R/new_annotations.Rmd $(GENESEEK) $(UNC) $(BLAST)
 R/new_annotations.R: R/new_annotations.Rmd
 	cd R;R $(R_OPTS) -e "knitr::purl('$(<F)')"
 
-Blast/R/gigamuga.fa: Blast/R/create_gm_fasta.R Sequences/gm_seq.csv Sequences/mm_seq.csv
+Blast/R/gigamuga.fa: Blast/R/create_gm_fasta.R Sequences/gm_seq.csv
 	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
 
-Blast/R/megamuga.fa: Blast/R/create_gm_fasta.R Sequences/mm_seq.csv
+Blast/R/megamuga.fa: Blast/R/create_mm_fasta.R Sequences/mm_seq.csv
+	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
+
+Blast/R/minimuga.fa: Blast/R/create_mini_fasta.R Sequences/mini_seq.csv
 	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
 
 Blast/R/gigamuga_untrimmed.fa: Blast/R/create_gm_untrimmed_fasta.R Sequences/gm_seq.csv Sequences/gm_untrimmed_seq.csv
@@ -29,10 +32,16 @@ Blast/results_gm/gm_blastn_results.rds: Blast/R/blastn_gm.R Blast/R/gigamuga.fa
 Blast/results_mm/mm_blastn_results.rds: Blast/R/blastn_mm.R Blast/R/megamuga.fa
 	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
 
+Blast/results_mini/mini_blastn_results.rds: Blast/R/blastn_mini.R Blast/R/minimuga.fa
+	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
+
 Blast/results_gm_untrimmed/gm_untrimmed_blastn_results.rds: Blast/R/blastn_gm_untrimmed.R Blast/R/gigamuga_untrimmed.fa
 	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
 
 Sequences/gm_seq.csv: R/grab_sequences.R $(GENESEEK)
+	cd R;R $(R_OPTS) -e "source('$(<F)')"
+
+Sequences/mini_seq.csv: R/grab_minimuga_sequences.R
 	cd R;R $(R_OPTS) -e "source('$(<F)')"
 
 GENESEEK = GeneSeek/common_markers.csv GeneSeek/gigamuga_geneseek.csv GeneSeek/megamuga_geneseek.csv
