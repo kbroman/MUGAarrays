@@ -815,33 +815,13 @@ stopifnot( all(mm_cox[,2] == mm_uwisc$bp_mm10[1:nrow(mm_cox)]) )
 stopifnot( all(mm_g2f1[,1] == mm_uwisc$chr[1:nrow(mm_g2f1)]) )
 stopifnot( all(mm_g2f1[,2] == mm_uwisc$bp_mm10[1:nrow(mm_g2f1)]) )</code></pre>
 <p>The G2F1 genetic maps include positions &lt; 0 cM. Seems perfectly okay, but I’m going to shift the maps, using the overall cM:Mbp ratio on each chromosome, to make 3 Mbp (the conventional start position for the mouse genome builds) equal to 0 cM.</p>
-<pre class="r"><code>for(chr in c(1:19,&quot;X&quot;)) {
-    # grab positions
-    gm_g2f1_bp &lt;- gm_g2f1[gm_g2f1[,1]==chr,2]
-    gm_g2f1_cM &lt;- gm_g2f1[gm_g2f1[,1]==chr,5]
+<pre class="r"><code>shifts &lt;- read.csv(&quot;../GenMaps/g2f1_shift.csv&quot;,
+                   stringsAsFactors=FALSE)
+shifts &lt;- setNames(shifts[,2], shifts[,1])
 
-    # Overall cM:Mb ratio
-    ratio &lt;- diff(range(gm_g2f1_cM))/(diff(range(gm_g2f1_bp))/1e6)
-
-    # shift to make 3 Mbp == 0 cM
-    delta &lt;- -min(gm_g2f1_cM) + ratio * (min(gm_g2f1_bp)/1e6 - 3)
-
-    # do the shift
-    gm_g2f1[gm_g2f1[,1]==chr,5] &lt;- round(gm_g2f1_cM + delta, 3)
-
-    ## Repeat for MegaMUGA
-    # grab positions
-    mm_g2f1_bp &lt;- mm_g2f1[mm_g2f1[,1]==chr,2]
-    mm_g2f1_cM &lt;- mm_g2f1[mm_g2f1[,1]==chr,5]
-
-    # Overall cM:Mb ratio
-    ratio &lt;- diff(range(mm_g2f1_cM))/(diff(range(mm_g2f1_bp))/1e6)
-
-    # shift to make 3 Mbp == 0 cM
-    delta &lt;- -min(mm_g2f1_cM) + ratio * (min(mm_g2f1_bp)/1e6 - 3)
-
-    # do the shift
-    mm_g2f1[mm_g2f1[,1]==chr,5] &lt;- round(mm_g2f1_cM + delta, 3)
+for(chr in c(1:19,&quot;X&quot;)) {
+    gm_g2f1[gm_g2f1[,1]==chr,5] &lt;- gm_g2f1[gm_g2f1[,1]==chr,5] + shifts[chr]
+    mm_g2f1[mm_g2f1[,1]==chr,5] &lt;- mm_g2f1[mm_g2f1[,1]==chr,5] + shifts[chr]
 }</code></pre>
 <pre class="r"><code>nas &lt;- rep(NA, nrow(gm_uwisc)-nrow(gm_cox))
 gm_uwisc &lt;- cbind(gm_uwisc,
