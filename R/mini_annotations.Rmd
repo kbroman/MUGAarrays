@@ -24,7 +24,7 @@ Kumar](https://www.jax.org/research-and-faculty/faculty/vivek-kumar)
 asked me to repeat [my analysis of the MegaMUGA/GigaMUGA annotation
 files](https://kbroman.org/MUGAarrays/new_annotations.html) with the
 MiniMUGA array. He sent me [a CSV
-file](https://github.com/kbroman/MUGAarrays/blob/minimuga/UNC/miniMUGA-Marker-Annotations.csv)
+file](https://github.com/kbroman/MUGAarrays/blob/master/UNC/miniMUGA-Marker-Annotations.csv)
 that he received from [Fernando Pardo Manuel de
 Villena](https://www.med.unc.edu/genetics/people/primary-faculty/fernando-pardo-manuel-de-villena-phd),
 containing information for the ~10k markers: marker, chromosome,
@@ -32,9 +32,14 @@ position (bp38), strand, probe sequence (and for some markers, a
 second probe sequence), and reference and alternate alleles.
 
 The probes are again 50 bp long, and only a portion of them have the
-second probe sequence, and in those cases it seems again that the two
+second probe sequence, and in those cases it seems again (like the
+MegaMUGA and GigaMUGA arrays) that the two
 sequences contain the SNP. So I trimmed the 50th base off of those
 sequences before running blastn.
+
+The annotation files I created are at
+<https://github.com/kbroman/MUGAarrays/blob/master/UWisc>.
+
 
 
 
@@ -344,8 +349,6 @@ write.table(mini_uwisc[!is.na(mini_uwisc$chr) & mini_uwisc$chr %in% c(1:19,"X"),
 ```
 
 ### Version 1, with genetic maps
-
-**I've not done this part yet, so the code is suppressed.**
 
 I used the [mouse map
 converter](http://cgd.jax.org/mousemapconverter/) to convert the mm10

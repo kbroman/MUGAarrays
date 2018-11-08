@@ -17,7 +17,7 @@ for a description of how they were created.
   data on which markers are in common, within and between the two
   arrays
 - [`mm_gm_commonmark_uwisc_dict_v1.csv`](mm_gm_commonmark_uwisc_dict_v1.csv)
-  is a data dictionary describing the columns in
+  is a data dictionary describing the columns in `mm_gm_commonmark_uwisc_v1.csv`
 
 You can load the annotation files into [R](https://www.r-project.org) as follows:
 
@@ -43,3 +43,13 @@ Villena](https://www.med.unc.edu/genetics/people/primary-faculty/fernando-pardo-
 My analysis is at <https://kbroman.org/MUGAarrays/mini_annotations.html>
 
 The annotation files are in this directory.
+
+- [`mini_uwisc_v1.csv`](mini_uwisc_v1.csv)
+  is the key annotation file
+- [`mini_uwisc_dict_v1.csv`](mini_uwisc_dict_v1.csv)
+  is the data dictionary, with descriptions of the columns
+- [`mini_commonmark_uwisc_v1.csv`](mini_commonmark_uwisc_v1.csv) has
+  data on which pairs of markers on the miniMUGA array are assaying a
+  common SNP, either the same probe or plus/minus strand pairs.
+- [`mini_commonmark_uwisc_dict_v1.csv`](mini_commonmark_uwisc_dict_v1.csv)
+  is a data dictionary describing the columns in `mini_commonmark_uwisc_v1.csv`
