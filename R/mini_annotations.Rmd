@@ -166,7 +166,7 @@ perfect match in the mm10 mouse genome assembly. This included the
 chromosome `0` (transgene-related markers), and then a smattering of
 markers on all chromosomes except the mitochondria.
 
-### Positions
+## Positions
 
 Of the `r add_commas(sum(mini_uwisc$unique))` markers with a unique
 hit to the mouse genome, for all but
@@ -187,7 +187,7 @@ while the other
 is off by
 `r (mini_uwisc$pos - mini_unc$pos)[mini_uwisc$unique & mini_uwisc$pos > mini_unc$pos]`.
 
-### Markers with the same probes
+## Markers with the same probes
 
 Not all of the probes are distinct.
 
