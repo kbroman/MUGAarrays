@@ -30,3 +30,16 @@ gm_dict <- read.csv(paste0(dir, "gm_uwisc_dict_v1.csv"))
 common <- read.csv(paste0(dir, "mm_gm_commonmark_uwisc_v1.csv"))
 common_dict <- read.csv(paste0(dir, "mm_gm_commonmark_uwisc_dict_v1.csv"))
 ```
+
+---
+
+## MiniMUGA
+
+[Vivek Kumar](https://www.jax.org/research-and-faculty/faculty/vivek-kumar)
+asked me to take a look at the miniMUGA array, using an [annotation file](https://github.com/kbroman/MUGAarrays/blob/master/UNC/miniMUGA-Marker-Annotations.csv)
+he got from [Fernando Pardo Manuel de
+Villena](https://www.med.unc.edu/genetics/people/primary-faculty/fernando-pardo-manuel-de-villena-phd).
+
+My analysis is at <https://kbroman.org/MUGAarrays/mini_annotations.html>
+
+The annotation files are in this directory.
