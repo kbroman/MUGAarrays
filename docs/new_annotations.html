@@ -563,9 +563,9 @@ stopifnot( sort(off_by_minus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != &quo
 <p>Here’s an example of this, for marker UNCrs220914250. I show the basepair positions assigned by me and UNC, as well as the two probes and the source sequence.</p>
 <pre><code>##                chr pos_uwisc   pos_unc
 ## UNCrs220914250   1 130451926 130451927</code></pre>
-<pre><code>## probe A:  CACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCTC 
-##  probe B:  CACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCTG 
-##  source: NCCACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCT[C/G]TGCTA ...</code></pre>
+<pre><code>## probe A:   CACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCTC
+## probe B:   CACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCTG
+## source:  NCCACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCT[C/G]TGCTA ...</code></pre>
 <p>The blast result for the trimmed sequence has it matching to chr 1 from 130,451,877 to 130,451,925, putting the SNP at 130,451,926.</p>
 <p>The blast results for the <strong>untrimmed</strong> sequence has it matching to chr 1 from 130,451,877 to 130,451,926, but since the probe includes the SNP, that would place the SNP at the end position, 130,451,927.</p>
 </div>

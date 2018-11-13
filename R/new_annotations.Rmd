@@ -583,9 +583,9 @@ cbind(chr=gm_uwisc[marker, "chr",drop=FALSE],
       pos_uwisc=gm_uwisc[marker, "pos"],
       pos_unc=gm_unc[marker, "pos"])
 sourceseq_w_dots <- paste0(substr(gm_gs[marker,"SourceSeq"], 1, 61), " ...")
-cat("probe A:",  rep("", 1), gm_gs[marker,"AlleleA_ProbeSeq"], "\n",
-    "probe B:",  rep("", 1), gm_gs[marker,"AlleleB_ProbeSeq"], "\n",
-    "source:",  sourceseq_w_dots, "\n")
+cat("probe A:   ",  gm_gs[marker,"AlleleA_ProbeSeq"], "\n",
+    "probe B:   ",  gm_gs[marker,"AlleleB_ProbeSeq"], "\n",
+    "source:  ",  sourceseq_w_dots, "\n", sep="")
 ```
 
 The blast result for the trimmed sequence has it matching to chr
