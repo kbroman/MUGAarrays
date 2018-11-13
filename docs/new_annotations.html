@@ -467,12 +467,6 @@ mm_diff_chr</code></pre>
 <p>There are 17 markers with names like <code>PAR10</code>, which I take to mean they’re from the pseudoautosomal region. All of these were placed on chr X in the UNC annotation file. In the blast results, four of these have unique hits in the mouse genome, all to chromosome X. The remainder have multiple hits. PAR4 has a single hit on each of the X and Y chromosomes. PAR6 has a single hit on the X chromosome and two hits on the Y chromosome. The other 11 PAR markers have multiple hits but just to the X chromosome.</p>
 <p>There are two additional markers with hits to both the X and the Y chromosome, but with no hits to autosomes: UNC31596388 and UNC31596457. UNC31596388 has a single hit on each of the X and Y chromosomes. UNC31596457 has a single hit on the X and two hits on the Y. So maybe these are also pseudoautosomal markers.</p>
 </div>
-<div id="what-the-heck-is-ilmnstrand" class="section level3">
-<h3>What the heck is <code>IlmnStrand</code>?</h3>
-<p>The annotation file I received from GeneSeek has a column <code>IlmnStrand</code> with values <code>TOP</code> and <code>BOT</code>, which I took to indicate the strand origin of the SNP probe sequences (which I thought were generally called “plus” and “minus”).</p>
-<p>But while this <code>IlmnStrand</code> column is consistent with the <code>SourceStrand</code> column in the file, it doesn’t have any relation to the strands that I’m seeing in the blast results.</p>
-<p>About half of the <code>IlmnStrand</code> values are <code>TOP</code> and half are <code>BOT</code>, and in each of these groups, markers with a unique hit to the mouse genome are about half hitting the plus strand and half hitting the minus strand, so I don’t know what to make of this.</p>
-</div>
 <div id="markers-with-the-same-probes" class="section level3">
 <h3>Markers with the same probes</h3>
 <p>One last thing on the MegaMUGA array: there are 50 pairs of markers with the same probe sequence, and one set of four markers that all have the same sequence.</p>
@@ -569,11 +563,11 @@ stopifnot( sort(off_by_minus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != &quo
 <p>Here’s an example of this, for marker UNCrs220914250. I show the basepair positions assigned by me and UNC, as well as the two probes and the source sequence.</p>
 <pre><code>##                chr pos_uwisc   pos_unc
 ## UNCrs220914250   1 130451926 130451927</code></pre>
-<pre><code>## probe A:  CACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCTC</code></pre>
-<pre><code>## probe B:  CACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCTG</code></pre>
-<pre><code>## source: NCCACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCT[C/G]TGCTACAGACAGTGAGAAGAATACCAAAAATGGGGCAACTGCTCCACCG</code></pre>
-<p>The blast result for the trimmed sequence has it matching to chr 1 from 130451877 to 130451925, putting the SNP at 1.304519310^{8}.</p>
-<p>The blast results for the <strong>untrimmed</strong> sequence has it matching to chr 1 from 130451877 to 130451926, but since the probe includes the SNP, that would place the SNP at the end position, NA.</p>
+<pre><code>## probe A:  CACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCTC 
+##  probe B:  CACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCTG 
+##  source: NCCACCTGAGTGATGGACCCTGTGCTCTGGGTGGTCTTTTCCCTTAAAGCT[C/G]TGCTA ...</code></pre>
+<p>The blast result for the trimmed sequence has it matching to chr 1 from 130,451,877 to 130,451,925, putting the SNP at 130,451,926.</p>
+<p>The blast results for the <strong>untrimmed</strong> sequence has it matching to chr 1 from 130,451,877 to 130,451,926, but since the probe includes the SNP, that would place the SNP at the end position, 130,451,927.</p>
 </div>
 <div id="multiple-hits-to-one-chromosome-1" class="section level3">
 <h3>Multiple hits to one chromosome</h3>
@@ -588,10 +582,6 @@ stopifnot( sort(off_by_minus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != &quo
 <h3>Pseudoautosomal region</h3>
 <p>There are 60 markers with names like <code>PAR10</code> or <code>PARv2S06</code>. 29 of these have unique hits in the mouse genome, all to the X chromosome. One PAR marker (PARv2S58) has no hits to the mouse genome. The other 30 have multiple hits</p>
 <p>There are 42 markers that have hits on both the X and Y chromosomes and not to any autosomes. These include 16 of these PAR markers, but also another 26 markers with names starting JAX or UNC. Seven of these markers have a single hit on each of the X and Y chromosomes, which sounds like what we’d want for a pseudoautosomal marker: PAR4, PARv2S15, PARv2S18, PARv2S44, UNC31596388, UNCHS049772, and UNCJPD007636.</p>
-</div>
-<div id="what-the-heck-is-ilmnstrand-1" class="section level3">
-<h3>What the heck is <code>IlmnStrand</code>?</h3>
-<p>As with the MegaMUGA array, the annotation file from GeneSeek has a column <code>IlmnStrand</code> with values <code>TOP</code> and <code>BOT</code>, which doen’t have any relation to the mapping of probes to the plus and minus strands of the mouse genome.</p>
 </div>
 <div id="markers-with-the-same-probes-1" class="section level3">
 <h3>Markers with the same probes</h3>
