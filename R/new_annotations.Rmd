@@ -397,23 +397,6 @@ UNC31596457 has a single hit on the X and two hits on the Y.
 So maybe these are also pseudoautosomal markers.
 
 
-### What the heck is `IlmnStrand`?
-
-The annotation file I received from GeneSeek has a column `IlmnStrand`
-with values `TOP` and `BOT`, which I took to indicate the strand
-origin of the SNP probe sequences (which I thought were generally
-called "plus" and "minus").
-
-But while this `IlmnStrand` column is consistent with the
-`SourceStrand` column in the file, it doesn't have any
-relation to the strands that I'm seeing in the blast results.
-
-About half of the `IlmnStrand` values are `TOP` and half are `BOT`,
-and in each of these groups, markers with a unique hit to the mouse
-genome are about half hitting the plus strand and half hitting the
-minus strand, so I don't know what to make of this.
-
-
 
 ### Markers with the same probes
 
@@ -667,13 +650,6 @@ which sounds like what we'd want for a pseudoautosomal marker:
 `r vec2string(gm_hitXY[(rowSums(gm_tab_chr[gm_hitXY,c("X","Y")])==2)])`.
 
 
-
-### What the heck is `IlmnStrand`?
-
-As with the MegaMUGA array, the annotation file from GeneSeek has a
-column `IlmnStrand` with values `TOP` and `BOT`, which doen't have any
-relation to the mapping of probes to the plus and minus strands of the
-mouse genome.
 
 
 ### Markers with the same probes
