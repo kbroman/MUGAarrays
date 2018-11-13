@@ -68,10 +68,6 @@ A summary of my findings:
   probe sequences on the two arrays, and there are cases where the
   sequence on one array maps uniquely but the other does not.
 
-- I'm not sure what to do with the markers on the "P" chromosome,
-  which I understand to be the pseudoautosomal region, as the markers
-  are not mapping to the mm10 mouse genome build.
-
 The final annotation files and all source materials are at
 <https://github.com/kbroman/MUGAarrays>.
 
@@ -303,7 +299,7 @@ I'll start by focusing on the MegaMUGA array, which contains
 `r add_commas(sum(mm_unc$chr=="Y"))` are on the Y chromosome,
 `r add_commas(sum(mm_unc$chr=="M"))` are on the mitochondrial genome,
 and `r add_commas(sum(mm_unc$chr=="P"))` have chromosome `P`, which
-I take to mean they are pseudoautosomal.
+indicates they are transgene-related markers.
 
 In the blast results, I find that `r add_commas(sum(mm_nhits==1))`
 markers have a single, unique hit in the mouse genome (build mm10), while
@@ -333,7 +329,7 @@ rownames(mm_diff_chr) <- 1:nrow(mm_diff_chr)
 mm_diff_chr
 ```
 
-Four of these were pseudoautosomal in the UNC annotations
+Four of these were chr `P` (transgene-related) in the UNC annotations
 but map to autosomes, one was mitochondrial (with a name to match)
 but the sequence maps to chr 1, and one (`MiniMuscle001`) was
 assigned to chr 16 but maps to chr 11.
@@ -367,20 +363,22 @@ positions.  But for now we'll leave them with missing genomic
 coordinates.
 
 
-### Pseudoautosomal region
+### Chromosome "P"
 
-I'm not sure what to do about the pseudoautosomal markers.
 The UNC annotations for the MegaMUGA array has
-`r sum(mm_unc$chr=="P")` markers with chromosome `P`. But only
+`r sum(mm_unc$chr=="P")` markers with chromosome `P`, which are
+transgene-related markers, for example Cre001 and LacZ001. Only
 `r numbers[sum(mm_uwisc$unique[mm_unc$chr=="P"])]`
 have hits to the mm10 mouse genome build, and these are the
 four mentioned above, that actually map to autosomes. The other
 `r sum(mm_uwisc$unmapped[mm_unc$chr=="P"])` have no perfect hits in the
-blast results, which leads me to think that the pseudoautosomal region
-is perhaps not part of the mm10 genome assembly.
+blast results.
 
-There are another `r sum(grepl("^PAR[0-9]+$", mm_unc$marker))` markers
-with names like `PAR10`. All of these were placed on chr X in the UNC
+### Pseudoautosomal markers
+
+There are `r sum(grepl("^PAR[0-9]+$", mm_unc$marker))` markers
+with names like `PAR10`, which I take to mean they're from the
+pseudoautosomal region. All of these were placed on chr X in the UNC
 annotation file. In the blast results,
 `r numbers[sum(mm_uwisc$unique[grepl("^PAR[0-9]+$", mm_uwisc$marker)])]`
 of these have unique hits in the mouse genome, all to chromosome X.
@@ -640,12 +638,16 @@ positions.  But for now we'll leave them with missing genomic
 coordinates.
 
 
-### Pseudoautosomal region
+### Chromosome "P"
 
-Returning to the dreaded pseudoautosomal markers, we've got these
+Regarding the chromosome "P" markers: there were
 `r sum(gm_unc$chr=="P")` GigaMUGA markers where the chromosome ID was
 missing in the UNC annotation file, and which we're interpreting here
-as `P`. **None** of them have a hit to the mm10 mouse genome build.
+as `P` (transgene-related). None of them have a hit to the mm10 mouse
+genome build.
+
+
+### Pseudoautosomal region
 
 There are `r length(gm_par <- grep("^PAR", gm_unc$marker, value=TRUE))` markers
 with names like `PAR10` or `PARv2S06`. `r sum(gm_uwisc[gm_par, "unique"])`
@@ -664,7 +666,7 @@ of these markers have a single hit on each of the X and Y chromosomes,
 which sounds like what we'd want for a pseudoautosomal marker:
 `r vec2string(gm_hitXY[(rowSums(gm_tab_chr[gm_hitXY,c("X","Y")])==2)])`.
 
-But again, I'm not quite sure what to do with these.
+
 
 ### What the heck is `IlmnStrand`?
 

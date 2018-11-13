@@ -11,7 +11,7 @@
 
 <meta name="author" content="Karl Broman" />
 
-<meta name="date" content="2018-11-07" />
+<meta name="date" content="2018-11-13" />
 
 <title>New MegaMUGA/GigaMUGA annotations</title>
 
@@ -239,7 +239,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">New MegaMUGA/GigaMUGA annotations</h1>
 <h4 class="author"><em>Karl Broman</em></h4>
-<h4 class="date"><em>2018-11-07</em></h4>
+<h4 class="date"><em>2018-11-13</em></h4>
 
 </div>
 
@@ -260,7 +260,6 @@ div.tocify {
 <li><p>The <code>unique</code> column in the GigaMUGA annotation file from UNC is messed up.</p></li>
 <li><p>On both arrays, there are a number of pairs of markers with common probe sequences. Many of these are intended duplicates, but some are not and have inconsistent information</p></li>
 <li><p>Of the markers in common between the two arrays, some have different probe sequences on the two arrays, and there are cases where the sequence on one array maps uniquely but the other does not.</p></li>
-<li><p>I’m not sure what to do with the markers on the “P” chromosome, which I understand to be the pseudoautosomal region, as the markers are not mapping to the mm10 mouse genome build.</p></li>
 </ul>
 <p>The final annotation files and all source materials are at <a href="https://github.com/kbroman/MUGAarrays" class="uri">https://github.com/kbroman/MUGAarrays</a>.</p>
 </div>
@@ -427,7 +426,7 @@ gm_hitXY &lt;- rownames(gm_tab_chr)[rowSums(gm_tab_chr[,1:20])==0 &amp; gm_tab_c
 <h2>MegaMUGA</h2>
 <div id="basic-blast-results" class="section level3">
 <h3>Basic blast results</h3>
-<p>I’ll start by focusing on the MegaMUGA array, which contains 77,808 markers. In the UNC annotation file, 75,135 are on autosomes, 2,499 are on the X chromosome, 45 are on the Y chromosome, 46 are on the mitochondrial genome, and 83 have chromosome <code>P</code>, which I take to mean they are pseudoautosomal.</p>
+<p>I’ll start by focusing on the MegaMUGA array, which contains 77,808 markers. In the UNC annotation file, 75,135 are on autosomes, 2,499 are on the X chromosome, 45 are on the Y chromosome, 46 are on the mitochondrial genome, and 83 have chromosome <code>P</code>, which indicates they are transgene-related markers.</p>
 <p>In the blast results, I find that 75,061 markers have a single, unique hit in the mouse genome (build mm10), while 1,236 hit to multiple locations (median 4 locations and maximum 18,855), and 1,511 have no perfect match in the mm10 build of the mouse genome.</p>
 </div>
 <div id="unique-markers" class="section level3">
@@ -450,7 +449,7 @@ mm_diff_chr</code></pre>
 ## 4          NNT002       P        13
 ## 5 SAbGeoEUCOMM001       P         5
 ## 6 SAbGeoEUCOMM002       P         5</code></pre>
-<p>Four of these were pseudoautosomal in the UNC annotations but map to autosomes, one was mitochondrial (with a name to match) but the sequence maps to chr 1, and one (<code>MiniMuscle001</code>) was assigned to chr 16 but maps to chr 11.</p>
+<p>Four of these were chr <code>P</code> (transgene-related) in the UNC annotations but map to autosomes, one was mitochondrial (with a name to match) but the sequence maps to chr 1, and one (<code>MiniMuscle001</code>) was assigned to chr 16 but maps to chr 11.</p>
 <p>Five of these six markers are found on the GigaMUGA array (all but SAbGeoEUCOMM002), and the chromosome assignments in the UNC annotations of the GigaMUGA array all match what we see in these blast results, rather than the chromosome in the UNC annotations of the MegaMUGA array.</p>
 <p>I won’t make any comparisons of basepair positions, as the UNC annotation file for the MegaMUGA array uses coordinates from build mm9 of the mouse genome, rather than build mm10, which I’m using.</p>
 </div>
@@ -459,10 +458,13 @@ mm_diff_chr</code></pre>
 <p>There are 364 markers on the MegaMUGA array that have multiple perfect hits in the mouse genome, but all on the same chromosome. The range in SNP positions, for these multiple hits, varied from 35 bp to 147 Mbp, with a median of 218 kbp.</p>
 <p>There are 29 markers with multiple hits but all on a single chromosome and all within a 1000 bp interval. We could maybe keep these, and assign each to the median of the observed positions. But for now we’ll leave them with missing genomic coordinates.</p>
 </div>
-<div id="pseudoautosomal-region" class="section level3">
-<h3>Pseudoautosomal region</h3>
-<p>I’m not sure what to do about the pseudoautosomal markers. The UNC annotations for the MegaMUGA array has 83 markers with chromosome <code>P</code>. But only four have hits to the mm10 mouse genome build, and these are the four mentioned above, that actually map to autosomes. The other 79 have no perfect hits in the blast results, which leads me to think that the pseudoautosomal region is perhaps not part of the mm10 genome assembly.</p>
-<p>There are another 17 markers with names like <code>PAR10</code>. All of these were placed on chr X in the UNC annotation file. In the blast results, four of these have unique hits in the mouse genome, all to chromosome X. The remainder have multiple hits. PAR4 has a single hit on each of the X and Y chromosomes. PAR6 has a single hit on the X chromosome and two hits on the Y chromosome. The other 11 PAR markers have multiple hits but just to the X chromosome.</p>
+<div id="chromosome-p" class="section level3">
+<h3>Chromosome “P”</h3>
+<p>The UNC annotations for the MegaMUGA array has 83 markers with chromosome <code>P</code>, which are transgene-related markers, for example Cre001 and LacZ001. Only four have hits to the mm10 mouse genome build, and these are the four mentioned above, that actually map to autosomes. The other 79 have no perfect hits in the blast results.</p>
+</div>
+<div id="pseudoautosomal-markers" class="section level3">
+<h3>Pseudoautosomal markers</h3>
+<p>There are 17 markers with names like <code>PAR10</code>, which I take to mean they’re from the pseudoautosomal region. All of these were placed on chr X in the UNC annotation file. In the blast results, four of these have unique hits in the mouse genome, all to chromosome X. The remainder have multiple hits. PAR4 has a single hit on each of the X and Y chromosomes. PAR6 has a single hit on the X chromosome and two hits on the Y chromosome. The other 11 PAR markers have multiple hits but just to the X chromosome.</p>
 <p>There are two additional markers with hits to both the X and the Y chromosome, but with no hits to autosomes: UNC31596388 and UNC31596457. UNC31596388 has a single hit on each of the X and Y chromosomes. UNC31596457 has a single hit on the X and two hits on the Y. So maybe these are also pseudoautosomal markers.</p>
 </div>
 <div id="what-the-heck-is-ilmnstrand" class="section level3">
@@ -578,12 +580,14 @@ stopifnot( sort(off_by_minus1) == sort(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != &quo
 <p>There are 1,840 markers on the GigaMUGA array that have multiple perfect hits in the mouse genome, but all on the same chromosome. The range in SNP positions, for these multiple hits, varied from 33 bp to 147 Mbp, with a median of 596 kbp.</p>
 <p>There are 55 markers with multiple hits but all on a single chromosome and all within a 1000 bp interval. We could maybe keep these, and assign each to the median of the observed positions. But for now we’ll leave them with missing genomic coordinates.</p>
 </div>
-<div id="pseudoautosomal-region-1" class="section level3">
+<div id="chromosome-p-1" class="section level3">
+<h3>Chromosome “P”</h3>
+<p>Regarding the chromosome “P” markers: there were 80 GigaMUGA markers where the chromosome ID was missing in the UNC annotation file, and which we’re interpreting here as <code>P</code> (transgene-related). None of them have a hit to the mm10 mouse genome build.</p>
+</div>
+<div id="pseudoautosomal-region" class="section level3">
 <h3>Pseudoautosomal region</h3>
-<p>Returning to the dreaded pseudoautosomal markers, we’ve got these 80 GigaMUGA markers where the chromosome ID was missing in the UNC annotation file, and which we’re interpreting here as <code>P</code>. <strong>None</strong> of them have a hit to the mm10 mouse genome build.</p>
 <p>There are 60 markers with names like <code>PAR10</code> or <code>PARv2S06</code>. 29 of these have unique hits in the mouse genome, all to the X chromosome. One PAR marker (PARv2S58) has no hits to the mouse genome. The other 30 have multiple hits</p>
 <p>There are 42 markers that have hits on both the X and Y chromosomes and not to any autosomes. These include 16 of these PAR markers, but also another 26 markers with names starting JAX or UNC. Seven of these markers have a single hit on each of the X and Y chromosomes, which sounds like what we’d want for a pseudoautosomal marker: PAR4, PARv2S15, PARv2S18, PARv2S44, UNC31596388, UNCHS049772, and UNCJPD007636.</p>
-<p>But again, I’m not quite sure what to do with these.</p>
 </div>
 <div id="what-the-heck-is-ilmnstrand-1" class="section level3">
 <h3>What the heck is <code>IlmnStrand</code>?</h3>
@@ -880,7 +884,7 @@ write.table(output, gm_dict_file, sep=&quot;,&quot;, quote=FALSE,
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       America/Chicago             
-##  date     2018-11-07                  
+##  date     2018-11-13                  
 ## 
 ## ─ Packages ─────────────────────────────────────────────────────────────────────────────────────────────────
 ##  package     * version date       lib source        
