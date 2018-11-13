@@ -582,24 +582,25 @@ marker <- "UNCrs220914250"
 cbind(chr=gm_uwisc[marker, "chr",drop=FALSE],
       pos_uwisc=gm_uwisc[marker, "pos"],
       pos_unc=gm_unc[marker, "pos"])
-cat("probe A:",  rep("", 1), gm_gs[marker,"AlleleA_ProbeSeq"], "\n")
-cat("probe B:",  rep("", 1), gm_gs[marker,"AlleleB_ProbeSeq"], "\n")
-cat("source:",  gm_gs[marker,"SourceSeq"], "\n")
+sourceseq_w_dots <- paste0(substr(gm_gs[marker,"SourceSeq"], 1, 61), " ...")
+cat("probe A:",  rep("", 1), gm_gs[marker,"AlleleA_ProbeSeq"], "\n",
+    "probe B:",  rep("", 1), gm_gs[marker,"AlleleB_ProbeSeq"], "\n",
+    "source:",  sourceseq_w_dots, "\n")
 ```
 
 The blast result for the trimmed sequence has it matching to chr
 `r gm_blast[gm_blast$query==marker, "chr"]` from
-`r gm_blast[gm_blast$query==marker, "start_chr"]` to
-`r gm_blast[gm_blast$query==marker, "end_chr"]`, putting the SNP at
-`r gm_blast[gm_blast$query==marker, "snp_pos"]`.
+`r add_commas(gm_blast[gm_blast$query==marker, "start_chr"])` to
+`r add_commas(gm_blast[gm_blast$query==marker, "end_chr"])`, putting the SNP at
+`r add_commas(gm_blast[gm_blast$query==marker, "snp_pos"])`.
 
 The blast results for the **untrimmed** sequence
 has it matching to chr
 `r gm_untrimmed_blast[gm_untrimmed_blast$query==marker, "chr"]` from
-`r gm_untrimmed_blast[gm_untrimmed_blast$query==marker, "start_chr"]` to
-`r gm_untrimmed_blast[gm_untrimmed_blast$query==marker, "end_chr"]`,
+`r add_commas(gm_untrimmed_blast[gm_untrimmed_blast$query==marker, "start_chr"])` to
+`r add_commas(gm_untrimmed_blast[gm_untrimmed_blast$query==marker, "end_chr"])`,
 but since the probe includes the SNP, that would place the SNP at the
-end position, `r gm_untrimmed_blast[gm_blast$query==marker, "end_chr"]`.
+end position, `r add_commas(gm_untrimmed_blast[gm_untrimmed_blast$query==marker, "snp_pos"])`.
 
 
 
