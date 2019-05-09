@@ -60,7 +60,7 @@ Sequences/mini_seq.csv: R/grab_minimuga_sequences.R
 	cd R;R $(R_OPTS) -e "source('$(<F)')"
 
 GENESEEK = GeneSeek/common_markers.csv GeneSeek/gigamuga_geneseek.csv GeneSeek/megamuga_geneseek.csv
-UNC = UNC/snps.gigamuga.Rdata UNC/snps.megamuga.Rdata
+UNC = UNC/snps.gigamuga.Rdata UNC/snps.megamuga.Rdata UNC/snps.muga.Rdata
 BLAST = Blast/results_gm/gm_blastn_results.rds Blast/results_gm/mm_blastn_results.rds Blast/results_gm_untrimmed/gm_untrimmed_blastn_results.rds
 
 GeneSeek/common_markers.csv: Python/xlsx2csv.py GeneSeek/Markers_common_to_both_Giga_and_Mega.xlsx
@@ -78,4 +78,8 @@ UNC/snps.gigamuga.Rdata:
 
 UNC/snps.megamuga.Rdata:
 	wget -O $@ http://csbio.unc.edu/MUGA/snps.megamuga.Rdata
+	touch $@
+
+UNC/snps.muga.Rdata:
+	wget -O $@ http://csbio.unc.edu/MUGA/snps.muga.Rdata
 	touch $@
