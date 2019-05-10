@@ -25,7 +25,7 @@ files](https://kbroman.org/MUGAarrays/new_annotations.html) with the
 original MUGA array. The probe sequences are in an RData file at the UNC site,
 <http://csbio.unc.edu/MUGA/snps.muga.Rdata>.
 
-This contains information for a bit less than 7,854 SNPs. All are on
+This contains information for 7,854 SNPs. All are on
 autosomes 1-19, X, Y, or M. As with the other arrays, there are
 columns for cM, bp, the two alleles, and probe sequence. For the A/C
 and T/G markers (vs the A/G and T/C ones), there's a second probe
