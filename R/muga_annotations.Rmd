@@ -172,10 +172,22 @@ markers with identical probe sequences. Further, there's a set of four
 markers with the same probe sequence, and another set of eight markers
 with the same probe sequence.
 
-Four of the pairs of markers with indentical probe sequences look to
+Four of the pairs of markers with identical probe sequences look to
 be intended duplicates: one has the other's name with "backup"
 prepended. But the other six have unrelated names, and the trios,
 four-some, and eight-some all have unrelated names.
+
+Three of the pairs with identical probe sequences map uniquely to the
+mouse genome. These are all among the cases that look to be intended
+duplicates. The other seven pairs either don't map multiply
+(`r spell_out(sum(!muga_uwisc[pair_names[,1],"unique"] & !muga_uwisc[pair_names[,1],"unmapped"]))`)
+or have no perfect match.
+(`r spell_out(sum(muga_uwisc[pair_names[,1],"unmapped"]))`).
+
+One of the trios is unmapped and the other maps multiply.
+The four-some maps multiply while the eight-some is unmapped.
+
+
 
 ## New annotation file
 
