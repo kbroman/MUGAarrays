@@ -72,6 +72,7 @@ the two arrays.
   with the array sequences, and for using `blastn` map them to the
   mouse genome. The [ReadMe file](Blast/ReadMe.md) explains the source
   for the mouse genome files, and of the command-line blastn program.
+  (installed `blastn` on linux with `sudo apt install ncbi-blast+`)
 
 - [`GeneSeek`](Geneseek) - includes the `.xlsx` file with probe
   sequences, from Ben Pejsar at GeneSeek.
