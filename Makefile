@@ -1,7 +1,7 @@
 R_OPTS=--no-save --no-restore --no-init-file --no-site-file
 .PHONY : all
 
-all: docs/new_annotations.html docs/study_sequences.html docs/mini_annotations.html R/new_annotations.R R/mini_annotations.R
+all: docs/new_annotations.html docs/study_sequences.html docs/mini_annotations.html R/new_annotations.R R/mini_annotations.R docs/muga_annotations.html
 
 docs/study_sequences.html: R/study_sequences.Rmd $(GENESEEK) $(UNC)
 	cd R;R $(R_OPTS) -e "rmarkdown::render('$(<F)')"
@@ -14,6 +14,12 @@ docs/new_annotations.html: R/new_annotations.Rmd $(GENESEEK) $(UNC) $(BLAST) Gen
 docs/mini_annotations.html: R/mini_annotations.Rmd \
 							Blast/results_mini/mini_blastn_results.rds \
 							UNC/miniMUGA-Marker-Annotations.csv
+	cd R;R $(R_OPTS) -e "rmarkdown::render('$(<F)')"
+	mv R/$(@F) $@
+
+docs/muga_annotations.html: R/muga_annotations.Rmd \
+							Blast/results_muga/muga_blastn_results.rds \
+							UNC/snps.muga.rds
 	cd R;R $(R_OPTS) -e "rmarkdown::render('$(<F)')"
 	mv R/$(@F) $@
 
@@ -38,6 +44,9 @@ Blast/R/megamuga.fa: Blast/R/create_mm_fasta.R Sequences/mm_seq.csv
 Blast/R/minimuga.fa: Blast/R/create_mini_fasta.R Sequences/mini_seq.csv
 	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
 
+Blast/R/muga.fa: Blast/R/create_muga_fasta.R Sequences/muga_seq.csv
+	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
+
 Blast/R/gigamuga_untrimmed.fa: Blast/R/create_gm_untrimmed_fasta.R Sequences/gm_seq.csv Sequences/gm_untrimmed_seq.csv
 	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
 
@@ -50,6 +59,9 @@ Blast/results_mm/mm_blastn_results.rds: Blast/R/blastn_mm.R Blast/R/megamuga.fa
 Blast/results_mini/mini_blastn_results.rds: Blast/R/blastn_mini.R Blast/R/minimuga.fa
 	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
 
+Blast/results_muga/muga_blastn_results.rds: Blast/R/blastn_muga.R Blast/R/muga.fa
+	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
+
 Blast/results_gm_untrimmed/gm_untrimmed_blastn_results.rds: Blast/R/blastn_gm_untrimmed.R Blast/R/gigamuga_untrimmed.fa
 	cd $(<D);R $(R_OPTS) -e "source('$(<F)')"
 
@@ -57,6 +69,9 @@ Sequences/gm_seq.csv: R/grab_sequences.R $(GENESEEK)
 	cd R;R $(R_OPTS) -e "source('$(<F)')"
 
 Sequences/mini_seq.csv: R/grab_minimuga_sequences.R
+	cd R;R $(R_OPTS) -e "source('$(<F)')"
+
+Sequences/muga_seq.csv: R/grab_muga_sequences.R
 	cd R;R $(R_OPTS) -e "source('$(<F)')"
 
 GENESEEK = GeneSeek/common_markers.csv GeneSeek/gigamuga_geneseek.csv GeneSeek/megamuga_geneseek.csv
