@@ -1,0 +1,5 @@
+column,description
+chr,Chromosome ID
+bp_mm10,Physical position in basepairs for mm10 mouse genome build
+marker1,A MUGA marker at that position
+marker2,A second MUGA marker at that position

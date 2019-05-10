@@ -53,3 +53,26 @@ The annotation files are in this directory.
   common SNP, either the same probe or plus/minus strand pairs.
 - [`mini_commonmark_uwisc_dict_v1.csv`](mini_commonmark_uwisc_dict_v1.csv)
   is a data dictionary describing the columns in `mini_commonmark_uwisc_v1.csv`
+
+
+---
+
+## Original MUGA
+
+[Mandy Chen](https://www.jax.org/people/mandy-chen)
+asked me to take a look at the original MUGA array, using
+the annotations at UNC, <http://csbio.unc.edu/MUGA/snps.muga.Rdata>.
+
+My analysis is at <https://kbroman.org/MUGAarrays/muga_annotations.html>
+
+My annotation files are in this directory.
+
+- [`muga_uwisc_v1.csv`](muga_uwisc_v1.csv)
+  is the key annotation file
+- [`muga_uwisc_dict_v1.csv`](muga_uwisc_dict_v1.csv)
+  is the data dictionary, with descriptions of the columns
+- [`muga_commonmark_uwisc_v1.csv`](muga_commonmark_uwisc_v1.csv) has
+  data on which pairs of markers on the mugaMUGA array are assaying a
+  common SNP, either the same probe or plus/minus strand pairs.
+- [`muga_commonmark_uwisc_dict_v1.csv`](muga_commonmark_uwisc_dict_v1.csv)
+  is a data dictionary describing the columns in `muga_commonmark_uwisc_v1.csv`

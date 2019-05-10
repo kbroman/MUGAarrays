@@ -113,6 +113,18 @@ My annotation files are in the [`UWisc`](UWisc) directory.
 
 ---
 
+## Original MUGA
+
+[Mandy Chen](https://www.jax.org/people/mandy-chen)
+asked me to take a look at the original MUGA array, using
+the annotations at UNC, <http://csbio.unc.edu/MUGA/snps.muga.Rdata>.
+
+My analysis is at <https://kbroman.org/MUGAarrays/muga_annotations.html>
+
+My annotation files are in the [`UWisc`](UWisc) directory.
+
+---
+
 ## License
 
 The code in this repository are released under the [MIT
