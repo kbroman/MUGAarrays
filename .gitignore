@@ -4,6 +4,7 @@ UNC/snps.*muga.Rdata
 Sequences/*.csv
 R/new_annotations.R
 R/mini_annotations.R
+R/muga_annotations.R
 GenMaps/?m_bp.txt
 GenMaps/mini_bp.txt
 GenMaps/muga_bp.txt

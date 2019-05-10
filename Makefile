@@ -1,7 +1,7 @@
 R_OPTS=--no-save --no-restore --no-init-file --no-site-file
 .PHONY : all
 
-all: docs/new_annotations.html docs/study_sequences.html docs/mini_annotations.html R/new_annotations.R R/mini_annotations.R docs/muga_annotations.html
+all: docs/new_annotations.html docs/study_sequences.html docs/mini_annotations.html R/new_annotations.R R/mini_annotations.R docs/muga_annotations.html R/muga_annotations.R
 
 docs/study_sequences.html: R/study_sequences.Rmd $(GENESEEK) $(UNC)
 	cd R;R $(R_OPTS) -e "rmarkdown::render('$(<F)')"
@@ -27,6 +27,9 @@ R/new_annotations.R: R/new_annotations.Rmd
 	cd R;R $(R_OPTS) -e "knitr::purl('$(<F)')"
 
 R/mini_annotations.R: R/mini_annotations.Rmd
+	cd R;R $(R_OPTS) -e "knitr::purl('$(<F)')"
+
+R/muga_annotations.R: R/muga_annotations.Rmd
 	cd R;R $(R_OPTS) -e "knitr::purl('$(<F)')"
 
 GenMaps/g2f1_shift.csv: R/amount_to_shift_g2f1.R \
