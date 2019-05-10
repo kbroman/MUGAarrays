@@ -19,7 +19,7 @@ docs/mini_annotations.html: R/mini_annotations.Rmd \
 
 docs/muga_annotations.html: R/muga_annotations.Rmd \
 							Blast/results_muga/muga_blastn_results.rds \
-							UNC/snps.muga.rds
+							UNC/snps.muga.Rdata
 	cd R;R $(R_OPTS) -e "rmarkdown::render('$(<F)')"
 	mv R/$(@F) $@
 
