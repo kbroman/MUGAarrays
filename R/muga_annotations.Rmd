@@ -34,7 +34,10 @@ sequence. (There are 1,831 of these.)
 The probes are again 50 bp long. Whereas before, in
 cases with a second probe sequence, the probe sequences contained the
 SNP allele, here that doesn't seem to be the case, but I'm not totally
-sure.
+sure. I spot-checked a handful of them, and in all cases
+the SNP allele was not contained in either probe, and the two probes
+mapped with a one basepair gap. But I probably should blast the second
+sequence in all cases, and verify that they are all okay.
 
 The annotation files I created are at
 <https://github.com/kbroman/MUGAarrays/blob/master/UWisc>.
