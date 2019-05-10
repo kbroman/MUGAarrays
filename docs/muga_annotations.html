@@ -409,7 +409,7 @@ four_names &lt;- rownames(muga_uwisc)[muga_uwisc$probe==four]
 eight_names &lt;- rownames(muga_uwisc)[muga_uwisc$probe==eight]</code></pre>
 <p>There are 10 pairs and 2 trios of markers with identical probe sequences. Further, there’s a set of four markers with the same probe sequence, and another set of eight markers with the same probe sequence.</p>
 <p>Four of the pairs of markers with identical probe sequences look to be intended duplicates: one has the other’s name with “backup” prepended. But the other six have unrelated names, and the trios, four-some, and eight-some all have unrelated names.</p>
-<p>Three of the pairs with identical probe sequences map uniquely to the mouse genome. These are all among the cases that look to be intended duplicates. The other seven pairs either don’t map multiply (one) or have no perfect match. (six).</p>
+<p>Three of the pairs with identical probe sequences map uniquely to the mouse genome. These are all among the cases that look to be intended duplicates. The other seven pairs either map multiply (one) or have no perfect match. (six).</p>
 <p>One of the trios is unmapped and the other maps multiply. The four-some maps multiply while the eight-some is unmapped.</p>
 </div>
 <div id="new-annotation-file" class="section level2">
@@ -558,7 +558,7 @@ write.table(output, muga_dict_file, sep=&quot;,&quot;, quote=FALSE,
 <pre><code>## ─ Session info ─────────────────────────────────────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 3.6.0 (2019-04-26)
-##  os       Pop!_OS 18.10               
+##  os       Pop!_OS 18.04 LTS           
 ##  system   x86_64, linux-gnu           
 ##  ui       X11                         
 ##  language en_US:en                    

@@ -182,7 +182,7 @@ four-some, and eight-some all have unrelated names.
 
 Three of the pairs with identical probe sequences map uniquely to the
 mouse genome. These are all among the cases that look to be intended
-duplicates. The other seven pairs either don't map multiply
+duplicates. The other seven pairs either map multiply
 (`r spell_out(sum(!muga_uwisc[pair_names[,1],"unique"] & !muga_uwisc[pair_names[,1],"unmapped"]))`)
 or have no perfect match.
 (`r spell_out(sum(muga_uwisc[pair_names[,1],"unmapped"]))`).
