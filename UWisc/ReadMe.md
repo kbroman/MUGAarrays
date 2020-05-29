@@ -72,7 +72,7 @@ My annotation files are in this directory.
 - [`muga_uwisc_dict_v1.csv`](muga_uwisc_dict_v1.csv)
   is the data dictionary, with descriptions of the columns
 - [`muga_commonmark_uwisc_v1.csv`](muga_commonmark_uwisc_v1.csv) has
-  data on which pairs of markers on the mugaMUGA array are assaying a
+  data on which pairs of markers on the original MUGA array are assaying a
   common SNP, either the same probe or plus/minus strand pairs.
 - [`muga_commonmark_uwisc_dict_v1.csv`](muga_commonmark_uwisc_dict_v1.csv)
   is a data dictionary describing the columns in `muga_commonmark_uwisc_v1.csv`
