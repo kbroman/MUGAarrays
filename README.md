@@ -50,9 +50,6 @@ Summary of findings:
   changing the marker name, and for 8 of them, the sequence on one
   array is either not unique or has no perfect match in the genome.
 
-- I'm not sure what to do with the markers on the "P" chromosome
-  (pseudoautosomal?)
-
 The following document describes what I've found:
 
 - [New MegaMUGA/GigaMUGA Annotations](https://kbroman.org/MUGAarrays/new_annotations.html)
