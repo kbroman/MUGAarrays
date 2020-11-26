@@ -1,7 +1,7 @@
 ---
 title:  "Study SNP sequences on MegaMUGA and GigaMUGA arrays"
 author: "Karl Broman"
-date:   "`r Sys.Date()`"
+date:   "2018-11-02 (corrected slightly `r Sys.Date()`)"
 output:
     html_document:
         code_folding: hide
@@ -259,9 +259,9 @@ stopifnot( all( mm_source_snp[mm_snp_strand_problem] %in% c("[A/T]", "[C/G]") ) 
 From this, we find that the `SNP` column is the same as the SNP in the
 `SourceSeq`, or it is the complement of that. I thought whether it was
 a direct match or a match to the complement would be according to
-whether `IlmnStrand == SourceStrand` or not, but that there are `r
-sum(gm_snp_strand_problem)` mismatches on the GigaMUGA and `r
-sum(mm_snp_strand_problem)` mismatches on the MegaMUGA. But these are
+whether `IlmnStrand == SourceStrand` or not, but that there are
+`r sum(gm_snp_strand_problem)` mismatches on the GigaMUGA and
+`r sum(mm_snp_strand_problem)` mismatches on the MegaMUGA. But these are
 all cases of A/T or C/G SNPs, so it's just a matter of the definition
 of the A vs B alleles.
 
