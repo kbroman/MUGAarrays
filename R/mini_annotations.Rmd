@@ -177,11 +177,11 @@ I'd trimmed off the last base of the probe before using blast. (So the
 off-by-1 problem in the GigaMUGA marker positions was not an issue for
 UNC annotations of the miniMUGA array.)
 
-The `r sum(mini_uwisc$unique & mini_uwisc$pos != mini_unc$pos)` markers
-where the positions are different are all mitochondrial, and
-`r sum(mini_uwisc$unique & mini_uwisc$pos == mini_unc$pos+1)` are
+The `r numbers[sum(mini_uwisc$unique & mini_uwisc$pos != mini_unc$pos)]` markers
+where the positions are different are all mitochondrial. Of these,
+`r numbers[sum(mini_uwisc$unique & mini_uwisc$pos == mini_unc$pos-1)]` are
 off by -1
-(`r vec2string(mini_uwisc$marker[mini_uwisc$unique & mini_uwisc$pos < mini_unc$pos])`),
+(`r vec2string(mini_uwisc$marker[mini_uwisc$unique & mini_uwisc$pos == mini_unc$pos-1])`),
 while the other
 (`r mini_uwisc$marker[mini_uwisc$unique & mini_uwisc$pos > mini_unc$pos]`)
 is off by
