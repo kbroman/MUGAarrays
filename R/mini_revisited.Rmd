@@ -1,0 +1,175 @@
+---
+title:  "Revisiting the MiniMUGA annotations"
+author: "Karl Broman"
+date:   "2020-12-18"
+output:
+    html_document:
+        code_folding: hide
+        toc: true
+        toc_float: true
+        toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width=11, fig.height=6.5,
+                      message=FALSE, warning=FALSE)
+options(width=110)
+```
+
+
+## Introduction
+
+The annotation files I created for the miniMUGA array (2018-11-08) are at
+<https://github.com/kbroman/MUGAarrays/blob/master/UWisc/mini_uwisc_v1.csv>.
+
+The [miniMUGA paper](https://doi.org/10.1534/genetics.120.303596) has
+now been published.
+Initially [published at bioRxiv](https://doi.org/10.1101/2020.03.12.989400) on 2020-03-14,
+it provides official annotations with the [Supplmental
+material](https://doi.org/10.25386/genetics.11971941.v1), as [Table S2](https://gsajournals.figshare.com/articles/dataset/Supplemental_Material_for_Sigmon_et_al_2020/11971941?file=25117973).
+
+Here, I will compare the two sets of annotations.
+
+
+## Preliminaries
+
+Let's load the two annotation files, plus a few packages.
+
+```{r load_packages_and_annotations}
+library(data.table)
+library(broman)
+library(devtools)
+
+uw <- data.table::fread("../UWisc/mini_uwisc_v1.csv", data.table=FALSE)
+
+unc_url <- "https://gsajournals.figshare.com/ndownloader/files/25117973"
+unc_file <- "../UNC/miniMUGA_tableS2.csv"
+if(!file.exists(unc_file)) download.file(unc_url, unc_file)
+unc <- data.table::fread(unc_file, data.table=FALSE)
+```
+
+My UWisc annotations had `r add_commas(nrow(uw))` markers, while the
+new annotation file from the UNC group has `r add_commas(nrow(unc))`
+markers.
+
+`r ifelse(all(uw$marker %in% unc$"Marker name"), "All", "**yes Not all**")`
+the markers in the UWisc annotations are in the new annotation file,
+but then there are `r sum(unc$"Marker name" %nin% uw$marker)`
+additional markers in the UNC data, and these are distributed across
+most chromosomes.
+
+Here's the chromosome distribution of markers in the UWisc
+annotations. I'll replace the missing chromosomes with 0 and replace
+`M` with `MT` for the mitochondria, as in the new UNC annotations.
+
+
+```{r chr_distr_uw}
+uw$chr[is.na(uw$chr)] <- 0
+uw$chr[uw$chr=="M"] <- "MT"
+uw$chr_unc[uw$chr_unc=="M"] <- "MT"
+table(factor(uw$chr, levels=c(0:19,"X","Y","PAR", "MT")))
+```
+
+And here's the chromosome distribution of markers that are only in the
+new annotations.
+
+```{r chr_distr_new}
+table(factor(unc$chr[!(unc$"Marker name" %in% uw$marker)],
+             levels=c(0:19,"X","Y","PAR","MT")))
+```
+
+The additional markers are sprinked throughout the autosomes and X
+chromosome, plus a number on "chr 0", but no new markers on Y, PAR, or
+mitochondria.
+
+
+## Comparison of common markers
+
+Let's focus on the markers in the UWisc annotations, and check that
+the genomic positions are the same. I'll first grab the subset of
+markers in common and get them in the same order
+
+```{r subset_unc}
+rownames(unc) <- unc$"Marker name"
+uncsub <- unc[uw$marker,]
+```
+
+
+
+There are `r sum(uncsub$chr != uw$chr)` markers where the chromosomes
+are not the same between the two annotation files. These are exactly
+the ones where the UNC file says the marker maps uniquely (the column
+`bowtie_unique` is 1) but the UWisc found as not unique (the column
+`unique` is FALSE).
+
+```{r check_chr_differences}
+stopifnot(
+    all( (uncsub$bowtie_unique == 1 & uw$unique==FALSE) ==
+         (uncsub$chr != uw$chr) )
+         )
+```
+
+
+Let's reduce to the `r add_commas(sum(uw$unique))` markers that the
+UWisc annotations says map uniquely in the mouse genome.
+
+```{r reduce_to_uwisc_unique}
+uncsub2 <- uncsub[uw$unique,]
+uwsub <- uw[uw$unique,]
+```
+
+For these markers, the chromosome IDs are the same between the two
+files, but the basepair positions differ in 7 cases.
+
+```{r positions_differ}
+cbind(uncsub2[,c("chromosome", "position", "strand")],
+      uwsub[c("marker", "chr", "bp_mm10", "strand")])[uncsub2$position != uwsub$bp_mm10,]
+```
+
+They are all mitochondrial markers, and they differ by one base except
+for one case that is off by 50 and says the opposite strand
+(marker `r uwsub$marker[abs(uncsub2$position - uwsub$bp_mm10) > 1]`).
+This is the only marker where the strands are different.
+
+
+## Probe sequences
+
+For the markers in common, are the probe sequences the same?
+For `r sum(nchar(uw$probe)==49)` markers, the probe sequence contained
+the SNP and I had trimmed that off.
+
+For the `r add_commas(sum(uncsub$seqB==""))` markers where there's no
+seqB and the probe sequence doesn't contain the SNP, the probes are
+identical.
+
+```{r probe_identical_when_missing_seqB}
+stopifnot( all(uncsub$seqA[uncsub$seqB==""] == uw$probe[uncsub$seqB==""]) )
+```
+
+For the other `r sum(uncsub$seqB != "")` markers, the probe sequence
+in the UWisc file deletes the last base, and the first 49 bases are
+the same in all cases.
+
+```{r probes_with_seqB}
+seqA <- uncsub$seqA[uncsub$seqB != ""]
+probe <- uw$probe[uncsub$seqB != ""]
+stopifnot( all(substr(seqA, 1, 49) == probe) )
+```
+
+## Alleles
+
+Finally, let's verify that the info about SNP alleles are the same.
+(Indeed, they are.)
+
+```{r check_snp_alleles}
+uncsub$snp <- paste0(uncsub$"reference allele", uncsub$"alternate allele")
+stopifnot( all(uncsub$snp ==  uw$snp) )
+```
+
+## Session info
+
+Here are the versions of R and R packages that I am using.
+
+```{r session_info}
+devtools::session_info()
+```
