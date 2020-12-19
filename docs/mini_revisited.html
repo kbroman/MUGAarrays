@@ -1616,7 +1616,8 @@ if(file.exists(file)) {
                       n_diff_chr=message,
                       n_matching_chr=message,
                       n_pos_mismatch=message,
-                      n_pos_mismatch_old=message)
+                      n_pos_mismatch_old=message,
+                      n_pos_mismatch_new=message)
 }</code></pre>
 <ul>
 <li><p>the new UNC annotation file for the miniMUGA array has an additional 954 markers that weren’t present in the original annotation file I’d studied.</p></li>
@@ -1989,7 +1990,8 @@ exec_summ &lt;- list(new_markers=nrow(mini_unc)-nrow(uw),
                   n_diff_chr=length(diff_chr),
                   n_matching_chr=sum(!is.na(mini_uwisc$chr) &amp; mini_uwisc$chr != &quot;PAR&quot; &amp; mini_unc$chr == mini_uwisc$chr),
                   n_pos_mismatch=length(diff_pos),
-                  n_pos_mismatch_old = sum(diff_pos %in% uw$marker))
+                  n_pos_mismatch_old = sum(diff_pos %in% uw$marker),
+                  n_pos_mismatch_new = sum(!(diff_pos %in% uw$marker)))
 saveRDS(exec_summ, file)</code></pre>
 <p>Here are the versions of R and R packages that I am using.</p>
 <pre class="r"><code>devtools::session_info()</code></pre>
@@ -2008,13 +2010,13 @@ saveRDS(exec_summ, file)</code></pre>
 ## ─ Packages ─────────────────────────────────────────────────────────────────────────────────────────────────
 ##  package     * version date       lib source        
 ##  assertthat    0.2.1   2019-03-21 [1] CRAN (R 4.0.0)
-##  broman      * 0.72-1  2020-12-10 [1] local         
+##  broman      * 0.72-1  2020-11-28 [1] local         
 ##  callr         3.5.1   2020-10-13 [1] CRAN (R 4.0.3)
 ##  cli           2.2.0   2020-11-20 [1] CRAN (R 4.0.3)
 ##  crayon        1.3.4   2017-09-16 [1] CRAN (R 4.0.0)
 ##  data.table  * 1.13.4  2020-12-08 [1] CRAN (R 4.0.3)
 ##  desc          1.2.0   2018-05-01 [1] CRAN (R 4.0.0)
-##  devtools    * 2.3.2   2020-09-18 [1] CRAN (R 4.0.3)
+##  devtools    * 2.3.2   2020-09-18 [1] CRAN (R 4.0.2)
 ##  digest        0.6.27  2020-10-24 [1] CRAN (R 4.0.3)
 ##  ellipsis      0.3.1   2020-05-15 [1] CRAN (R 4.0.0)
 ##  evaluate      0.14    2019-05-28 [1] CRAN (R 4.0.0)

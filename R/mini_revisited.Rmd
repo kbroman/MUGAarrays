@@ -52,7 +52,8 @@ if(file.exists(file)) {
                       n_diff_chr=message,
                       n_matching_chr=message,
                       n_pos_mismatch=message,
-                      n_pos_mismatch_old=message)
+                      n_pos_mismatch_old=message,
+                      n_pos_mismatch_new=message)
 }
 ```
 
@@ -73,7 +74,7 @@ if(file.exists(file)) {
   but `r exec_summ$n_pos_mismatch` of them have discrepancies in their position.
   Of these, `r exec_summ$n_pos_mismatch_old` were on the previous verion of the
   array and are on the mitochondria, while the other
-  `r exec_summ$n_pos_mismatch - exec_summ$n_pos_mismatch_old` are new.
+  `r exec_summ$n_pos_mismatch_new` are new.
 
 
 
@@ -660,7 +661,8 @@ exec_summ <- list(new_markers=nrow(mini_unc)-nrow(uw),
                   n_diff_chr=length(diff_chr),
                   n_matching_chr=sum(!is.na(mini_uwisc$chr) & mini_uwisc$chr != "PAR" & mini_unc$chr == mini_uwisc$chr),
                   n_pos_mismatch=length(diff_pos),
-                  n_pos_mismatch_old = sum(diff_pos %in% uw$marker))
+                  n_pos_mismatch_old = sum(diff_pos %in% uw$marker),
+                  n_pos_mismatch_new = sum(!(diff_pos %in% uw$marker)))
 saveRDS(exec_summ, file)
 ```
 
