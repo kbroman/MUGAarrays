@@ -19,20 +19,21 @@ options(width=110)
 
 ## Introduction
 
-The annotation files I created for the miniMUGA array (2018-11-08) are at
+The annotation file I created for the miniMUGA array (2018-11-08) is at
 <https://github.com/kbroman/MUGAarrays/blob/master/UWisc/mini_uwisc_v1.csv>.
 We'll call this the UWisc annotation file.
 
 The [miniMUGA paper](https://doi.org/10.1534/genetics.120.303596) has
 now been published.
 Initially [published at bioRxiv](https://doi.org/10.1101/2020.03.12.989400) on 2020-03-14,
-it provides official annotations with the [Supplmental
+it provides official annotations with the [Supplemental
 material](https://doi.org/10.25386/genetics.11971941.v1), as [Table
 S2](https://gsajournals.figshare.com/articles/dataset/Supplemental_Material_for_Sigmon_et_al_2020/11971941?file=25117973).
 We will call this the UNC annotation file.
 
-My goal here was to compare the two sets of annotations. As we will
-see, the UNC annotation file includes many additional markers. And so
+My goal here is to compare the two sets of annotations.
+The UNC annotation file includes many additional markers which have
+been added to the miniMUGA array since my initial analysis. And so
 I'll first do a basic comparison of the two files, and then I'll go
 about building a revised version of UWisc annotations that incorporates
 all of the markers.
@@ -57,22 +58,22 @@ if(file.exists(file)) {
 }
 ```
 
-- the new UNC annotation file for the miniMUGA array has an
+- The new UNC annotation file for the miniMUGA array has an
   additional `r exec_summ$new_markers` markers that weren't present in the original
   annotation file I'd studied.
 
-- `r exec_summ$no_hit` markers with no perfect blast hit in the mouse genome (assembly
-  mm10, GRCm38). This is on top of the `r exec_summ$transgene` transgene markers
+- There are `r exec_summ$no_hit` markers with no perfect blast hit in the mouse genome (assembly
+  mm10, GRCm38). This is on top of the `r exec_summ$transgene` transgene markers.
 
-- `r exec_summ$n_diff_chr` markers where the UNC annotation file has them on a different
+- There are `r exec_summ$n_diff_chr` markers where the UNC annotation file has them on a different
   chromosome than is seen in my blast results. All of these were among
   the `r exec_summ$new_markers` markers added to the array.
 
 - The remaining `r broman::add_commas(exec_summ$n_matching_chr)`
-  markers having matching chromosome IDs between the UNC annotation
+  markers have matching chromosome IDs between the UNC annotation
   file and the blast results,
-  but `r exec_summ$n_pos_mismatch` of them have discrepancies in their position.
-  Of these, `r exec_summ$n_pos_mismatch_old` were on the previous verion of the
+  but `r exec_summ$n_pos_mismatch` of these have discrepancies in their position.
+  Of these, `r exec_summ$n_pos_mismatch_old` were on the previous version of the
   array and are on the mitochondria, while the other
   `r exec_summ$n_pos_mismatch_new` are new.
 
@@ -124,7 +125,7 @@ table(factor(unc$chr[!(unc$"Marker name" %in% uw$marker)],
              levels=c(0:19,"X","Y","PAR","MT")))
 ```
 
-The additional markers are sprinked throughout the autosomes and X
+The additional markers are sprinkled throughout the autosomes and X
 chromosome, plus a number on "chr 0", but no new markers on Y, PAR, or
 mitochondria.
 
@@ -321,7 +322,7 @@ This is **many** more discrepancies than we saw in the first version of
 the UNC annotation file. Previously, we just saw the
 `r numbers[sum(mini_unc$chr=="PAR")]` markers annotated
 to be in the pseudoautosomal region (PAR); the blast results match
-these to the X chromsome. We still see these, and we'll force them
+these to the X chromosome. We still see these, and we'll force them
 back to `PAR`.
 
 ```{r x_to_par}
@@ -369,7 +370,7 @@ slightly different positions.
 For the remaining `r add_commas(sum(!is.na(mini_uwisc$chr) & mini_uwisc$chr != "PAR" & mini_unc$chr == mini_uwisc$chr))`
 markers, UNC chromosome assignment and the
 blast hit do match, but
-`r sum(!is.na(mini_uwisc$chr) & mini_uwisc$chr != "PAR" & mini_unc$pos != mini_uwisc$pos)`
+`r sum(!is.na(mini_uwisc$chr) & mini_uwisc$chr != "PAR" & mini_unc$chr == mini_uwisc$chr & mini_unc$pos != mini_uwisc$pos)`
 of them have some discrepancy in their position.
 
 ```{r other_markers}
@@ -383,7 +384,7 @@ colnames(result) <- c("unc_chr", "unc_pos", "blast_chr", "blast_pos", "pos_diff"
 result
 ```
 
-The `r sum(result$unc_chr=="M")` mitchondrial markers were
+The `r sum(result$unc_chr=="M")` mitochondrial markers were
 all on the original version of the array and are off by mostly 1 bp
 (one marker is off by 50). The other
 `r sum(result$unc_chr != "M")` markers are new, and are off by quite
@@ -449,8 +450,22 @@ beginning, or with `b` added to the end, or in one case `ST` is
 replaced by `DT` but the rest of the marker name is the same
 (markers `ST2023174930` and `DT2023174930`).
 
+That last example, though, is the one pair where the UNC annotation
+file has the markers placed on different chromosomes.
 
+```{r verify_chr}
+pairs_not0 <- cbind(pairs_not0, chr1=mini_unc[pairs_not0[,1], "chr"],
+                    chr2=mini_unc[pairs_not0[,2], "chr"],
+                    pos1=mini_unc[pairs_not0[,1], "pos"],
+                    pos2=mini_unc[pairs_not0[,2], "pos"])
+stopifnot( sum(pairs_not0[,"chr1"] != pairs_not0[,"chr2"] | pairs_not0[,"pos1"] != pairs_not0[,"pos2"]) == 1)
 
+wh <- pairs_not0[pairs_not0[,"chr1"] != pairs_not0[,"chr2"] | pairs_not0[,"pos1"] != pairs_not0[,"pos2"],1:2]
+mini_unc[wh, c("chr", "pos", "strand", "seqA")]
+```
+
+The position for `ST2023174930` (chr `r mini_uwisc[wh[1],"chr"]` at
+`r add_commas(mini_uwisc[wh[1],"pos"])` bp) looks to be the correct position.
 
 
 ### New annotation file
@@ -470,7 +485,7 @@ MegaMUGA and GigaMUGA annotation files I made, but without
 `multi`, `n_blast_hits`, or `n_blast_chr`. And I'll include columns `chr_unc`
 and `bp_unc`, the chromosome and position in the UNC annotation file.
 (This is basically a preliminary file before I go and get the genetic
-map positions from the [mouse map converter](http://cgd.jax.org/mousemapconverter/) site.
+map positions from the [mouse map converter](http://cgd.jax.org/mousemapconverter/) site.)
 
 ```{r write_pre_v2_files}
 # order of columns
