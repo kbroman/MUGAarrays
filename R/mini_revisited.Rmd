@@ -48,26 +48,32 @@ if(file.exists(file)) {
 } else {
     message <- "**RE RUN FILE**"
     exec_summ <- list(new_markers=message,
+                      n_new_markers=message,
                       no_hit=message,
-                      transgene=message,
+                      n_no_hit=message,
+                      n_transgene=message,
+                      diff_chr=message,
                       n_diff_chr=message,
                       n_matching_chr=message,
+                      pos_mismatch=message,
                       n_pos_mismatch=message,
+                      pos_mismatch_old=message,
                       n_pos_mismatch_old=message,
+                      pos_mismatch_new=message,
                       n_pos_mismatch_new=message)
 }
 ```
 
 - The new UNC annotation file for the miniMUGA array has an
-  additional `r exec_summ$new_markers` markers that weren't present in the original
+  additional `r exec_summ$n_new_markers` markers that weren't present in the original
   annotation file I'd studied.
 
-- There are `r exec_summ$no_hit` markers with no perfect blast hit in the mouse genome (assembly
-  mm10, GRCm38). This is on top of the `r exec_summ$transgene` transgene markers.
+- There are `r exec_summ$n_no_hit` markers with no perfect blast hit in the mouse genome (assembly
+  mm10, GRCm38). This is on top of the `r exec_summ$n_transgene` transgene markers.
 
 - There are `r exec_summ$n_diff_chr` markers where the UNC annotation file has them on a different
   chromosome than is seen in my blast results. All of these were among
-  the `r exec_summ$new_markers` markers added to the array.
+  the `r exec_summ$n_new_markers` markers added to the array.
 
 - The remaining `r broman::add_commas(exec_summ$n_matching_chr)`
   markers have matching chromosome IDs between the UNC annotation
@@ -670,14 +676,24 @@ write.table(output, mini_dict_file, sep=",", quote=FALSE,
 
 ```{r construct_exec_summary}
 file <- "mini_revisited_summary.rds"
-exec_summ <- list(new_markers=nrow(mini_unc)-nrow(uw),
-                  no_hit=sum(!mini_uwisc$unique) - sum(mini_unc$chr==0),
-                  transgene=sum(mini_unc$chr==0),
-                  n_diff_chr=length(diff_chr),
-                  n_matching_chr=sum(mini_uwisc$chr != "PAR" & mini_uwisc$chr == mini_uwisc$chr_unc, na.rm=TRUE),
-                  n_pos_mismatch=length(diff_pos),
-                  n_pos_mismatch_old = sum(diff_pos %in% uw$marker),
-                  n_pos_mismatch_new = sum(!(diff_pos %in% uw$marker)))
+exec_summ <- list(new_markers=rownames(mini_unc) %wnin% uw$marker,
+                  no_hit=mini_uwisc$marker[!mini_uwisc$unique & mini_uwisc$chr_unc != 0],
+                  transgene=mini_uwisc$marker[mini_unc$chr==0],
+                  diff_chr=diff_chr,
+                  matching_chr=mini_uwisc$marker[!is.na(mini_uwisc$chr) &
+                                                 mini_uwisc$chr != "PAR" &
+                                                 mini_uwisc$chr == mini_uwisc$chr_unc],
+                  pos_mismatch=diff_pos,
+                  pos_mismatch_old=diff_pos %win% uw$marker,
+                  pos_mismatch_new=diff_pos %wnin% uw$marker)
+exec_summ$n_new_markers <- length(exec_summ$new_markers)
+exec_summ$n_no_hit <- length(exec_summ$no_hit)
+exec_summ$n_transgene <- length(exec_summ$transgene)
+exec_summ$n_diff_chr <- length(exec_summ$diff_chr)
+exec_summ$n_matching_chr <- length(exec_summ$matching_chr)
+exec_summ$n_pos_mismatch <- length(exec_summ$pos_mismatch)
+exec_summ$n_pos_mismatch_old <- length(exec_summ$pos_mismatch_old)
+exec_summ$n_pos_mismatch_new <- length(exec_summ$pos_mismatch_new)
 saveRDS(exec_summ, file)
 ```
 
