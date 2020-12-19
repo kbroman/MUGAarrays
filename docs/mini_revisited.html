@@ -1623,7 +1623,7 @@ if(file.exists(file)) {
 <li><p>the new UNC annotation file for the miniMUGA array has an additional 954 markers that weren’t present in the original annotation file I’d studied.</p></li>
 <li><p>97 markers with no perfect blast hit in the mouse genome (assembly mm10, GRCm38). This is on top of the 306 transgene markers</p></li>
 <li><p>74 markers where the UNC annotation file has them on a different chromosome than is seen in my blast results. All of these were among the 954 markers added to the array.</p></li>
-<li><p>The remaining 3,726 markers having matching chromosome IDs between the UNC annotation file and the blast results, but 18 of them have discrepancies in their position. Of these, 7 were on the previous verion of the array and are on the mitochondria, while the other 11 are new.</p></li>
+<li><p>The remaining 10,645 markers having matching chromosome IDs between the UNC annotation file and the blast results, but 18 of them have discrepancies in their position. Of these, 7 were on the previous verion of the array and are on the mitochondria, while the other 11 are new.</p></li>
 </ul>
 </div>
 </div>
@@ -1988,7 +1988,7 @@ exec_summ &lt;- list(new_markers=nrow(mini_unc)-nrow(uw),
                   no_hit=sum(!mini_uwisc$unique) - sum(mini_unc$chr==0),
                   transgene=sum(mini_unc$chr==0),
                   n_diff_chr=length(diff_chr),
-                  n_matching_chr=sum(!is.na(mini_uwisc$chr) &amp; mini_uwisc$chr != &quot;PAR&quot; &amp; mini_unc$chr == mini_uwisc$chr),
+                  n_matching_chr=sum(mini_uwisc$chr != &quot;PAR&quot; &amp; mini_uwisc$chr == mini_uwisc$chr_unc, na.rm=TRUE),
                   n_pos_mismatch=length(diff_pos),
                   n_pos_mismatch_old = sum(diff_pos %in% uw$marker),
                   n_pos_mismatch_new = sum(!(diff_pos %in% uw$marker)))
