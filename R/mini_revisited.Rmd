@@ -93,6 +93,7 @@ Let's load the two annotation files, plus a few packages.
 library(data.table)
 library(broman)
 library(devtools)
+library(parallel)
 
 uw <- data.table::fread("../UWisc/mini_uwisc_v1.csv", data.table=FALSE)
 
@@ -559,6 +560,84 @@ chr `r result$giga_chr` at `r add_commas(result$giga_pos)` bp.
 But on the miniMUGA array it has probe
 ``r result$mini_probe`` while on the GigaMUGA array it has probe
 ``r result$giga_probe``.
+
+
+Let's go ahead and look at all of the miniMUGA markers.
+
+```{r all_markers_v_gm}
+name_on_both <- mini_unc$marker %win% gm$marker
+name_on_both_same_probe <- name_on_both[mini_unc[name_on_both, "seqA"]==
+                                        gm[match(name_on_both, gm$marker), "probe"]]
+name_on_both_diff_probe <- name_on_both %wnin% name_on_both_same_probe
+cf_diff_probe <- cbind(mini_uwisc[match(name_on_both_diff_probe, mini_uwisc$marker), c("chr", "pos")],
+                       gm[match(name_on_both_diff_probe,
+gm$marker),c("chr", "bp_mm10","marker")])
+colnames(cf_diff_probe) <- c("mini_chr", "mini_pos", "gm_chr", "gm_pos", "marker")
+diff_probe_unmapped_gm <- cf_diff_probe$marker[!is.na(cf_diff_probe$mini_chr) &
+                                               is.na(cf_diff_probe$gm_chr)]
+diff_probe_unmapped_mini <- cf_diff_probe$marker[is.na(cf_diff_probe$mini_chr) &
+                                               !is.na(cf_diff_probe$gm_chr)]
+diff_probe_same_pos <- cf_diff_probe$marker[!is.na(cf_diff_probe$mini_chr) &
+                                            !is.na(cf_diff_probe$gm_chr) &
+                                            cf_diff_probe$mini_chr == cf_diff_probe$gm_chr &
+                                            cf_diff_probe$mini_pos == cf_diff_probe$gm_pos]
+unmapped_mini_uw <- mini_uwisc[match(diff_probe_unmapped_gm, mini_uwisc$marker),]
+unmapped_mini_unc <- mini_unc[match(diff_probe_unmapped_gm, mini_unc$marker),]
+stopifnot(all(unmapped_mini_uw$chr == unmapped_mini_unc$chr &
+              unmapped_mini_uw$pos == unmapped_mini_unc$pos))
+
+# same name and same probe
+z1 <- mini_uwisc[match(name_on_both_same_probe, mini_uwisc$marker),]
+z2 <- gm[match(name_on_both_same_probe, gm$marker),]
+# mapped/unmapped the same
+stopifnot( all(is.na(z1$chr) == is.na(z2$chr)) )
+# chr and pos the same
+stopifnot( all(is.na(z1$chr) | (z1$chr==z2$chr & z1$pos==z2$pos)) )
+
+# same probe but different names
+probes_on_both_mini <- setNames(mini_uwisc$probe, mini_uwisc$marker)[mini_uwisc$probe %in% gm$probe]
+probe_match <- mclapply(seq_along(probes_on_both_mini), function(i) gm$marker[gm$probe==probes_on_both_mini[i]], mc.cores=8)
+names(probe_match) <- names(probes_on_both_mini)
+cf_names <- t(sapply(seq_along(probe_match), function(i) {
+          n <- names(probe_match)[i]
+          p <- probe_match[[i]]
+          c(plain=any(p==n),
+            g_b=any(paste0("g", p, "b")==n),
+            m=any(paste0("m", p)==n),
+            g=any(paste0("g", p)==n),
+            mit=any(sub("^Mit", "gMit00", p)==n),
+            mit0=any(sub("^Mit", "gMit000", p)==n),
+            gb=any(paste0("gb", p)==n)) }))
+
+```
+
+There are `r length(name_on_both_diff_probe)` miniMUGA markers that
+are on GigaMUGA array with the same name but with a different probe.
+One of these (`r diff_probe_unmapped_mini`) we saw above, where the
+new probe doesn't have a perfect match in the mm10 assembly. Another
+`r length(diff_probe_same_pos)` look like redesigns, switching strands
+but targetting the same position.
+The other `r length(diff_probe_unmapped_gm)` markers have probes on
+the miniMUGA array that map uniquely, but the probe on the GigaMUGA
+array does not; these markers all have the same position in the UNC
+annotation as found in the blast search.
+
+There are `r length(name_on_both_same_probe)` markers that are on
+the GigaMUGA array with the same name and the same probe sequence
+`r numbers[sum(is.na(mini_uwisc[match(name_on_both_same_probe, mini_uwisc$marker),"chr"]))]`
+of these do not map uniquely to the mm10 assembly;
+the other `r sum(!is.na(mini_uwisc[match(name_on_both_same_probe, mini_uwisc$marker),"chr"]))` are placed at the same genomic position.
+
+Of the `r add_commas(nrow(mini_unc))` markers on the miniMUGA,
+`r add_commas(length(probes_on_both_mini))` have a probe that is also on
+the GigaMUGA array. These will be placed in the same positions, since
+I used the same process to identify unique mappings and the corresponding
+positions, but some of the names may be different.
+Most of these having matching names (`r sum(cf_names[,"plain"])`
+match exactly, and another `r sum(rowSums(cf_names[!cf_names[,1],])>0)`
+have names that were changed slightly, say by prepending a `g` or
+`m`). Another `r sum(rowSums(cf_names)==0)` miniMUGA markers have a probe
+that matches a GigaMUGA marker, but with a totally different name.
 
 
 ### New annotation file

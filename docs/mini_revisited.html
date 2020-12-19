@@ -1638,6 +1638,7 @@ if(file.exists(file)) {
 <pre class="r"><code>library(data.table)
 library(broman)
 library(devtools)
+library(parallel)
 
 uw &lt;- data.table::fread(&quot;../UWisc/mini_uwisc_v1.csv&quot;, data.table=FALSE)
 
@@ -1897,6 +1898,53 @@ stopifnot(result$unc_chr == result$giga_chr,
           result$unc_pos == result$giga_pos,
           result$mini_marker == result$giga_marker)</code></pre>
 <p>This is marker UNC21896811. On both arrays it is on chr 12 at 111,651,522 bp. But on the miniMUGA array it has probe <code>GTTCTGTTTGCTTGGTTGGGTTTTGTGGGCGGTTGGGGTTTTGTTTTTGT</code> while on the GigaMUGA array it has probe <code>GAGCAGCTAGGCTATACAGAGAAACCCTGTCTTGAAAACAAAAACAAACA</code>.</p>
+<p>Let’s go ahead and look at all of the miniMUGA markers.</p>
+<pre class="r"><code>name_on_both &lt;- mini_unc$marker %win% gm$marker
+name_on_both_same_probe &lt;- name_on_both[mini_unc[name_on_both, &quot;seqA&quot;]==
+                                        gm[match(name_on_both, gm$marker), &quot;probe&quot;]]
+name_on_both_diff_probe &lt;- name_on_both %wnin% name_on_both_same_probe
+cf_diff_probe &lt;- cbind(mini_uwisc[match(name_on_both_diff_probe, mini_uwisc$marker), c(&quot;chr&quot;, &quot;pos&quot;)],
+                       gm[match(name_on_both_diff_probe,
+gm$marker),c(&quot;chr&quot;, &quot;bp_mm10&quot;,&quot;marker&quot;)])
+colnames(cf_diff_probe) &lt;- c(&quot;mini_chr&quot;, &quot;mini_pos&quot;, &quot;gm_chr&quot;, &quot;gm_pos&quot;, &quot;marker&quot;)
+diff_probe_unmapped_gm &lt;- cf_diff_probe$marker[!is.na(cf_diff_probe$mini_chr) &amp;
+                                               is.na(cf_diff_probe$gm_chr)]
+diff_probe_unmapped_mini &lt;- cf_diff_probe$marker[is.na(cf_diff_probe$mini_chr) &amp;
+                                               !is.na(cf_diff_probe$gm_chr)]
+diff_probe_same_pos &lt;- cf_diff_probe$marker[!is.na(cf_diff_probe$mini_chr) &amp;
+                                            !is.na(cf_diff_probe$gm_chr) &amp;
+                                            cf_diff_probe$mini_chr == cf_diff_probe$gm_chr &amp;
+                                            cf_diff_probe$mini_pos == cf_diff_probe$gm_pos]
+unmapped_mini_uw &lt;- mini_uwisc[match(diff_probe_unmapped_gm, mini_uwisc$marker),]
+unmapped_mini_unc &lt;- mini_unc[match(diff_probe_unmapped_gm, mini_unc$marker),]
+stopifnot(all(unmapped_mini_uw$chr == unmapped_mini_unc$chr &amp;
+              unmapped_mini_uw$pos == unmapped_mini_unc$pos))
+
+# same name and same probe
+z1 &lt;- mini_uwisc[match(name_on_both_same_probe, mini_uwisc$marker),]
+z2 &lt;- gm[match(name_on_both_same_probe, gm$marker),]
+# mapped/unmapped the same
+stopifnot( all(is.na(z1$chr) == is.na(z2$chr)) )
+# chr and pos the same
+stopifnot( all(is.na(z1$chr) | (z1$chr==z2$chr &amp; z1$pos==z2$pos)) )
+
+# same probe but different names
+probes_on_both_mini &lt;- setNames(mini_uwisc$probe, mini_uwisc$marker)[mini_uwisc$probe %in% gm$probe]
+probe_match &lt;- mclapply(seq_along(probes_on_both_mini), function(i) gm$marker[gm$probe==probes_on_both_mini[i]], mc.cores=8)
+names(probe_match) &lt;- names(probes_on_both_mini)
+cf_names &lt;- t(sapply(seq_along(probe_match), function(i) {
+          n &lt;- names(probe_match)[i]
+          p &lt;- probe_match[[i]]
+          c(plain=any(p==n),
+            g_b=any(paste0(&quot;g&quot;, p, &quot;b&quot;)==n),
+            m=any(paste0(&quot;m&quot;, p)==n),
+            g=any(paste0(&quot;g&quot;, p)==n),
+            mit=any(sub(&quot;^Mit&quot;, &quot;gMit00&quot;, p)==n),
+            mit0=any(sub(&quot;^Mit&quot;, &quot;gMit000&quot;, p)==n),
+            gb=any(paste0(&quot;gb&quot;, p)==n)) }))</code></pre>
+<p>There are 188 miniMUGA markers that are on GigaMUGA array with the same name but with a different probe. One of these (UNC21896811) we saw above, where the new probe doesn’t have a perfect match in the mm10 assembly. Another 179 look like redesigns, switching strands but targetting the same position. The other 8 markers have probes on the miniMUGA array that map uniquely, but the probe on the GigaMUGA array does not; these markers all have the same position in the UNC annotation as found in the blast search.</p>
+<p>There are 559 markers that are on the GigaMUGA array with the same name and the same probe sequence four of these do not map uniquely to the mm10 assembly; the other 555 are placed at the same genomic position.</p>
+<p>Of the 11,125 markers on the miniMUGA, 3,881 have a probe that is also on the GigaMUGA array. These will be placed in the same positions, since I used the same process to identify unique mappings and the corresponding positions, but some of the names may be different. Most of these having matching names (559 match exactly, and another 3281 have names that were changed slightly, say by prepending a <code>g</code> or <code>m</code>). Another 41 miniMUGA markers have a probe that matches a GigaMUGA marker, but with a totally different name.</p>
 </div>
 <div id="new-annotation-file" class="section level3">
 <h3>New annotation file</h3>
