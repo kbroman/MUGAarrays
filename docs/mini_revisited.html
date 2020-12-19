@@ -1600,9 +1600,31 @@ div.tocify {
 
 <div id="introduction" class="section level2">
 <h2>Introduction</h2>
-<p>The annotation files I created for the miniMUGA array (2018-11-08) are at <a href="https://github.com/kbroman/MUGAarrays/blob/master/UWisc/mini_uwisc_v1.csv" class="uri">https://github.com/kbroman/MUGAarrays/blob/master/UWisc/mini_uwisc_v1.csv</a>.</p>
-<p>The <a href="https://doi.org/10.1534/genetics.120.303596">miniMUGA paper</a> has now been published. Initially <a href="https://doi.org/10.1101/2020.03.12.989400">published at bioRxiv</a> on 2020-03-14, it provides official annotations with the <a href="https://doi.org/10.25386/genetics.11971941.v1">Supplmental material</a>, as <a href="https://gsajournals.figshare.com/articles/dataset/Supplemental_Material_for_Sigmon_et_al_2020/11971941?file=25117973">Table S2</a>.</p>
-<p>Here, I will compare the two sets of annotations.</p>
+<p>The annotation files I created for the miniMUGA array (2018-11-08) are at <a href="https://github.com/kbroman/MUGAarrays/blob/master/UWisc/mini_uwisc_v1.csv" class="uri">https://github.com/kbroman/MUGAarrays/blob/master/UWisc/mini_uwisc_v1.csv</a>. We’ll call this the UWisc annotation file.</p>
+<p>The <a href="https://doi.org/10.1534/genetics.120.303596">miniMUGA paper</a> has now been published. Initially <a href="https://doi.org/10.1101/2020.03.12.989400">published at bioRxiv</a> on 2020-03-14, it provides official annotations with the <a href="https://doi.org/10.25386/genetics.11971941.v1">Supplmental material</a>, as <a href="https://gsajournals.figshare.com/articles/dataset/Supplemental_Material_for_Sigmon_et_al_2020/11971941?file=25117973">Table S2</a>. We will call this the UNC annotation file.</p>
+<p>My goal here was to compare the two sets of annotations. As we will see, the UNC annotation file includes many additional markers. And so I’ll first do a basic comparison of the two files, and then I’ll go about building a revised version of UWisc annotations that incorporates all of the markers.</p>
+<div id="key-findings" class="section level3">
+<h3>Key findings</h3>
+<pre class="r"><code>file &lt;- &quot;mini_revisited_summary.rds&quot;
+if(file.exists(file)) {
+    exec_summ &lt;- readRDS(file)
+} else {
+    message &lt;- &quot;**RE RUN FILE**&quot;
+    exec_summ &lt;- list(new_markers=message,
+                      no_hit=message,
+                      transgene=message,
+                      n_diff_chr=message,
+                      n_matching_chr=message,
+                      n_pos_mismatch=message,
+                      n_pos_mismatch_old=message)
+}</code></pre>
+<ul>
+<li><p>the new UNC annotation file for the miniMUGA array has an additional 954 markers that weren’t present in the original annotation file I’d studied.</p></li>
+<li><p>97 markers with no perfect blast hit in the mouse genome (assembly mm10, GRCm38). This is on top of the 306 transgene markers</p></li>
+<li><p>74 markers where the UNC annotation file has them on a different chromosome than is seen in my blast results. All of these were among the 954 markers added to the array.</p></li>
+<li><p>The remaining 3,726 markers having matching chromosome IDs between the UNC annotation file and the blast results, but 18 of them have discrepancies in their position. Of these, 7 were on the previous verion of the array and are on the mitochondria, while the other 11 are new.</p></li>
+</ul>
+</div>
 </div>
 <div id="preliminaries" class="section level2">
 <h2>Preliminaries</h2>
@@ -1617,8 +1639,8 @@ unc_url &lt;- &quot;https://gsajournals.figshare.com/ndownloader/files/25117973&
 unc_file &lt;- &quot;../UNC/miniMUGA_tableS2.csv&quot;
 if(!file.exists(unc_file)) download.file(unc_url, unc_file)
 unc &lt;- data.table::fread(unc_file, data.table=FALSE)</code></pre>
-<p>My UWisc annotations had 10,171 markers, while the new annotation file from the UNC group has 11,125 markers.</p>
-<p>All the markers in the UWisc annotations are in the new annotation file, but then there are 954 additional markers in the UNC data, and these are distributed across most chromosomes.</p>
+<p>The UWisc annotations had 10,171 markers, while the UNC annotation file has 11,125 markers.</p>
+<p>All the markers in the UWisc annotations are in the UNC annotation file, but then there are 954 additional markers in the UNC file, and these are distributed across most chromosomes.</p>
 <p>Here’s the chromosome distribution of markers in the UWisc annotations. I’ll replace the missing chromosomes with 0 and replace <code>M</code> with <code>MT</code> for the mitochondria, as in the new UNC annotations.</p>
 <pre class="r"><code>uw$chr[is.na(uw$chr)] &lt;- 0
 uw$chr[uw$chr==&quot;M&quot;] &lt;- &quot;MT&quot;
@@ -1634,9 +1656,8 @@ table(factor(uw$chr, levels=c(0:19,&quot;X&quot;,&quot;Y&quot;,&quot;PAR&quot;, 
 ##   0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19   X   Y PAR  MT 
 ##  49  39  41  45  41  48  47  43  44  45  48  43  37  50  49  48  45  43  50  46  53   0   0   0</code></pre>
 <p>The additional markers are sprinked throughout the autosomes and X chromosome, plus a number on “chr 0”, but no new markers on Y, PAR, or mitochondria.</p>
-</div>
-<div id="comparison-of-common-markers" class="section level2">
-<h2>Comparison of common markers</h2>
+<div id="comparison-of-common-markers" class="section level3">
+<h3>Comparison of common markers</h3>
 <p>Let’s focus on the markers in the UWisc annotations, and check that the genomic positions are the same. I’ll first grab the subset of markers in common and get them in the same order</p>
 <pre class="r"><code>rownames(unc) &lt;- unc$&quot;Marker name&quot;
 uncsub &lt;- unc[uw$marker,]</code></pre>
@@ -1661,8 +1682,8 @@ uwsub &lt;- uw[uw$unique,]</code></pre>
 ## UNC2213612         MT    13612      - UNC2213612  MT   13611  minus</code></pre>
 <p>They are all mitochondrial markers, and they differ by one base except for one case that is off by 50 and says the opposite strand (marker UNC2202344). This is the only marker where the strands are different.</p>
 </div>
-<div id="probe-sequences" class="section level2">
-<h2>Probe sequences</h2>
+<div id="probe-sequences" class="section level3">
+<h3>Probe sequences</h3>
 <p>For the markers in common, are the probe sequences the same? For 287 markers, the probe sequence contained the SNP and I had trimmed that off.</p>
 <p>For the 9,884 markers where there’s no seqB and the probe sequence doesn’t contain the SNP, the probes are identical.</p>
 <pre class="r"><code>stopifnot( all(uncsub$seqA[uncsub$seqB==&quot;&quot;] == uw$probe[uncsub$seqB==&quot;&quot;]) )</code></pre>
@@ -1671,14 +1692,305 @@ uwsub &lt;- uw[uw$unique,]</code></pre>
 probe &lt;- uw$probe[uncsub$seqB != &quot;&quot;]
 stopifnot( all(substr(seqA, 1, 49) == probe) )</code></pre>
 </div>
-<div id="alleles" class="section level2">
-<h2>Alleles</h2>
+<div id="alleles" class="section level3">
+<h3>Alleles</h3>
 <p>Finally, let’s verify that the info about SNP alleles are the same. (Indeed, they are.)</p>
 <pre class="r"><code>uncsub$snp &lt;- paste0(uncsub$&quot;reference allele&quot;, uncsub$&quot;alternate allele&quot;)
 stopifnot( all(uncsub$snp ==  uw$snp) )</code></pre>
 </div>
+</div>
+<div id="revised-uwisc-annotations" class="section level2">
+<h2>Revised UWisc annotations</h2>
+<p>I’m going to go back and re-load the UNC annotations and do all of the various things to create revised UWisc annotations. I’ll follow my <a href="https://kbroman.org/MUGAarrays/mini_annotations.html">previous report</a> closely.</p>
+<pre class="r"><code># UNC file
+mini_unc &lt;- unc # from above
+rownames(mini_unc) &lt;- mini_unc$&quot;Marker name&quot;
+
+# change a few things:
+# Marker name -&gt; marker
+# chromosome -&gt; chr
+# position -&gt; pos
+# MT -&gt; M
+colnames(mini_unc)[1:3] &lt;- c(&quot;marker&quot;, &quot;chr&quot;, &quot;pos&quot;)
+mini_unc$chr[mini_unc$chr==&quot;MT&quot;] &lt;- &quot;M&quot;
+
+# Blast results; keep just the perfect matches(?)
+mini_blast &lt;- readRDS(&quot;../Blast/results_mini2/mini2_blastn_results.rds&quot;)
+mini_blast &lt;- mini_blast[mini_blast$tot_mismatch==0,]</code></pre>
+<div id="summarize-blast-hits" class="section level3">
+<h3>Summarize blast hits</h3>
+<p>I’ll start with some code to summarize the blast hits. For each SNP, I want to count the number of perfect blast hits. As it turns out, the probes have either 1 or 0 perfect hits, and so we don’t have to do what we did with the MegaMUGA and GigaMUGA arrays, regarding studying the number of distinct chromosomes hit.</p>
+<p>For markers with a unique hit, I’ll record the chromosome, position, and strand.</p>
+<pre class="r"><code># no. blast hits
+mini_tab &lt;- table(mini_blast$query)
+mini_nchr &lt;- mini_nhits &lt;- setNames(rep(0, nrow(mini_unc)), rownames(mini_unc))
+mini_nhits[names(mini_tab)] &lt;- mini_tab
+
+# chr,pos,strand for the unique ones
+mini_blast_uniq &lt;- mini_blast[mini_blast$query %in% names(mini_nhits)[mini_nhits==1],]
+mini_blast_chr &lt;- mini_blast_pos &lt;- mini_blast_strand &lt;- setNames(rep(NA, nrow(mini_unc)), rownames(mini_unc))
+mini_blast_chr[mini_blast_uniq$query] &lt;- mini_blast_uniq$chr
+mini_blast_pos[mini_blast_uniq$query] &lt;- mini_blast_uniq$snp_pos
+mini_blast_strand[mini_blast_uniq$query] &lt;- mini_blast_uniq$strand
+
+# probe sequences
+mini_blast_probe &lt;- setNames(mini_unc$seqA, mini_unc$Marker)
+mini_trim &lt;- (mini_unc$seqB != &quot;&quot;)
+mini_blast_probe[mini_trim] &lt;- substr(mini_blast_probe[mini_trim], 1, nchar(mini_blast_probe[mini_trim])-1)
+
+# SNP alleles
+mini_blast_snp &lt;- paste0(mini_unc$&quot;reference allele&quot;, mini_unc$&quot;alternate allele&quot;)
+
+# put all of this stuff into a data frame
+mini_uwisc &lt;- data.frame(marker=names(mini_nhits),
+                         n_blast_hits=mini_nhits,
+                         unique=(mini_nhits==1),
+                         unmapped=(mini_nhits==0),
+                         chr=mini_blast_chr,
+                         pos=mini_blast_pos,
+                         strand=mini_blast_strand,
+                         snp=mini_blast_snp,
+                         probe=mini_blast_probe,
+                         stringsAsFactors=FALSE)
+rownames(mini_uwisc) &lt;- mini_uwisc$marker</code></pre>
+</div>
+<div id="basic-blast-results" class="section level3">
+<h3>Basic blast results</h3>
+<p>The miniMUGA array contains 11,125 markers, of which (according to the UNC annotations), 9,958 are on autosomes, 695 are on the X chromosome, 75 are on the Y chromosome, 88 are on the mitochondrial genome, 3 are in the pseudoautosomal region, and 306 have chromosome <code>0</code> which are transgene-related markers.</p>
+<p>In the blast results, I find that 10,722 markers have a single, unique hit in the mouse genome (build mm10) and 403 have no perfect hit. There are no markers with multiple hits.</p>
+<p>The markers with no perfect hit include all of the transgene-related markers, plus another 97 markers that are spread across all autosomes and the X and Y chromosomes.</p>
+</div>
+<div id="chromosome-assignments" class="section level3">
+<h3>Chromosome assignments</h3>
+<p>If we look at the inferred chromosome assignments of the markers with a unique hit to the genome, there are 77 differences.</p>
+<p>This is <strong>many</strong> more discrepancies than we saw in the first version of the UNC annotation file. Previously, we just saw the three markers annotated to be in the pseudoautosomal region (PAR); the blast results match these to the X chromsome. We still see these, and we’ll force them back to <code>PAR</code>.</p>
+<pre class="r"><code>mini_uwisc$chr[mini_unc$chr==&quot;PAR&quot;] &lt;- &quot;PAR&quot;</code></pre>
+<p>But in addition there are another 74 markers that map to different chromosomes than seen in the UNC annotation file.</p>
+<pre class="r"><code>diff_chr &lt;- mini_uwisc$marker[!is.na(mini_uwisc$chr) &amp; mini_unc$chr != mini_uwisc$chr]</code></pre>
+<p>In the UNC annotations, these span most autosomes (all except chr 2) plus the X chromosome, while in the blast results, they are on chr 1, 2, 3, 4, 5, 7, 14, 15, 17, and 19. And <strong>none</strong> of these markers were in the original version of the miniMUGA array. They are all among the 954 new markers.</p>
+<p>For example, consider marker DX1033615090, with probe sequence <code>TGACCTAAGCTGGAGAAGAACATCCCTGGGAGAGCTGTAAGCATATAAGC</code>. In the UNC annotations, it is on chr 11 at 99,960,673 bp, but in the blast results, it shows up on chr 3 at 90,377,274 bp.</p>
+<p>As another example, consider marker DX1150407521, with probe sequence <code>AGTTTTGGAAGTTGGAATAGCATAACTTCCAAATGGCCAGGCTGTCTTAA</code>. In the UNC annotations, it is on chr 18 at 65,182,949 bp, but in the blast results, it shows up on chr 15 at 10,188,038 bp.</p>
+<p>If we paste these probe sequences into the <a href="https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastSearch&amp;BLAST_SPEC=OGP__10090__9559&amp;LINK_LOC=blasthome">NCBI blast website</a>, using the GRCm38 assembly, it confirms my blast results. Using the GRCm39 assembly, we get the same chromosome assignments but slightly different positions.</p>
+</div>
+<div id="positions" class="section level3">
+<h3>Positions</h3>
+<p>For the remaining 10,645 markers, UNC chromosome assignment and the blast hit do match, but 92 of them have some discrepancy in their position.</p>
+<pre class="r"><code>chr_match &lt;- mini_unc$marker[!is.na(mini_uwisc$chr) &amp; mini_uwisc$chr != &quot;PAR&quot; &amp;
+                             mini_unc$chr == mini_uwisc$chr]
+stopifnot( all( mini_unc[chr_match, &quot;chr&quot;] == mini_uwisc[chr_match, &quot;chr&quot;] ))
+pd &lt;- mini_unc[chr_match, &quot;pos&quot;] - mini_uwisc[chr_match, &quot;pos&quot;]
+diff_pos &lt;- chr_match[pd != 0]
+result &lt;- cbind(mini_unc[chr_match, c(&quot;chr&quot;, &quot;pos&quot;)], mini_uwisc[chr_match, c(&quot;chr&quot;, &quot;pos&quot;)], pd)[(pd != 0),]
+colnames(result) &lt;- c(&quot;unc_chr&quot;, &quot;unc_pos&quot;, &quot;blast_chr&quot;, &quot;blast_pos&quot;, &quot;pos_diff&quot;)
+result</code></pre>
+<pre><code>##               unc_chr   unc_pos blast_chr blast_pos  pos_diff
+## DT2015871561        1 172074890         1 146789049  25285841
+## DX1023823158        2  18624897         2  95578972 -76954075
+## DX1024130647        2 109813167         2 103266184   6546983
+## B6JB6CCPLHD01       2 157065076         2 157065111       -35
+## BCC046203725        4 155093131         4 155093173       -42
+## BCC072620402        7  65510056         7  65510091       -35
+## B6JB6CCPLHD06      11  50673556        11  50673577       -21
+## B6JB6CCPLHD07      13  39551176        13  39551219       -43
+## DX1143424828       14  82805125        14  85620712  -2815587
+## BCC180983620       18  24590521        18  24590555       -34
+## mMit001             M        55         M        54         1
+## UNC2202344          M      2344         M      2394       -50
+## UNC2203635          M      3635         M      3634         1
+## UNC2212395          M     12395         M     12394         1
+## UNC2212695          M     12695         M     12694         1
+## UNC2212752          M     12752         M     12751         1
+## UNC2213612          M     13612         M     13611         1
+## BCC202519908        X  62997706         X  62997715        -9</code></pre>
+<p>The 7 mitchondrial markers were all on the original version of the array and are off by mostly 1 bp (one marker is off by 50). The other 11 markers are new, and are off by quite varying amounts.</p>
+<p>The strand assignments are the same for all 10,645 of the markers with matching chromosome assignments, except for the one mitochondrial marker that is off by 50 bp, UNC2202344.</p>
+<pre class="r"><code>strand_unc &lt;- setNames(mini_unc[chr_match,&quot;strand&quot;], chr_match)
+strand_uwisc &lt;- setNames(mini_uwisc[chr_match,&quot;strand&quot;], chr_match)
+strand_uwisc[strand_uwisc==&quot;plus&quot;] &lt;- &quot;+&quot;
+strand_uwisc[strand_uwisc==&quot;minus&quot;] &lt;- &quot;-&quot;
+stopifnot( sum(strand_unc != strand_uwisc) == 1)
+mt_marker &lt;- rownames(result)[result$blast_chr==&quot;M&quot; &amp; result$pos_diff== -50]
+stopifnot( strand_unc[mt_marker] != strand_uwisc[mt_marker] )</code></pre>
+</div>
+<div id="markers-with-the-same-probes" class="section level3">
+<h3>Markers with the same probes</h3>
+<p>Not all of the probes are distinct.</p>
+<pre class="r"><code>tab_probe &lt;- table(mini_uwisc$probe)
+pairs &lt;- names(tab_probe)[tab_probe==&quot;2&quot;]
+trios &lt;- names(tab_probe)[tab_probe==&quot;3&quot;]
+
+# names of the markers in the dup pairs
+pair_names &lt;- t(sapply(pairs, function(pr) rownames(mini_uwisc)[mini_uwisc$probe == pr]))
+rownames(pair_names) &lt;- 1:nrow(pair_names)
+pair_chr &lt;- cbind(mini_unc[pair_names[,1],&quot;chr&quot;], mini_unc[pair_names[,2],&quot;chr&quot;])
+
+# pairs from these that are not on chr 0
+pairs_not0 &lt;- pair_names[rowSums(pair_chr==&quot;0&quot;)&lt;2,]
+
+# verify name mutations
+stopifnot( all(pairs_not0[,2] == paste0(pairs_not0[,1], &quot;b&quot;) |
+    pairs_not0[,2] == paste0(&quot;g&quot;, pairs_not0[,1]) |
+    pairs_not0[,2] == paste0(&quot;m&quot;, pairs_not0[,1]) |
+    pairs_not0[,1] == paste0(pairs_not0[,2], &quot;b&quot;) |
+    pairs_not0[,1] == paste0(&quot;g&quot;, pairs_not0[,2]) |
+    pairs_not0[,1] == paste0(&quot;m&quot;, pairs_not0[,2]) |
+    pairs_not0[,1] == sub(&quot;^D&quot;, &quot;S&quot;, pairs_not0[,2]) ))</code></pre>
+<p>There are 115 pairs and 4 trios of markers with identical probe sequences.</p>
+<p>The trios of markers with identical probe sequences are all on chr <code>0</code> in the UNC annotation file, for transgene-related markers.</p>
+<p>Of the 115 pairs, 37 are both on chromosome <code>0</code>.</p>
+<p>The other 156 pairs of markers with identical probe sequences appear to be intended duplicates: they all are such the one name is the same as the other but with <code>g</code> or <code>m</code> added to the beginning, or with <code>b</code> added to the end, or in one case <code>ST</code> is replaced by <code>DT</code> but the rest of the marker name is the same (markers <code>ST2023174930</code> and <code>DT2023174930</code>).</p>
+</div>
+<div id="new-annotation-file" class="section level3">
+<h3>New annotation file</h3>
+<p>I now want to save my findings as a new annotation file for the miniMUGA array. I’ll also create a metadata file (“data dictionary”) that explains the columns.</p>
+<p>The final annotation files and all source materials are at <a href="https://github.com/kbroman/MUGAarrays" class="uri">https://github.com/kbroman/MUGAarrays</a>.</p>
+<div id="version-pre_2" class="section level4">
+<h4>Version pre_2</h4>
+<p>We’ll call this version “pre 2”. It’ll be like the MegaMUGA and GigaMUGA annotation files I made, but without <code>multi</code>, <code>n_blast_hits</code>, or <code>n_blast_chr</code>. And I’ll include columns <code>chr_unc</code> and <code>bp_unc</code>, the chromosome and position in the UNC annotation file. (This is basically a preliminary file before I go and get the genetic map positions from the <a href="http://cgd.jax.org/mousemapconverter/">mouse map converter</a> site.</p>
+<pre class="r"><code># order of columns
+cols &lt;- c(&quot;marker&quot;, &quot;chr&quot;, &quot;pos&quot;, &quot;strand&quot;, &quot;snp&quot;, &quot;unique&quot;,
+          &quot;unmapped&quot;, &quot;probe&quot;, &quot;chr_unc&quot;, &quot;pos_unc&quot;)
+# revised names
+cols_new &lt;- c(&quot;marker&quot;, &quot;chr&quot;, &quot;bp_mm10&quot;, &quot;strand&quot;, &quot;snp&quot;, &quot;unique&quot;,
+              &quot;unmapped&quot;, &quot;probe&quot;, &quot;chr_unc&quot;, &quot;bp_unc&quot;)
+
+# MegaMUGA file
+mini_file &lt;- &quot;../UWisc/mini_uwisc_pre_v2.csv&quot;
+
+# reorder and rename columns
+mini_uwisc &lt;- cbind(mini_uwisc, chr_unc=mini_unc$chr, pos_unc=mini_unc$pos)
+mini_uwisc &lt;- mini_uwisc[,cols]
+colnames(mini_uwisc) &lt;- cols_new
+
+# reorder rows
+mini_uwisc &lt;- mini_uwisc[order(factor(mini_uwisc$chr, levels=c(1:19,&quot;X&quot;,&quot;Y&quot;,&quot;PAR&quot;,&quot;M&quot;)),
+                               mini_uwisc$bp_mm10,
+                               factor(mini_uwisc$chr_unc, levels=c(0:19, &quot;X&quot;, &quot;Y&quot;, &quot;PAR&quot;,&quot;M&quot;))),]
+
+# write to CSV file
+write.table(mini_uwisc, mini_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)</code></pre>
+<p>I’ll also create a dictionary for the file, which explains what the columns are.</p>
+<pre class="r"><code>descriptions &lt;- c(&quot;Name of SNP marker&quot;,
+                  &quot;Chromosome&quot;,
+                  &quot;Physical position in basepairs for mm10 mouse genome build&quot;,
+                  &quot;Strand (plus/minus) from which the probe sequence was taken&quot;,
+                  &quot;SNP alleles as a two-character string&quot;,
+                  &quot;TRUE indicates that the probe sequence appears exactly once in mm10 mouse genome build&quot;,
+                  &quot;TRUE indicates that the probe sequence has no perfect match in mm10 mouse genome build&quot;,
+                  &quot;Probe sequence (49 or 50 bases); the SNP occurs immediately after&quot;,
+                  &quot;Chromosome in UNC annotation file&quot;,
+                  &quot;Physical positions in basepairs in the UNC annotation file&quot;)
+
+mini_dict_file &lt;- &quot;../UWisc/mini_uwisc_dict_pre_v2.csv&quot;
+output &lt;- data.frame(column=cols_new,
+                     description=descriptions,
+                     stringsAsFactors=FALSE)
+write.table(output, mini_dict_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)</code></pre>
+<p>Finally, I want to make a file that indicates the common markers, using the SNP positions to determine which ones are identical. There are a bunch of them, and they all have related names, like the pairs with identical probe sequences.</p>
+<pre class="r"><code># unique marker positions between the arrays
+mini_pos &lt;- setNames(paste(mini_uwisc$chr, mini_uwisc$bp_mm10, sep=&quot;:&quot;), mini_uwisc$marker)[mini_uwisc$unique]
+
+# find the positions that are in duplicate within the array
+tab &lt;- table(mini_pos)
+dup &lt;- names(tab)[tab &gt; 1]
+
+# find the corresponding markers
+dup_names &lt;- t(sapply(dup, function(d) names(mini_pos)[mini_pos==d]))
+
+pos_spl &lt;- strsplit(rownames(dup_names), &quot;:&quot;)
+
+# create data frame with the results
+common &lt;- data.frame(chr=sapply(pos_spl, &quot;[&quot;, 1),
+                     bp_mm10=sapply(pos_spl, &quot;[&quot;, 2),
+                     marker1=dup_names[,1],
+                     marker2=dup_names[,2],
+                     stringsAsFactors=FALSE)
+# reorder by genomic position
+common &lt;- common[order(factor(common$chr, c(1:19,&quot;X&quot;,&quot;Y&quot;,&quot;M&quot;)), common$bp_mm10),]
+
+# write to a CSV file
+write.table(common, &quot;../UWisc/mini_commonmark_uwisc_v2.csv&quot;,
+            sep=&quot;,&quot;, quote=FALSE, row.names=FALSE, col.names=TRUE)
+
+# data dictionary
+common_cols &lt;- colnames(common)
+common_descriptions &lt;- c(&quot;Chromosome ID&quot;,
+                         &quot;Physical position in basepairs for mm10 mouse genome build&quot;,
+                         &quot;A miniMUGA marker at that position&quot;,
+                         &quot;A second miniMUGA marker at that position&quot;)
+common_dict &lt;- data.frame(column=common_cols,
+                          description=common_descriptions,
+                          stringsAsFactors=FALSE)
+# write to file
+write.table(common_dict, &quot;../UWisc/mini_commonmark_uwisc_dict_v2.csv&quot;,
+            sep=&quot;,&quot;, quote=FALSE, row.names=FALSE, col.names=TRUE)</code></pre>
+<pre class="r"><code># write just chr, bp to files, for use with mouse map converter
+# (want to get interpolated cM positions from the Cox and G2F1 maps)
+write.table(mini_uwisc[!is.na(mini_uwisc$chr) &amp; mini_uwisc$chr %in% c(1:19,&quot;X&quot;), c(&quot;chr&quot;, &quot;bp_mm10&quot;)],
+            &quot;../GenMaps/mini2_bp.txt&quot;, sep=&quot; &quot;, quote=FALSE,
+            row.names=FALSE, col.names=FALSE)</code></pre>
+</div>
+<div id="version-2-with-genetic-maps" class="section level4">
+<h4>Version 2, with genetic maps</h4>
+<p>I used the <a href="http://cgd.jax.org/mousemapconverter/">mouse map converter</a> to convert the mm10 basepair positions of the autosome and X chromosome markers to sex-averaged cM from the <a href="https://doi.org/10.1534/genetics.109.105486">Cox et al.</a> and <a href="https://doi.org/10.1534/genetics.114.161653">Liu et al. (aka G2F1)</a> genetic maps.</p>
+<pre class="r"><code>mini_cox &lt;- data.table::fread(&quot;../GenMaps/mini2_cox.txt&quot;, header=FALSE, data.table=FALSE)
+mini_g2f1 &lt;- data.table::fread(&quot;../GenMaps/mini2_g2f1.txt&quot;, header=FALSE, data.table=FALSE)
+
+# verify stuff
+stopifnot( all(mini_cox[,1] == mini_uwisc$chr[1:nrow(mini_cox)]) )
+stopifnot( all(mini_cox[,2] == mini_uwisc$bp_mm10[1:nrow(mini_cox)]) )
+stopifnot( all(mini_g2f1[,1] == mini_uwisc$chr[1:nrow(mini_g2f1)]) )
+stopifnot( all(mini_g2f1[,2] == mini_uwisc$bp_mm10[1:nrow(mini_g2f1)]) )</code></pre>
+<p>The G2F1 genetic maps include positions &lt; 0 cM. Seems perfectly okay, but I’m going to shift the maps, using the overall cM:Mbp ratio on each chromosome, to make 3 Mbp (the conventional start position for the mouse genome builds) equal to 0 cM.</p>
+<pre class="r"><code>shifts &lt;- read.csv(&quot;../GenMaps/g2f1_shift.csv&quot;,
+                   stringsAsFactors=FALSE)
+shifts &lt;- setNames(shifts[,2], shifts[,1])
+
+for(chr in c(1:19,&quot;X&quot;)) {
+    mini_g2f1[mini_g2f1[,1]==chr,5] &lt;- mini_g2f1[mini_g2f1[,1]==chr,5] + shifts[chr]
+}</code></pre>
+<pre class="r"><code>nas &lt;- rep(NA, nrow(mini_uwisc)-nrow(mini_cox))
+mini_uwisc &lt;- cbind(mini_uwisc,
+                  cM_cox=c(mini_cox[,5], nas),
+                  cM_g2f1=c(mini_g2f1[,5], nas))</code></pre>
+<p>Now I can write the new annotation files.</p>
+<pre class="r"><code>cols_new &lt;- c(cols_new[1:3], &quot;cM_cox&quot;, &quot;cM_g2f1&quot;, cols_new[-(1:3)])
+mini_uwisc &lt;- mini_uwisc[,cols_new]
+
+# write miniMUGA file
+mini_file &lt;- &quot;../UWisc/mini_uwisc_v2.csv&quot;
+write.table(mini_uwisc, mini_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)</code></pre>
+<p>And finally, the new data dictionary files.</p>
+<pre class="r"><code>descriptions &lt;- c(descriptions[1:3],
+                  &quot;Sex-averaged cM positions from Cox et al. https://doi.org/10.1534/genetics.109.105486&quot;,
+                  paste(&quot;Sex-averaged cM positions from Liu et al.&quot;,
+                        &quot;https://doi.org/10.1534/genetics.114.161653&quot;,
+                        &quot;(shifted to avoid cM positions &lt; 0)&quot;),
+                  descriptions[-(1:3)])
+
+mini_dict_file &lt;- &quot;../UWisc/mini_uwisc_dict_v2.csv&quot;
+output &lt;- data.frame(column=cols_new,
+                     description=descriptions,
+                     stringsAsFactors=FALSE)
+write.table(output, mini_dict_file, sep=&quot;,&quot;, quote=FALSE,
+            row.names=FALSE, col.names=TRUE)</code></pre>
+</div>
+</div>
+</div>
 <div id="session-info" class="section level2">
 <h2>Session info</h2>
+<pre class="r"><code>file &lt;- &quot;mini_revisited_summary.rds&quot;
+exec_summ &lt;- list(new_markers=nrow(mini_unc)-nrow(uw),
+                  no_hit=sum(!mini_uwisc$unique) - sum(mini_unc$chr==0),
+                  transgene=sum(mini_unc$chr==0),
+                  n_diff_chr=length(diff_chr),
+                  n_matching_chr=sum(!is.na(mini_uwisc$chr) &amp; mini_uwisc$chr != &quot;PAR&quot; &amp; mini_unc$chr == mini_uwisc$chr),
+                  n_pos_mismatch=length(diff_pos),
+                  n_pos_mismatch_old = sum(diff_pos %in% uw$marker))
+saveRDS(exec_summ, file)</code></pre>
 <p>Here are the versions of R and R packages that I am using.</p>
 <pre class="r"><code>devtools::session_info()</code></pre>
 <pre><code>## ─ Session info ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -1696,13 +2008,13 @@ stopifnot( all(uncsub$snp ==  uw$snp) )</code></pre>
 ## ─ Packages ─────────────────────────────────────────────────────────────────────────────────────────────────
 ##  package     * version date       lib source        
 ##  assertthat    0.2.1   2019-03-21 [1] CRAN (R 4.0.0)
-##  broman      * 0.72-1  2020-11-28 [1] local         
+##  broman      * 0.72-1  2020-12-10 [1] local         
 ##  callr         3.5.1   2020-10-13 [1] CRAN (R 4.0.3)
 ##  cli           2.2.0   2020-11-20 [1] CRAN (R 4.0.3)
 ##  crayon        1.3.4   2017-09-16 [1] CRAN (R 4.0.0)
 ##  data.table  * 1.13.4  2020-12-08 [1] CRAN (R 4.0.3)
 ##  desc          1.2.0   2018-05-01 [1] CRAN (R 4.0.0)
-##  devtools    * 2.3.2   2020-09-18 [1] CRAN (R 4.0.2)
+##  devtools    * 2.3.2   2020-09-18 [1] CRAN (R 4.0.3)
 ##  digest        0.6.27  2020-10-24 [1] CRAN (R 4.0.3)
 ##  ellipsis      0.3.1   2020-05-15 [1] CRAN (R 4.0.0)
 ##  evaluate      0.14    2019-05-28 [1] CRAN (R 4.0.0)

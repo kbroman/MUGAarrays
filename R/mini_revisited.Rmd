@@ -38,6 +38,45 @@ about building a revised version of UWisc annotations that incorporates
 all of the markers.
 
 
+### Key findings
+
+```{r load_exec_summary}
+file <- "mini_revisited_summary.rds"
+if(file.exists(file)) {
+    exec_summ <- readRDS(file)
+} else {
+    message <- "**RE RUN FILE**"
+    exec_summ <- list(new_markers=message,
+                      no_hit=message,
+                      transgene=message,
+                      n_diff_chr=message,
+                      n_matching_chr=message,
+                      n_pos_mismatch=message,
+                      n_pos_mismatch_old=message)
+}
+```
+
+- the new UNC annotation file for the miniMUGA array has an
+  additional `r exec_summ$new_markers` markers that weren't present in the original
+  annotation file I'd studied.
+
+- `r exec_summ$no_hit` markers with no perfect blast hit in the mouse genome (assembly
+  mm10, GRCm38). This is on top of the `r exec_summ$transgene` transgene markers
+
+- `r exec_summ$n_diff_chr` markers where the UNC annotation file has them on a different
+  chromosome than is seen in my blast results. All of these were among
+  the `r exec_summ$new_markers` markers added to the array.
+
+- The remaining `r broman::add_commas(exec_summ$n_matching_chr)`
+  markers having matching chromosome IDs between the UNC annotation
+  file and the blast results,
+  but `r exec_summ$n_pos_mismatch` of them have discrepancies in their position.
+  Of these, `r exec_summ$n_pos_mismatch_old` were on the previous verion of the
+  array and are on the mitochondria, while the other
+  `r exec_summ$n_pos_mismatch - exec_summ$n_pos_mismatch_old` are new.
+
+
+
 ## Preliminaries
 
 Let's load the two annotation files, plus a few packages.
@@ -270,7 +309,7 @@ markers that are spread across all autosomes and the X and Y chromosomes.
 
 
 
-### Unique markers
+### Chromosome assignments
 
 If we look at the inferred chromosome assignments of the markers with
 a unique hit to the genome, there are
@@ -324,39 +363,47 @@ Using the GRCm39 assembly, we get the same chromosome assignments but
 slightly different positions.
 
 
-
-
-
-```{r stop_kntting}
-knitr::knit_exit()
-```
-
-There were `r sum(mini_uwisc$unmapped)` markers that didn't have a
-perfect match in the mm10 mouse genome assembly. This included the
-`r sum(mini_unc$chr=="0")` markers that the UNC annotation file has as
-chromosome `0` (transgene-related markers), and then a smattering of
-markers on all chromosomes except the mitochondria.
-
 ### Positions
 
-Of the `r add_commas(sum(mini_uwisc$unique))` markers with a unique
-hit to the mouse genome, for all but
-`r sum(mini_uwisc$unique & mini_uwisc$pos != mini_unc$pos)`
-I get the exact same position as in the UNC annotation file.
-And this includes the `r sum(mini_unc$seqB != "")` markers for which
-I'd trimmed off the last base of the probe before using blast. (So the
-off-by-1 problem in the GigaMUGA marker positions was not an issue for
-UNC annotations of the miniMUGA array.)
+For the remaining `r add_commas(sum(!is.na(mini_uwisc$chr) & mini_uwisc$chr != "PAR" & mini_unc$chr == mini_uwisc$chr))`
+markers, UNC chromosome assignment and the
+blast hit do match, but
+`r sum(!is.na(mini_uwisc$chr) & mini_uwisc$chr != "PAR" & mini_unc$pos != mini_uwisc$pos)`
+of them have some discrepancy in their position.
 
-The `r numbers[sum(mini_uwisc$unique & mini_uwisc$pos != mini_unc$pos)]` markers
-where the positions are different are all mitochondrial. Of these,
-`r numbers[sum(mini_uwisc$unique & mini_uwisc$pos == mini_unc$pos-1)]` are
-off by -1
-(`r vec2string(mini_uwisc$marker[mini_uwisc$unique & mini_uwisc$pos == mini_unc$pos-1])`),
-while the other
-(`r mini_uwisc$marker[mini_uwisc$unique & mini_uwisc$pos > mini_unc$pos]`)
-is off by
-`r (mini_uwisc$pos - mini_unc$pos)[mini_uwisc$unique & mini_uwisc$pos > mini_unc$pos]`.
+```{r other_markers}
+chr_match <- mini_unc$marker[!is.na(mini_uwisc$chr) & mini_uwisc$chr != "PAR" &
+                             mini_unc$chr == mini_uwisc$chr]
+stopifnot( all( mini_unc[chr_match, "chr"] == mini_uwisc[chr_match, "chr"] ))
+pd <- mini_unc[chr_match, "pos"] - mini_uwisc[chr_match, "pos"]
+diff_pos <- chr_match[pd != 0]
+result <- cbind(mini_unc[chr_match, c("chr", "pos")], mini_uwisc[chr_match, c("chr", "pos")], pd)[(pd != 0),]
+colnames(result) <- c("unc_chr", "unc_pos", "blast_chr", "blast_pos", "pos_diff")
+result
+```
+
+The `r sum(result$unc_chr=="M")` mitchondrial markers were
+all on the original version of the array and are off by mostly 1 bp
+(one marker is off by 50). The other
+`r sum(result$unc_chr != "M")` markers are new, and are off by quite
+varying amounts.
+
+The strand assignments are the same for all `r add_commas(length(chr_match))`
+of the markers with matching chromosome assignments, except for the
+one mitochondrial marker that is off by 50 bp,
+`r rownames(result)[result$blast_chr=="M" & result$pos_diff== -50]`.
+
+```{r verify_strand_assignment}
+strand_unc <- setNames(mini_unc[chr_match,"strand"], chr_match)
+strand_uwisc <- setNames(mini_uwisc[chr_match,"strand"], chr_match)
+strand_uwisc[strand_uwisc=="plus"] <- "+"
+strand_uwisc[strand_uwisc=="minus"] <- "-"
+stopifnot( sum(strand_unc != strand_uwisc) == 1)
+mt_marker <- rownames(result)[result$blast_chr=="M" & result$pos_diff== -50]
+stopifnot( strand_unc[mt_marker] != strand_uwisc[mt_marker] )
+```
+
+
 
 ### Markers with the same probes
 
@@ -381,7 +428,8 @@ stopifnot( all(pairs_not0[,2] == paste0(pairs_not0[,1], "b") |
     pairs_not0[,2] == paste0("m", pairs_not0[,1]) |
     pairs_not0[,1] == paste0(pairs_not0[,2], "b") |
     pairs_not0[,1] == paste0("g", pairs_not0[,2]) |
-    pairs_not0[,1] == paste0("m", pairs_not0[,2])) )
+    pairs_not0[,1] == paste0("m", pairs_not0[,2]) |
+    pairs_not0[,1] == sub("^D", "S", pairs_not0[,2]) ))
 ```
 
 There are `r length(pairs)` pairs and `r length(trios)` trios of
@@ -396,7 +444,13 @@ both on chromosome `0`.
 The other `r length(pairs_not0)` pairs of markers with identical probe
 sequences appear to be intended duplicates: they all are such the one
 name is the same as the other but with `g` or `m` added to the
-beginning, or with `b` added to the end.
+beginning, or with `b` added to the end, or in one case `ST` is
+replaced by `DT` but the rest of the marker name is the same
+(markers `ST2023174930` and `DT2023174930`).
+
+
+
+
 
 ### New annotation file
 
@@ -408,14 +462,16 @@ The final annotation files and all source materials are at
 <https://github.com/kbroman/MUGAarrays>.
 
 
-#### Version 0
+#### Version pre_2
 
-We'll call this version 0. It'll be like the
+We'll call this version "pre 2". It'll be like the
 MegaMUGA and GigaMUGA annotation files I made, but without
 `multi`, `n_blast_hits`, or `n_blast_chr`. And I'll include columns `chr_unc`
 and `bp_unc`, the chromosome and position in the UNC annotation file.
+(This is basically a preliminary file before I go and get the genetic
+map positions from the [mouse map converter](http://cgd.jax.org/mousemapconverter/) site.
 
-```{r write_v0_files}
+```{r write_pre_v2_files}
 # order of columns
 cols <- c("marker", "chr", "pos", "strand", "snp", "unique",
           "unmapped", "probe", "chr_unc", "pos_unc")
@@ -515,11 +571,13 @@ write.table(common_dict, "../UWisc/mini_commonmark_uwisc_dict_v2.csv",
 # write just chr, bp to files, for use with mouse map converter
 # (want to get interpolated cM positions from the Cox and G2F1 maps)
 write.table(mini_uwisc[!is.na(mini_uwisc$chr) & mini_uwisc$chr %in% c(1:19,"X"), c("chr", "bp_mm10")],
-            "../GenMaps/mini_bp.txt", sep=" ", quote=FALSE,
+            "../GenMaps/mini2_bp.txt", sep=" ", quote=FALSE,
             row.names=FALSE, col.names=FALSE)
 ```
 
-#### Version 1, with genetic maps
+
+
+#### Version 2, with genetic maps
 
 I used the [mouse map
 converter](http://cgd.jax.org/mousemapconverter/) to convert the mm10
@@ -562,7 +620,7 @@ mini_uwisc <- cbind(mini_uwisc,
 
 Now I can write the new annotation files.
 
-```{r write_v1_files}
+```{r write_v2_files}
 cols_new <- c(cols_new[1:3], "cM_cox", "cM_g2f1", cols_new[-(1:3)])
 mini_uwisc <- mini_uwisc[,cols_new]
 
@@ -574,7 +632,7 @@ write.table(mini_uwisc, mini_file, sep=",", quote=FALSE,
 
 And finally, the new data dictionary files.
 
-```{r dict_files_v1}
+```{r dict_files_v2}
 descriptions <- c(descriptions[1:3],
                   "Sex-averaged cM positions from Cox et al. https://doi.org/10.1534/genetics.109.105486",
                   paste("Sex-averaged cM positions from Liu et al.",
@@ -593,6 +651,18 @@ write.table(output, mini_dict_file, sep=",", quote=FALSE,
 
 
 ## Session info
+
+```{r construct_exec_summary}
+file <- "mini_revisited_summary.rds"
+exec_summ <- list(new_markers=nrow(mini_unc)-nrow(uw),
+                  no_hit=sum(!mini_uwisc$unique) - sum(mini_unc$chr==0),
+                  transgene=sum(mini_unc$chr==0),
+                  n_diff_chr=length(diff_chr),
+                  n_matching_chr=sum(!is.na(mini_uwisc$chr) & mini_uwisc$chr != "PAR" & mini_unc$chr == mini_uwisc$chr),
+                  n_pos_mismatch=length(diff_pos),
+                  n_pos_mismatch_old = sum(diff_pos %in% uw$marker))
+saveRDS(exec_summ, file)
+```
 
 Here are the versions of R and R packages that I am using.
 
