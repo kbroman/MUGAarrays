@@ -104,17 +104,20 @@ asked me to take a look at the miniMUGA array, using an [annotation file](https:
 he got from [Fernando Pardo Manuel de
 Villena](https://www.med.unc.edu/genetics/people/primary-faculty/fernando-pardo-manuel-de-villena-phd).
 
-My analysis is at <https://kbroman.org/MUGAarrays/mini_annotations.html>
-
-My annotation files are in the [`UWisc`](UWisc) directory.
-
 The [miniMUGA paper](https://doi.org/10.1534/genetics.120.303596) has
-now been published.
+now been published, with some additions to the array.
 Initially [published at bioRxiv](https://doi.org/10.1101/2020.03.12.989400) on 2020-03-14,
 it provides official annotations with the [Supplmental
 material](https://doi.org/10.25386/genetics.11971941.v1), as [Table S2](https://gsajournals.figshare.com/articles/dataset/Supplemental_Material_for_Sigmon_et_al_2020/11971941?file=25117973).
-I've added a comparison of the two sets of annotations:
+
+My original analysis is at
+<https://kbroman.org/MUGAarrays/mini_annotations.html>
+
+But I've now added a comparison to the new annotations:
 <https://kbroman.org/MUGAarrays/mini_revisited.html>
+
+My annotation files are in the [`UWisc`](UWisc) directory, with the
+original ones labeled `v1` and the ones based on the new array `v2`.
 
 ---
 

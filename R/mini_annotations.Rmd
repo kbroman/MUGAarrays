@@ -40,12 +40,15 @@ sequences before running blastn.
 The annotation files I created are at
 <https://github.com/kbroman/MUGAarrays/blob/master/UWisc>.
 
-_Note_: The [miniMUGA paper](https://doi.org/10.1534/genetics.120.303596) has
-now been published.
+**Note**: The [miniMUGA paper](https://doi.org/10.1534/genetics.120.303596) has
+now been published, with some additions to the array.
 Initially [published at bioRxiv](https://doi.org/10.1101/2020.03.12.989400) on 2020-03-14,
 it provides official annotations with the [Supplmental
 material](https://doi.org/10.25386/genetics.11971941.v1), as [Table S2](https://gsajournals.figshare.com/articles/dataset/Supplemental_Material_for_Sigmon_et_al_2020/11971941?file=25117973).
-See [this comparison](mini_revisited.html) of the two sets of annotations.
+I have **revised my annotations**; see [this
+report](mini_revisited.html). My original annotations are in files
+labeled `v1`. My annotations of the revised array are in files labeled
+`v2`.
 
 
 ## Preliminaries
