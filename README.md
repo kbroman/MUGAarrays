@@ -1,6 +1,6 @@
 ## Re-derive MegaMUGA and GigaMUGA annotation files
 
-[![doi badge](https://zenodo.org/badge/DOI/10.5281/zenodo.2702227.svg)](https://doi.org/10.5281/zenodo.2702227)
+[![doi badge](https://zenodo.org/badge/DOI/10.5281/zenodo.4361824.svg)](https://doi.org/10.5281/zenodo.4361824)
 
 I had identified a number of potential problems in the GigaMUGA
 annotation file, as well as discrepancies between the GigaMUGA and
