@@ -11,7 +11,6 @@
 
 <meta name="author" content="Karl Broman" />
 
-<meta name="date" content="2020-12-18" />
 
 <title>Revisiting the MiniMUGA annotations</title>
 
@@ -1593,7 +1592,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Revisiting the MiniMUGA annotations</h1>
 <h4 class="author">Karl Broman</h4>
-<h4 class="date">2020-12-18</h4>
+<h4 class="date">2020-12-18 and 2020-12-19</h4>
 
 </div>
 
@@ -1859,6 +1858,45 @@ mini_unc[wh, c(&quot;chr&quot;, &quot;pos&quot;, &quot;strand&quot;, &quot;seqA&
 ## ST2023174930   2 79373270      + AGCTCCCCTCCTGGGAGGCAAACACTGAGAAGGCTCTGGGAATCCTTCCA
 ## DT2023174930   5 45958101      + AGCTCCCCTCCTGGGAGGCAAACACTGAGAAGGCTCTGGGAATCCTTCCA</code></pre>
 <p>The position for <code>ST2023174930</code> (chr 2 at 79,373,270 bp) looks to be the correct position.</p>
+</div>
+<div id="comparison-to-gigamuga" class="section level3">
+<h3>Comparison to GigaMUGA</h3>
+<p>For the 97 markers that do not map to the mm10 mouse genome assembly, and for the 92 markers that map to a different chromosome or position than is provided in the UNC annotation file, how many are on the GigaMUGA array, and how do the positions compare?</p>
+<pre class="r"><code>gm &lt;- read.csv(&quot;../UWisc/gm_uwisc_v1.csv&quot;)
+on_gm &lt;- no_hit %win% gm$marker
+no_hit_probes &lt;- setNames(mini_uwisc[mini_uwisc$marker %in% no_hit, &quot;probe&quot;], no_hit)
+probe_on_gm &lt;- names(no_hit_probes)[no_hit_probes %in% gm$probe]</code></pre>
+<p>For the 97 markers with no hit to the mm10 assembly, 5 appear in the GigaMUGA array by name, and 42 of the probes appear on the GigaMUGA array (38 with different names).</p>
+<p>In contrast, for the 92 markers that map uniquely to the mm10 assembly but to a different chromosome or position than is in the UNC annotation file, 0 are on the GigaMUGA array by name, and 0 of the probes show up on the GigaMUGA array.</p>
+<p>Let’s look more closely at the unmapped markers that are found on the GigaMUGA array.</p>
+<p>We’ve got 38 probes that are on the GigaMUGA array but with a different marker name. They are all also not mapped to the mm10 genome assembly in my GigaMUGA annotations, and the marker names on the miniMUGA are the same as those on the GigaMUGA, but with a prefix <code>g</code>, <code>m</code>, or <code>gb</code>.</p>
+<pre class="r"><code>diff_name &lt;- probe_on_gm %wnin% on_gm
+probe &lt;- no_hit_probes[diff_name]
+result &lt;- cbind(mini_unc[diff_name, c(&quot;marker&quot;, &quot;chr&quot;, &quot;pos&quot;)],
+                gm[match(probe, gm$probe), c(&quot;marker&quot;, &quot;chr&quot;, &quot;bp_mm10&quot;)])
+colnames(result) &lt;- c(&quot;mini_marker&quot;, &quot;unc_chr&quot;, &quot;unc_pos&quot;,
+                      &quot;giga_marker&quot;, &quot;giga_chr&quot;, &quot;giga_pos&quot;)
+stopifnot(all(is.na(result$giga_chr) &amp; is.na(result$giga_pos)))
+stopifnot(all(paste0(&quot;g&quot;, result$giga_marker) == result$mini_marker |
+              paste0(&quot;m&quot;, result$giga_marker) == result$mini_marker |
+              paste0(&quot;gb&quot;, result$giga_marker) == result$mini_marker))</code></pre>
+<p>There were 4 markers on the GM array with the same probe and same marker name. These are all unmapped in my GigaMUGA array annotations.</p>
+<pre class="r"><code>on_gm_same_probe &lt;- on_gm[no_hit_probes[on_gm] == gm[match(on_gm, gm$marker), &quot;probe&quot;]]
+result &lt;- cbind(mini_unc[on_gm_same_probe, c(&quot;marker&quot;, &quot;chr&quot;, &quot;pos&quot;)],
+                gm[match(on_gm_same_probe, gm$marker), c(&quot;marker&quot;, &quot;chr&quot;, &quot;bp_mm10&quot;)])
+colnames(result) &lt;- c(&quot;mini_marker&quot;, &quot;unc_chr&quot;, &quot;unc_pos&quot;,
+                      &quot;giga_marker&quot;, &quot;giga_chr&quot;, &quot;giga_pos&quot;)
+stopifnot(all( is.na(result$giga_chr) &amp; is.na(result$giga_pos) ))</code></pre>
+<p>Finally, there is one marker that is on the GigaMUGA array but with a different probe.</p>
+<pre class="r"><code>on_gm_diff_probe &lt;- on_gm[no_hit_probes[on_gm] != gm[match(on_gm, gm$marker), &quot;probe&quot;]]
+result &lt;- cbind(mini_unc[on_gm_diff_probe, c(&quot;marker&quot;, &quot;chr&quot;, &quot;pos&quot;, &quot;seqA&quot;)],
+                gm[match(on_gm_diff_probe, gm$marker), c(&quot;marker&quot;, &quot;chr&quot;, &quot;bp_mm10&quot;, &quot;probe&quot;)])
+colnames(result) &lt;- c(&quot;mini_marker&quot;, &quot;unc_chr&quot;, &quot;unc_pos&quot;, &quot;mini_probe&quot;,
+                      &quot;giga_marker&quot;, &quot;giga_chr&quot;, &quot;giga_pos&quot;, &quot;giga_probe&quot;)
+stopifnot(result$unc_chr == result$giga_chr,
+          result$unc_pos == result$giga_pos,
+          result$mini_marker == result$giga_marker)</code></pre>
+<p>This is marker UNC21896811. On both arrays it is on chr 12 at 111,651,522 bp. But on the miniMUGA array it has probe <code>GTTCTGTTTGCTTGGTTGGGTTTTGTGGGCGGTTGGGGTTTTGTTTTTGT</code> while on the GigaMUGA array it has probe <code>GAGCAGCTAGGCTATACAGAGAAACCCTGTCTTGAAAACAAAAACAAACA</code>.</p>
 </div>
 <div id="new-annotation-file" class="section level3">
 <h3>New annotation file</h3>

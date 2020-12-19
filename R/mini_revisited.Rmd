@@ -1,7 +1,7 @@
 ---
 title:  "Revisiting the MiniMUGA annotations"
 author: "Karl Broman"
-date:   "2020-12-18"
+date:   "2020-12-18 and 2020-12-19"
 output:
     html_document:
         code_folding: hide
@@ -472,6 +472,93 @@ mini_unc[wh, c("chr", "pos", "strand", "seqA")]
 
 The position for `ST2023174930` (chr `r mini_uwisc[wh[1],"chr"]` at
 `r add_commas(mini_uwisc[wh[1],"pos"])` bp) looks to be the correct position.
+
+
+### Comparison to GigaMUGA
+
+For the
+`r length(no_hit <- mini_uwisc$marker[mini_uwisc$unmapped & mini_unc$chr != 0])`
+markers that do not map to the mm10 mouse genome
+assembly, and for the `r length(diff_spot <- c(diff_chr,diff_pos))` markers
+that map to a different chromosome or position
+than is provided in the UNC annotation file, how many are on the
+GigaMUGA array, and how do the positions compare?
+
+```{r load_gm}
+gm <- read.csv("../UWisc/gm_uwisc_v1.csv")
+on_gm <- no_hit %win% gm$marker
+no_hit_probes <- setNames(mini_uwisc[mini_uwisc$marker %in% no_hit, "probe"], no_hit)
+probe_on_gm <- names(no_hit_probes)[no_hit_probes %in% gm$probe]
+```
+
+For the `r length(no_hit)` markers with no hit to the mm10 assembly,
+`r length(on_gm)` appear in the GigaMUGA array by name,
+and `r length(probe_on_gm)`
+of the probes appear on the GigaMUGA array
+(`r sum(probe_on_gm %nin% on_gm)` with different names).
+
+In contrast, for the `r length(diff_spot)` markers that map uniquely
+to the mm10 assembly but to a different chromosome or position than is
+in the UNC annotation file,
+`r sum(diff_spot %in% gm$marker)` are on the GigaMUGA array by name,
+and `r sum(mini_uwisc[mini_uwisc$marker %in% diff_spot, "probe"] %in% gm$probe)`
+of the probes show up on the GigaMUGA array.
+
+Let's look more closely at the unmapped markers that are found on the
+GigaMUGA array.
+
+We've got `r sum(probe_on_gm %nin% on_gm)` probes that
+are on the GigaMUGA array but with a different marker name.
+They are all also not mapped to the mm10 genome assembly in my
+GigaMUGA annotations, and the marker names on the miniMUGA are the
+same as those on the GigaMUGA, but with a prefix `g`, `m`, or `gb`.
+
+```{r on_gm_but_diff_name}
+diff_name <- probe_on_gm %wnin% on_gm
+probe <- no_hit_probes[diff_name]
+result <- cbind(mini_unc[diff_name, c("marker", "chr", "pos")],
+                gm[match(probe, gm$probe), c("marker", "chr", "bp_mm10")])
+colnames(result) <- c("mini_marker", "unc_chr", "unc_pos",
+                      "giga_marker", "giga_chr", "giga_pos")
+stopifnot(all(is.na(result$giga_chr) & is.na(result$giga_pos)))
+stopifnot(all(paste0("g", result$giga_marker) == result$mini_marker |
+              paste0("m", result$giga_marker) == result$mini_marker |
+              paste0("gb", result$giga_marker) == result$mini_marker))
+```
+
+There were `r sum(no_hit_probes[on_gm] == gm[match(on_gm, gm$marker), "probe"])`
+markers on the GM array with the same probe and same
+marker name. These are all unmapped in my GigaMUGA array annotations.
+
+```{r on_gm_and_same_probe}
+on_gm_same_probe <- on_gm[no_hit_probes[on_gm] == gm[match(on_gm, gm$marker), "probe"]]
+result <- cbind(mini_unc[on_gm_same_probe, c("marker", "chr", "pos")],
+                gm[match(on_gm_same_probe, gm$marker), c("marker", "chr", "bp_mm10")])
+colnames(result) <- c("mini_marker", "unc_chr", "unc_pos",
+                      "giga_marker", "giga_chr", "giga_pos")
+stopifnot(all( is.na(result$giga_chr) & is.na(result$giga_pos) ))
+```
+
+Finally, there is
+`r numbers[sum(no_hit_probes[on_gm] != gm[match(on_gm, gm$marker), "probe"])]`
+marker that is on the GigaMUGA array but with a different probe.
+
+```{r on_gm_and_diff_probe}
+on_gm_diff_probe <- on_gm[no_hit_probes[on_gm] != gm[match(on_gm, gm$marker), "probe"]]
+result <- cbind(mini_unc[on_gm_diff_probe, c("marker", "chr", "pos", "seqA")],
+                gm[match(on_gm_diff_probe, gm$marker), c("marker", "chr", "bp_mm10", "probe")])
+colnames(result) <- c("mini_marker", "unc_chr", "unc_pos", "mini_probe",
+                      "giga_marker", "giga_chr", "giga_pos", "giga_probe")
+stopifnot(result$unc_chr == result$giga_chr,
+          result$unc_pos == result$giga_pos,
+          result$mini_marker == result$giga_marker)
+```
+
+This is marker `r result$mini_marker`. On both arrays it is on
+chr `r result$giga_chr` at `r add_commas(result$giga_pos)` bp.
+But on the miniMUGA array it has probe
+``r result$mini_probe`` while on the GigaMUGA array it has probe
+``r result$giga_probe``.
 
 
 ### New annotation file
