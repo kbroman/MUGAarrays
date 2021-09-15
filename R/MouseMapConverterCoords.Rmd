@@ -1,0 +1,395 @@
+---
+title: "Mouse Map Converter Coordinates"
+author: "DMG"
+date: "9/14/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(rBLAST)
+library(BSgenome.Mmusculus.UCSC.mm9)
+library(BSgenome.Mmusculus.UCSC.mm10)
+
+base_dir    = 'C:/Users/c-dgatti/Documents/projects/muga_annotation'
+results_dir = file.path(base_dir, 'results')
+mmc_dir     = file.path(base_dir, 'mouse_map_converter')
+mmc_file    = file.path(mmc_dir,  'Revised_HSmap_SNPs.csv')
+
+b38_path = 'C:/Users/c-dgatti/Documents/data/mus_musculus/GRCm38'
+b39_path = 'C:/Users/c-dgatti/Documents/data/mus_musculus/GRCm39'
+
+b38_fasta = file.path(b38_path, 'Mus_musculus.GRCm38.dna.primary_assembly.fa')
+b39_fasta = file.path(b39_path, 'Mus_musculus.GRCm39.dna.primary_assembly.fa')
+
+b38db_file = file.path(b38_path, 'GRCm38_blastdb')
+b39db_file = file.path(b39_path, 'GRCm39_blastdb')
+
+# For some reason, RStudio isn't picking up my Windows user PATH, which has the BLAST directory. Add it by hand here:
+Sys.setenv(PATH = paste(Sys.getenv("PATH"), "C:\\Program Files\\NCBI\\blast-2.12.0+\\bin", sep =  .Platform$path.sep))
+```
+
+# Introduction
+
+When performing the GRCm37 to GRCm39 update to the MUGAs, we needed to obtain new SNP coordinates for the [Mouse Map Converter](http://cgd.jax.org/mousemapconverter). We had GRCm37 (a.k.a. mm9) coordinates and wanted to lift them over. However, I couldn't find a GRCm37 to GRCm39 chain file at <https://hgdownload.soe.ucsc.edu/goldenPath/mm9/liftOver/>. So I decided to BLAST the sequence near each marker in GRCm37 onto GRCm39. While doing this, I realized that I wasn't sure exactly which genome build was used to create the [UCSC mm9 to mm10 chain file](https://hgdownload.cse.ucsc.edu/goldenpath/mm9/liftOver/mm9ToMm10.over.chain.gz), so I decided to BLAST the sequences to GRCm38 as well. 
+
+## Genome Builds
+
+I used the Bioconductor mm9 genome package for build 37 and the **unmasked** whole genome fasta files from Ensembl for builds 38 and 39. I also used the Bioconductor mm10 package to check the GRCm38 alignments. There was no GRCm39 genome file in Bioconductor when I performed this work.
+
+* [mm9/July2007](http://genome.ucsc.edu/cgi-bin/hgTracks?db=mm9): I used the Bioconductor [BSgenome.Mmusculus.UCSC.mm9](http://bioconductor.org/packages/release/data/annotation/html/BSgenome.Mmusculus.UCSC.mm9.html) package to get the sequences around each SNP. 
+* [GRCm38.p6](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001635.26/): [Ensembl 102](http://ftp.ensembl.org/pub/release-102/) was the last Ensembl build which used GRCm38. The README file says that they used GenBank Assembly ID GCA_000001635.8. The file that I used is [here](http://ftp.ensembl.org/pub/release-102/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna.primary_assembly.fa.gz).
+* [GRCm39](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001635.27/): [Ensembl 104](http://ftp.ensembl.org/pub/release-104/) was the current Ensembl version when this work was performed. The README file says that they used GenBank Assembly ID GCA_000001635.9. The file that I used is [here](http://ftp.ensembl.org/pub/release-104/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.primary_assembly.fa.gz).
+
+I used blastn: 2.12.0+ (build Jun  4 2021 03:25:07) for Windows 10.
+
+## Create BLAST Indices
+
+I used the Ensembl FASTA files to create BLAST indices.
+
+```{r make_blast_db}
+# GRCm38
+if(!file.exists(file.path(b38_path, 'GRCm38_blastdb.ndb'))) {
+  rBLAST::makeblastdb(file = b38_fasta, dbtype = 'nucl', 
+                      args = paste('-parse_seqids -out', b38db_file))
+} # if(!file.exists(file.path(b39_path, 'GRCm39_blastdb.ndb')))
+
+# GRCm39
+if(!file.exists(file.path(b39_path, 'GRCm39_blastdb.ndb'))) {
+  rBLAST::makeblastdb(file = b39_fasta, dbtype = 'nucl', 
+                      args = paste('-parse_seqids -out', b39db_file))
+} # if(!file.exists(file.path(b39_path, 'GRCm39_blastdb.ndb')))
+```
+
+I'm including the command line equivalents in case the rBLAST block above doesn't work. These commands are run in the same directory as the genome sequence fasta file.
+
+    makeblastdb -in Mus_musculus.GRCm38.dna.primary_assembly.fa -parse_seqids -out GRCm38_blastdb -dbtype nucl
+
+    makeblastdb -in Mus_musculus.GRCm39.dna.primary_assembly.fa -parse_seqids -out GRCm39_blastdb -dbtype nucl
+
+## Get Build 37 Sequences
+
+Assuming that the markers are SNPs, I obtained the sequence in a 50 bp region upstream and downstream of each SNP. I used the build 37 positions in the Mouse Map Converter file containing the cM values from the HS cross (`Revised_HSmap_SNPs.csv`).
+
+```{r read_mmc_file}
+mmc = read.csv(file = mmc_file)
+colnames(mmc) = tolower(colnames(mmc))
+mmc$chr[mmc$chr == 20] = 'X'
+```
+
+Remove the 'zeroN' sequences since they don't map. We'll add them back in later.
+
+```{r remove_zeron}
+mmc = subset(mmc, !grepl('^zero', mmc$snpid))
+```
+
+There are `r nrow(mmc)` SNPs in the input data set.
+
+Get the sequences of 50bp proximal and distal of each SNP.
+
+```{r get_seq}
+# Note: using the plus strand.
+snp_gr  = GRanges(seqnames = mmc$chr, ranges = IRanges(start = mmc$build37, width = 1),
+                  strand = '+', snpid = mmc$snpid)
+# This adds the 'chr' in front of each chromosome, like UCSC does.
+seqlevelsStyle(snp_gr) = 'UCSC'
+flank_gr = flank(snp_gr, width = 50, both = TRUE)
+
+seqs = getSeq(BSgenome.Mmusculus.UCSC.mm9, names = flank_gr)
+names(seqs) = flank_gr$snpid
+```
+
+Perform a quick check to verify that we can retrieve the correct SNP position back by adding 51 to the start of flank_gr.
+
+Get the SNP alleles.
+
+```{r get_snp_alleles}
+b37_snp_seq = getSeq(BSgenome.Mmusculus.UCSC.mm9, names = snp_gr, 
+                  as.character = TRUE)
+names(b37_snp_seq) = snp_gr$snpid
+```
+
+Confirm that, if we get bp 51 from the 100 bp flanking sequences, we get the original SNP allele.
+
+```{r check_coords}
+bp_51 = sapply(seqs, '[', 51)
+bp_51 = sapply(bp_51, as.character)
+
+stopifnot(bp_51 == b37_snp_seq)
+rm(bp_51)
+```
+
+Since the `stopifnot()` command did not throw an error, we have the correct location.
+
+**The SNP position is 51 bp from the start of the alignment.**
+
+## Align to GRCm38
+
+Load the BLAST database for GRCm38.
+
+```{r read_blast_db_38}
+b38db = rBLAST::blast(db = b38db_file, type = 'blastn')
+```
+
+Query the Mouse Map Converter SNP sequences.
+
+```{r query_seq_38}
+b38_loc = rBLAST:::predict.BLAST(b38db, seqs)
+colnames(b38_loc)[colnames(b38_loc) == 'QueryID']   = 'snpid'
+colnames(b38_loc)[colnames(b38_loc) == 'SubjectID'] = 'chr'
+b38_loc$chr = sub('^chr', '', b38_loc$chr)
+```
+
+We found `r nrow(b38_loc)` alignments for `r length(unique(b38_loc$snpid))` SNPs in GRCm38. There were `r length(seqs)` SNPs in the input.
+
+Keep the alignments that are perfect, i.e. 100% identity and alignment length of 100 bp.
+
+```{r keep_perfect_alignments_b38}
+b38_bad = subset(b38_loc, Perc.Ident < 100 & Alignment.Length < 100)
+write.csv(b38_bad, file = file.path(results_dir, 'GRCm38_bad_alignments.csv'),
+          quote = FALSE, row.names = FALSE)
+rm(b38_bad)
+
+b38_loc = subset(b38_loc, Perc.Ident == 100 & Alignment.Length == 100)
+b38_loc_removed = subset(mmc, snpid %in% setdiff(mmc$snpid, b38_loc$snpid))
+```
+
+We now have `r nrow(b38_loc)` positions for `r length(unique(b38_loc$snpid))` SNPs in GRCm38. We removed `r nrow(mmc) - length(unique(b38_loc$snpid))` SNPs. The removed SNPs are:
+
+```{r removed_snps_b38}
+b38_loc_removed
+```
+
+When I looked at the alignments for these SNPs, most had gaps or mismatches. There should be no gaps or mismatches in the SNP flanking sequences that we are keeping.
+
+```{r check_mismatch_gap_b38}
+sum(b38_loc$Mismatches) + sum(b38_loc$Gap.Openings)
+```
+
+The zero above indicates that there are no gaps or mismatches in the SNP flanking sequences that we are keeping. It's possible that they were incorrectly positioned in Build 37 and that we have the incorrect flanking sequence, but the number of SNPs is small enough that I'm willing to let them go.
+
+Add a column to indicate whether the alignment was on the plus or minus strand. Alignments on the plus strand have start positions less than the end position and alignments on the minus strand are reversed.
+
+```{r find_minus_alignments_b38}
+b38_loc$strand = '+'
+b38_loc$strand[b38_loc$S.start > b38_loc$S.end] = '-'
+```
+
+Write out the Build 38 alignment file.
+
+```{r write_alignment_b38}
+write.csv(b38_loc, file = file.path(results_dir, 'GRCm38_MMC_alignments.csv'),
+          quote = FALSE, row.names = FALSE)
+```
+
+Retain only the snpid, chr, position, and strand columns. Add (or subtract) 50 to (or form) the `S.start` column for SNPs on the plus (or minus) strand. Verify that we can retrieve the correct SNP allele from the GRCm38 (or mm10) sequence.
+
+**Note that I had to add 50, not 51 to get the correct SNP locations.**
+
+```{r check_seq_b38}
+b38_loc = b38_loc[,c('snpid', 'chr', 'S.start', 'strand')]
+b38_loc$grcm38_bp = b38_loc$S.start + 50
+b38_loc$grcm38_bp[b38_loc$strand == '-'] = b38_loc$S.start[b38_loc$strand == '-'] - 50
+b38_snp_gr = GRanges(seqnames = b38_loc$chr, 
+                     IRanges(start = b38_loc$grcm38_bp, width = 1),
+                     strand = b38_loc$strand)
+names(b38_snp_gr) = b38_loc$snpid
+# This adds a 'chr' in front of the chromosome name, like UCSC does.
+seqlevelsStyle(b38_snp_gr) = 'UCSC'
+
+# Get the sequences.
+b38_snp_seq = getSeq(BSgenome.Mmusculus.UCSC.mm10, b38_snp_gr, as.character = TRUE)
+
+# Compare to the originals in build 37.
+sum(b37_snp_seq[names(b38_snp_seq)] != b38_snp_seq)
+```
+
+The zero above indicates that all of the SNP alleles from the Build 37 locations match the SNP allele in Build 38. I think that we have the correct SNP positions in GRCm38.
+
+## Align to GRCm39
+
+Load the BLAST database for GRCm39.
+
+```{r read_blast_db_b39}
+b39db = rBLAST::blast(db = b39db_file, type = 'blastn')
+```
+
+Query the Mouse Map Converter SNP sequences.
+
+```{r query_seq_b39}
+b39_loc = predict(b39db, seqs)
+colnames(b39_loc)[colnames(b39_loc) == 'QueryID']   = 'snpid'
+colnames(b39_loc)[colnames(b39_loc) == 'SubjectID'] = 'chr'
+b39_loc$chr = sub('^chr', '', b39_loc$chr)
+```
+
+We found `r nrow(b39_loc)` alignments for `r length(unique(b39_loc$snpid))` SNPs in GRCm39. There were `r length(seqs)` SNPs in the input.
+
+Keep the alignments that are perfect, i.e. 100% identity and alignment length of 100 bp.
+
+```{r keep_perfect_alignments_b39}
+b39_bad = subset(b39_loc, Perc.Ident < 100 & Alignment.Length < 100)
+write.csv(b39_bad, file = file.path(results_dir, 'GRCm39_bad_alignments.csv'),
+          quote = FALSE, row.names = FALSE)
+rm(b39_bad)
+
+b39_loc = subset(b39_loc, Perc.Ident == 100 & Alignment.Length == 100)
+b39_loc_removed = subset(mmc, snpid %in% setdiff(mmc$snpid, b39_loc$snpid))
+```
+
+We now have `r nrow(b39_loc)` positions for `r length(unique(b39_loc$snpid))` SNPs in GRCm39. We removed `r nrow(mmc) - length(unique(b39_loc$snpid))` SNPs. The removed SNPs are:
+
+```{r removed_snps_b39}
+b39_loc_removed
+```
+
+Do these SNPs overlap with the SNPs that were removed in build 38?
+
+```{r compare_removed_b38_b39}
+intersect(b38_loc_removed$snpid, b39_loc_removed$snpid)
+```
+
+Yes, 12 of the 13 SNPs that were removed in build 38 are still aligning poorly in build 39.
+
+When I looked at the alignments for these SNPs, most had gaps or mismatches. There should be no gaps or mismatches in the SNP flanking sequences that we are keeping.
+
+```{r check_mismatch_gap_b39}
+sum(b39_loc$Mismatches) + sum(b39_loc$Gap.Openings)
+```
+
+The zero above indicates that there are no gaps or mismatches in the SNP flanking sequences that we are keeping.
+
+Add a column to indicate whether the alignment was on the plus or minus strand. Alignments on the plus strand have start positions less than the end position and alignments on the minus strand are reversed.
+
+```{r find_minus_alignments_b39}
+b39_loc$strand = '+'
+b39_loc$strand[b39_loc$S.start > b39_loc$S.end] = '-'
+```
+
+Write out the Build 39 alignment file.
+
+```{r write_alignment_b39}
+write.csv(b39_loc, file = file.path(results_dir, 'GRCm39_MMC_alignments.csv'),
+          quote = FALSE, row.names = FALSE)
+```
+
+Retain only the snpid, chr, position, and strand columns. Add (or subtract) 50 to (or form) the `S.start` column for SNPs on the plus (or minus) strand.
+
+Unfortunately, Bioconductor hasn't built the GRCm39 genome package yet, so I can't confirm that the SNP locations in GRCm39 will return the correct SNP allele.
+
+Subset the GRCm39 alignments.
+
+```{r subset_b39}
+b39_loc = b39_loc[,c('snpid', 'chr', 'S.start', 'strand')]
+b39_loc$grcm39_bp = b39_loc$S.start + 50
+b39_loc$grcm39_bp[b39_loc$strand == '-'] = b39_loc$S.start[b39_loc$strand == '-'] - 50
+```
+
+
+## Create Final Output File
+
+Get the SNP IDs and positions from the original Mouse Map Converter file.
+
+```{r get_b37_snps}
+output = mmc[,c('snpid', 'chr', 'build37')]
+colnames(output)[colnames(output) == 'build37'] = 'grcm37_bp' 
+```
+
+Merge in the Build 38 positions.
+
+```{r merge_b38_pos}
+output = merge(output, b38_loc, by = 'snpid', all = TRUE)
+```
+
+Are all of the SNPs in Builds 37 and 38 on the same chromosome?
+
+```{r b37_b38_chr_check}
+all(output$chr.x == output$chr.y, na.rm = TRUE)
+```
+
+The `TRUE` above means that all of the SNPs aligned to the same chromosome.
+
+Has the order changed?
+
+```{r b37_b38_snp_order,fig.width=10,fig.height=10}
+output = output[,c('snpid', 'chr.x', 'grcm37_bp', 'grcm38_bp', 'strand')]
+colnames(output)[colnames(output) == 'chr.x'] = 'chr'
+
+chr_levels = c(1:19, 'X')
+tmp = split(output, output$chr)
+tmp = tmp[chr_levels]
+
+par(mfrow = c(5, 4))
+lapply(tmp, function(z) {
+  plot(z$grcm37_bp * 1e-6, z$grcm38_bp * 1e-6, pch = 16,
+       xlab = 'GRCm37', ylab = 'GRCm38', main = z$chr[1])
+})
+```
+
+There is an inversion on proximal chromosome 10.
+
+Merge in the Build 39 positions.
+
+```{r merge_b39_pos}
+output = merge(output, b39_loc, by = 'snpid', all = TRUE)
+```
+
+Are all of the SNPs in Builds 37 and 39 on the same chromosome?
+
+```{r b37_b39_chr_check}
+all(output$chr.x == output$chr.y, na.rm = TRUE)
+```
+
+The `TRUE` above means that all of the SNPs aligned to the same chromosome.
+
+Has the order changed?
+
+```{r b37_b39_snp_order,fig.width=10,fig.height=10}
+output = output[,c('snpid', 'chr.x', 'grcm37_bp', 'grcm38_bp', 'grcm39_bp', 'strand.x')]
+colnames(output) = sub('\\.x$', '', colnames(output))
+
+chr_levels = c(1:19, 'X')
+tmp = split(output, output$chr)
+tmp = tmp[chr_levels]
+
+par(mfrow = c(5, 4))
+lapply(tmp, function(z) {
+  plot(z$grcm37_bp * 1e-6, z$grcm39_bp * 1e-6, pch = 16,
+       xlab = 'GRCm37', ylab = 'GRCm39', main = z$chr[1])
+})
+```
+
+There are inversions on chromosomes 10 and 14 and a position shift on chromosome 7.
+
+Add the 'zero' values back in for each chromosome and sort by the GRCm39 position.
+
+```{r add_zero_sort}
+zeros = data.frame(snpid = paste0('zero', chr_levels), 
+                   chr   = chr_levels,
+                   grcm37_bp = 0,
+                   grcm38_bp = 0,
+                   grcm39_bp = 0,
+                   strand    = '+')
+
+output = rbind(zeros, output)
+
+output$chr = factor(output$chr, levels = chr_levels)
+
+output = output[order(output$chr, output$grcm39_bp),]
+```
+
+Write out the final output file.
+
+```{r write_output}
+write.csv(output, file = file.path(results_dir, 'mouse_map_conv_new_positions.csv'),
+          quote = F, row.names = F)
+```
+
+
+## Session Info
+
+```{r session_info}
+sessionInfo()
+```
+
