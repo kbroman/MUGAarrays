@@ -274,9 +274,7 @@ write.csv(b39_loc, file = file.path(results_dir, 'GRCm39_MMC_alignments.csv'),
           quote = FALSE, row.names = FALSE)
 ```
 
-Retain only the snpid, chr, position, and strand columns. Add (or subtract) 50 to (or form) the `S.start` column for SNPs on the plus (or minus) strand.
-
-Unfortunately, Bioconductor hasn't built the GRCm39 genome package yet, so I can't confirm that the SNP locations in GRCm39 will return the correct SNP allele.
+Retain only the snpid, chr, position, and strand columns. Add (or subtract) 50 to (or from) the `S.start` column for SNPs on the plus (or minus) strand.
 
 Subset the GRCm39 alignments.
 
@@ -286,6 +284,34 @@ b39_loc$grcm39_bp = b39_loc$S.start + 50
 b39_loc$grcm39_bp[b39_loc$strand == '-'] = b39_loc$S.start[b39_loc$strand == '-'] - 50
 ```
 
+Unfortunately, Bioconductor hasn't built the GRCm39 genome package yet, so I have to do this using the Ensembl genome FASTA file.
+
+```{r check_seq_b39}
+b39_snp_gr = GRanges(seqnames = b39_loc$chr, 
+                     IRanges(start = b39_loc$grcm39_bp, width = 1),
+                     strand = b39_loc$strand)
+names(b39_snp_gr) = b39_loc$snpid
+
+# Read in the B39 sequence.
+b39_seqs = readDNAStringSet(paste0(b39_fasta, '.gz'))
+
+# Replace the long chromosome names with short ones that will match
+# the B39 SNP Granges above.
+chrnames = names(b39_seqs)
+chrnames = data.frame(chr  = chrnames, 
+                      name = chrnames)
+chrnames$chr = sapply(strsplit(chrnames$chr, ' '), '[', 1)
+names(b39_seqs) = chrnames$chr
+
+# Get the sequences.
+b39_snp_seq = getSeq(b39_seqs, b39_snp_gr)
+b39_snp_seq = as.character(b39_snp_seq)
+
+# Compare to the originals in build 37.
+sum(b37_snp_seq[names(b39_snp_seq)] != b39_snp_seq)
+```
+
+The zero above indicates that all of the SNP alleles from the Build 37 locations match the SNP allele in Build 39. I think that we have the correct SNP positions in GRCm39.
 
 ## Create Final Output File
 
@@ -312,7 +338,7 @@ The `TRUE` above means that all of the SNPs aligned to the same chromosome.
 
 Has the order changed?
 
-```{r b37_b38_snp_order,fig.width=10,fig.height=10}
+```{r b37_b38_snp_order,fig.width=10,fig.height=10,message=FALSE}
 output = output[,c('snpid', 'chr.x', 'grcm37_bp', 'grcm38_bp', 'strand')]
 colnames(output)[colnames(output) == 'chr.x'] = 'chr'
 
@@ -321,10 +347,10 @@ tmp = split(output, output$chr)
 tmp = tmp[chr_levels]
 
 par(mfrow = c(5, 4))
-lapply(tmp, function(z) {
-  plot(z$grcm37_bp * 1e-6, z$grcm38_bp * 1e-6, pch = 16,
-       xlab = 'GRCm37', ylab = 'GRCm38', main = z$chr[1])
-})
+tmp = lapply(tmp, function(z) {
+                     plot(z$grcm37_bp * 1e-6, z$grcm38_bp * 1e-6, pch = 16,
+                          xlab = 'GRCm37', ylab = 'GRCm38', main = z$chr[1])
+                  })
 ```
 
 There is an inversion on proximal chromosome 10.
@@ -345,7 +371,7 @@ The `TRUE` above means that all of the SNPs aligned to the same chromosome.
 
 Has the order changed?
 
-```{r b37_b39_snp_order,fig.width=10,fig.height=10}
+```{r b37_b39_snp_order,fig.width=10,fig.height=10,message=FALSE}
 output = output[,c('snpid', 'chr.x', 'grcm37_bp', 'grcm38_bp', 'grcm39_bp', 'strand.x')]
 colnames(output) = sub('\\.x$', '', colnames(output))
 
@@ -354,10 +380,10 @@ tmp = split(output, output$chr)
 tmp = tmp[chr_levels]
 
 par(mfrow = c(5, 4))
-lapply(tmp, function(z) {
-  plot(z$grcm37_bp * 1e-6, z$grcm39_bp * 1e-6, pch = 16,
-       xlab = 'GRCm37', ylab = 'GRCm39', main = z$chr[1])
-})
+tmp = lapply(tmp, function(z) {
+                     plot(z$grcm37_bp * 1e-6, z$grcm39_bp * 1e-6, pch = 16,
+                          xlab = 'GRCm37', ylab = 'GRCm39', main = z$chr[1])
+                  })
 ```
 
 There are inversions on chromosomes 10 and 14 and a position shift on chromosome 7.
