@@ -1,9 +1,43 @@
-## MegaMUGA/GigaMUGA annotation files
+## Annotation files for MUGA arrays
+
+### Updates for GRCm39 mouse build
+
+[Dan Gatti](https://github.com/dmgatti) and [Belinda
+Cornes](https://www.jax.org/people/belinda-cornes) have updated the
+annotation files for mouse genome build GRCm39. These also include
+sex-averaged genetic map positions for an updated version of the
+[Cox et al. (2009)](https://doi.org/10.1534/genetics.109.105486) map; see
+[CoxMapV3](https://github.com/kbroman/CoxMapV3).
+
+- GigaMUGA:
+
+  - <gm_uwisc_dict_v2.csv>
+  - <gm_uwisc_v2.csv>
+
+- MegaMUGA:
+
+  - <mm_uwisc_dict_v2.csv>
+  - <mm_uwisc_v2.csv>
+
+- MiniMUGA:
+
+  - <mini_uwisc_dict_v3.csv>
+  - <mini_uwisc_v3.csv>
+
+- Original MUGA:
+
+  - <muga_uwisc_dict_v2.csv>
+  - <muga_uwisc_v2.csv>
+
+---
+
+### MegaMUGA/GigaMUGA annotation files
+
 
 Updated annotation files for the MegaMUGA and GigaMUGA SNP genotyping
 arrays.
 
-See the [New MegaMugA/GigaMUGA
+See the [New MegaMUGA/GigaMUGA
 annotations](https://kbroman.org/MUGAarrays/new_annotations.html)
 document (and [its R Markdown
 source](https://github.com/kbroman/MUGAarrays/blob/master/R/new_annotations.Rmd))
@@ -33,7 +67,7 @@ common_dict <- read.csv(paste0(dir, "mm_gm_commonmark_uwisc_dict_v1.csv"))
 
 ---
 
-## MiniMUGA
+### MiniMUGA
 
 [Vivek Kumar](https://www.jax.org/research-and-faculty/faculty/vivek-kumar)
 asked me to take a look at the miniMUGA array, using an [annotation file](https://github.com/kbroman/MUGAarrays/blob/master/UNC/miniMUGA-Marker-Annotations.csv)
@@ -79,7 +113,7 @@ The version for the revised array are labeled `v2`:
 
 ---
 
-## Original MUGA
+### Original MUGA
 
 [Mandy Chen](https://www.jax.org/people/mandy-chen)
 asked me to take a look at the original MUGA array, using

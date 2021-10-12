@@ -3,6 +3,37 @@
 [![doi badge](https://zenodo.org/badge/156335678.svg)](https://zenodo.org/badge/latestdoi/156335678)
 
 
+### Update for GRCm39
+
+[Dan Gatti](https://github.com/dmgatti) and [Belinda
+Cornes](https://www.jax.org/people/belinda-cornes) have updated the
+annotation files for mouse genome build GRCm39. These also include
+sex-averaged genetic map positions for an updated version of the
+[Cox et al. (2009)](https://doi.org/10.1534/genetics.109.105486) map; see
+[CoxMapV3](https://github.com/kbroman/CoxMapV3).
+
+- GigaMUGA:
+
+  - <UWisc/gm_uwisc_dict_v2.csv>
+  - <UWisc/gm_uwisc_v2.csv>
+
+- MegaMUGA:
+
+  - <UWisc/mm_uwisc_dict_v2.csv>
+  - <UWisc/mm_uwisc_v2.csv>
+
+- MiniMUGA:
+
+  - <UWisc/mini_uwisc_dict_v3.csv>
+  - <UWisc/mini_uwisc_v3.csv>
+
+- Original MUGA:
+
+  - <UWisc/muga_uwisc_dict_v2.csv>
+  - <UWisc/muga_uwisc_v2.csv>
+
+---
+
 I had identified a number of potential problems in the GigaMUGA
 annotation file, as well as discrepancies between the GigaMUGA and
 MegaMUGA files. I suspect that some of the columns in the
