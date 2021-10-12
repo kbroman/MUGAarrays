@@ -14,23 +14,23 @@ sex-averaged genetic map positions for an updated version of the
 
 - GigaMUGA:
 
-  - <UWisc/gm_uwisc_dict_v2.csv>
-  - <UWisc/gm_uwisc_v2.csv>
+  - [`gm_uwisc_dict_v2`](UWisc/gm_uwisc_dict_v2.csv)
+  - [`gm_uwisc_v2.csv`](UWisc/gm_uwisc_v2.csv)
 
 - MegaMUGA:
 
-  - <UWisc/mm_uwisc_dict_v2.csv>
-  - <UWisc/mm_uwisc_v2.csv>
+  - [`mm_uwisc_dict_v2.csv`](UWisc/mm_uwisc_dict_v2.csv)
+  - [`mm_uwisc_v2.csv`](UWisc/mm_uwisc_v2.csv)
 
 - MiniMUGA:
 
-  - <UWisc/mini_uwisc_dict_v3.csv>
-  - <UWisc/mini_uwisc_v3.csv>
+  - [`mini_uwisc_dict_v3.csv`](UWisc/mini_uwisc_dict_v3.csv)
+  - [`mini_uwisc_v3.csv`](UWisc/mini_uwisc_v3.csv)
 
 - Original MUGA:
 
-  - <UWisc/muga_uwisc_dict_v2.csv>
-  - <UWisc/muga_uwisc_v2.csv>
+  - [`muga_uwisc_dict_v2.csv`](UWisc/muga_uwisc_dict_v2.csv)
+  - [`muga_uwisc_v2.csv`](UWisc/muga_uwisc_v2.csv)
 
 ---
 
