@@ -4,8 +4,15 @@
 library(data.table)
 library(qtl2convert)
 
+muga_file = "../UNC/snps.muga.Rdata"
+
+if(!file.exists(muga_file)) {
+  download.file(url      = "http://csbio.unc.edu/MUGA/snps.muga.Rdata", 
+                destfile = muga_file)
+}
+
 # read the file
-load("../UNC/snps.muga.Rdata")
+load(muga_file)
 muga <- snps
 
 # here, don't trim the probes that have a seqB

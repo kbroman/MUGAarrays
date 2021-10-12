@@ -1,0 +1,1186 @@
+---
+title: "MUGA Platform GRCm39 Coordinates"
+author: "Daniel Gatti"
+author: "Belinda Cornes"
+date: "10/5/2021"
+output: 
+    html_document:
+        toc: true
+        toc_float: true
+        code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# mmconvert installation
+#library(remotes)
+#remotes::install_github('kbroman/mmconvert')
+
+# rBLAST installation
+# library(remotes)
+# remotes::install_github('mhahsler/rBLAST')
+
+suppressPackageStartupMessages({
+  library(knitr)
+  library(R.utils)
+  library(readxl)
+  library(qtl2convert)
+  library(mmconvert)
+  library(rBLAST)
+  library(BSgenome)   # For querying fasta sequences.
+  library(data.table)
+  library(broman)
+})
+
+base_dir   = 'C:/Users/c-dgatti/Documents/projects/muga_annotation/MUGAarrays'
+blast_dir  = file.path(base_dir, 'Blast')
+
+# GRCm39 and BLAST paths.
+ucsc_url   = 'https://hgdownload.soe.ucsc.edu/goldenPath/mm39/chromosomes'
+fasta_dir  = file.path(base_dir, 'Blast', 'MouseFasta')
+b39_dir    = file.path(base_dir, 'Blast', 'MouseFasta')
+
+# Previous alignment results.
+uwisc_dir    = file.path(base_dir,  'UWisc')
+muga_v1_file = file.path(uwisc_dir, 'muga_uwisc_v1.csv')
+mini_v1_file = file.path(uwisc_dir, 'mini_uwisc_v1.csv')
+mini_v2_file = file.path(uwisc_dir, 'mini_uwisc_v2.csv')
+mm_v1_file   = file.path(uwisc_dir, 'mm_uwisc_v1.csv')
+gm_v1_file   = file.path(uwisc_dir, 'gm_uwisc_v1.csv')
+ 
+# File containing Mega-and Gigamuga sequences.
+mega_giga_seqs = file.path(base_dir, 'GeneSeek', 'Markers_common_to_both_Giga_and_Mega.xlsx')
+
+# Vector for allele swapping.
+allele_swap = setNames(DNA_ALPHABET[1:4], DNA_ALPHABET[4:1])
+
+# For some reason, RStudio isn't picking up my Windows user PATH, which has the BLAST directory. Add it by hand here:
+Sys.setenv(PATH = paste(Sys.getenv("PATH"), "C:\\Program Files\\NCBI\\blast-2.12.0+\\bin", sep =  .Platform$path.sep))
+```
+
+## Introduction
+
+We needed to map the marker positions for the MUGA platform over to GRCm39. This will involve using BLASTn to align the marker probes to the new genome, extracting the SNP position, merging with cM values for each markers, and producing an output file with marker positions for GRCm38, GRCm39, and cM.
+
+There are four arrays:
+
+1. MUGA
+2. Minimuga
+3. Megamuga
+4. Gigamuga
+
+## BLAST Installation & Setup on Windows 10
+
+I installed BLAST 2.12.0 from the [NCBI FTP site](https://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/) and added the path to the executables to my system PATH (`C:\Program Files\NCBI\blast-2.12.0+\bin` on my system).
+
+### Make BLASTn database
+
+I obtained the **unmasked** FASTA file for GRCm39 from [UCSC](https://hgdownload.soe.ucsc.edu/goldenPath/mm39/chromosomes/). Karl used the individual chromosome file, so I did the same. Then, I made the blast database. This block will only run if the database hasn't been created.
+
+NOTE: We don't have the unmapped scaffolds. Should we?
+
+```{r make_blast_db}
+dir.create(fasta_dir, showWarnings = FALSE)
+
+# Download fasta files, if needed.
+chromosomes = c(1:19, 'X', 'Y', 'M')
+for(chr in chromosomes) {
+  fasta_filename = paste0('chr', chr, '.fa.gz')
+  if(!file.exists(file.path(fasta_dir, fasta_filename))) {
+    download.file(url      = file.path(ucsc_url,  fasta_filename),
+                  destfile = file.path(fasta_dir, fasta_filename))
+  } # if(!file.exists(chr_filename))
+} # for(chr)
+
+# GRCm39
+for(chr in chromosomes) {
+  
+  fasta_filename = paste0('chr', chr, '.fa')
+  db_filename    = file.path(b39_dir, paste0('chr', chr, '.fa.ndb'))
+  
+  if(!file.exists(db_filename)) {
+    
+    gunzip(file.path(fasta_dir, paste0(fasta_filename, '.gz')), remove = FALSE)
+    rBLAST::makeblastdb(file = file.path(fasta_dir, fasta_filename), dbtype = 'nucl', 
+                        args = paste('-parse_seqids'))
+    file.remove(file.path(fasta_dir, fasta_filename))
+
+  } # if(!file.exists(b39db_file))
+} # for(chr)
+```
+
+Read in genome FASTA file to check the SNP positions.
+
+```{r read_genome_fasta}
+b39_fa = readDNAStringSet(dir(b39_dir, pattern = '\\.fa\\.gz$', full.names = TRUE))
+```
+
+
+## Array Probe Alignments to GRCm39 {.tabset}
+
+### MUGA
+
+I obtained the MUGA probe sequences from Karl's code. I then used Karl's BLASTn code to blast the sequences against GRCm39. This create a summary of the results in a *.rds file in 'Blast/muga_results'
+
+```{r blast_muga_seq,results='hide'}
+source(file.path(base_dir, 'R', 'grab_muga_sequences.R'),        chdir = TRUE)
+source(file.path(base_dir, 'Blast', 'R', 'create_muga_fasta.R'), chdir = TRUE)
+source(file.path(base_dir, 'Blast', 'R', 'blastn_muga.R'),       chdir = TRUE)
+```
+
+From here, I copied much of Karl's code from [muga_annotations.Rmd](https://github.com/kbroman/MUGAarrays/blob/master/R/muga_annotations.Rmd).
+
+```{r load_muga_data}
+# UNC file already loaded above, as muga_unc
+load("../UNC/snps.muga.Rdata")
+muga_unc <- snps
+muga_unc$chr <- sub("^chr", "", muga_unc$chr)
+
+# Blast results; keep just the perfect matches(?)
+muga_blast <- readRDS("../Blast/results_muga/muga_blastn_results.rds")
+muga_blast <- muga_blast[muga_blast$tot_mismatch==0,]
+```
+
+```{r muga_summarize_blast}
+# no. blast hits
+muga_tab <- table(muga_blast$query)
+muga_nchr <- muga_nhits <- setNames(rep(0, nrow(muga_unc)), rownames(muga_unc))
+muga_nhits[names(muga_tab)] <- muga_tab
+
+# no. chromosomes hit
+muga_tab_chr <- table(muga_blast$query, muga_blast$chr)
+muga_nchr[rownames(muga_tab_chr)] <- rowSums(muga_tab_chr > 0)
+
+# chr,pos,strand for the unique ones
+muga_blast_uniq <- muga_blast[muga_blast$query %in% names(muga_nhits)[muga_nhits==1],]
+muga_blast_chr <- muga_blast_pos <- muga_blast_strand <- setNames(rep(NA, nrow(muga_unc)), rownames(muga_unc))
+muga_blast_chr[muga_blast_uniq$query] <- muga_blast_uniq$chr
+muga_blast_pos[muga_blast_uniq$query] <- muga_blast_uniq$snp_pos
+muga_blast_strand[muga_blast_uniq$query] <- muga_blast_uniq$strand
+
+# probe sequences
+muga_blast_probe <- setNames(muga_unc$seq.A, muga_unc$Marker)
+
+# SNP alleles
+muga_blast_snp <- paste0(muga_unc$A1, muga_unc$A2)
+
+# put all of this stuff into a data frame
+muga_uwisc <- data.frame(marker=names(muga_nhits),
+                         n_blast_hits=muga_nhits,
+                         unique=(muga_nhits==1),
+                         unmapped=(muga_nhits==0),
+                         chr=muga_blast_chr,
+                         pos=muga_blast_pos,
+                         strand=muga_blast_strand,
+                         snp=muga_blast_snp,
+                         probe=muga_blast_probe,
+                         stringsAsFactors=FALSE)
+rownames(muga_uwisc) <- muga_uwisc$marker
+```
+
+I checked the SNP locations by getting the nucleotide at the SNP location from the GRCm39 FASTA file.
+
+```{r muga_check_snp_seq}
+# Only keep the markers with genome locations.
+muga_ss = subset(muga_uwisc, !is.na(chr))
+
+# Make a GRanges for the sequence query.
+muga_gr = GRanges(seqnames = paste0('chr', muga_ss$chr),
+                  IRanges(start = muga_ss$pos, width = 1),
+                  strand = ifelse(muga_ss$strand == 'plus', '+', '-'))
+names(muga_gr) = muga_ss$marker
+
+snp_seq = getSeq(b39_fa, muga_gr)
+snp_seq = data.frame(marker = names(snp_seq), seq = as.character(snp_seq))
+
+# Verify that the SNP alleles that we just queried are in the set of SNP alleles.
+muga_alleles = data.frame(marker = muga_ss$marker, do.call(rbind, strsplit(muga_ss$snp, '')))
+colnames(muga_alleles) = c('marker', 'allele1', 'allele2')
+muga_alleles = merge(muga_alleles, snp_seq, by = 'marker')
+muga_alleles = merge(muga_alleles, muga_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
+muga_alleles$allele_check = muga_alleles$seq == muga_alleles$allele1 | 
+                            muga_alleles$seq == muga_alleles$allele2
+```
+
+`r mean(muga_alleles$allele_check == TRUE) * 100`% of the alleles match the GRCm39 FASTA sequence. Which ones don't match?
+
+```{r muga_seq_mismatch}
+head(muga_alleles[muga_alleles$allele_check == FALSE,])
+```
+
+All of the mismatches alleles are AC, AG, TC, or TG SNPs. Most have T alleles.
+
+```{r muga_seq_mismatch_2}
+table(muga_ss$snp[muga_ss$marker %in% subset(muga_alleles, allele_check == FALSE)$marker])
+```
+
+I checked the sequences on the Ensembl (Build 104) website and the SNP alleles are correct. Illumina uses a TOP/BOTTOM system to identify the DNA strand of SNPs rather than the genome build strand. Perhaps the strand of the SNP alignments are swapped?
+
+```{r muga_swap_alleles}
+muga_mismatch = muga_alleles[muga_alleles$allele_check == FALSE,]
+muga_mismatch$allele1 = allele_swap[muga_mismatch$allele1]
+muga_mismatch$allele2 = allele_swap[muga_mismatch$allele2]
+muga_mismatch$allele_check = muga_mismatch$seq == muga_mismatch$allele1 | 
+                             muga_mismatch$seq == muga_mismatch$allele2
+```
+
+Once I swap the alleles, `r mean(muga_mismatch$allele_check) * 100`% of the SNP alleles are in the Illumina allele SNP alleles. 
+
+The strand orientations are coming from the BLAST results, so they are correct.
+
+The alleles in the file should match the alleles that Illumina reports in the genotype files, so I'm going to leave them as they are. I'm going to add a 'strand_flipped' column.
+
+```{r muga_strand_flipped}
+muga_strand_flipped = subset(muga_alleles, allele_check == FALSE)
+muga_uwisc$strand_flipped = FALSE
+muga_uwisc$strand_flipped[muga_uwisc$marker %in% muga_strand_flipped$marker] = TRUE
+```
+
+
+I used Karl's [mmconvert](https://github.com/kbroman/mmconvert/) package to get the [Cox et al.](https://doi.org/10.1534/genetics.109.105486) map cM values for each marker.
+
+```{r muga_get_cm}
+# Separate the chr Y, M and NA chromosomes.
+chr_no_recomb = subset(muga_uwisc, chr %in% c('M', 'Y') | is.na(chr))
+chr_recomb    = subset(muga_uwisc, chr %in% c(1:19, 'X'))
+
+# mmconvert needs the input data in a specific format.
+mmcvt_input = data.frame(chr = chr_recomb$chr, 
+                         pos = chr_recomb$pos,
+                         marker = chr_recomb$marker)
+mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = 'bp')
+mmcvt_output = mmcvt_output[,c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
+
+# Merge mmconvert results back with GRCm39 positions.
+chr_recomb = merge(chr_recomb, mmcvt_output, by = 'marker', all = TRUE,
+                   sort = FALSE)
+stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
+rm(mmcvt_input)
+
+# Reorder the columns and rbind the non-recombining chromosomes back in.
+chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave', 
+                           'strand', 'snp', 'unique',    'unmapped', 
+                           'probe',  'strand_flipped')]
+colnames(chr_recomb)[4] = 'cM_cox'
+
+chr_no_recomb = data.frame(chr_no_recomb[,c('marker', 'chr', 'pos')],
+                           cM_cox = NA,
+                           chr_no_recomb[,c('strand',   'snp',   'unique',
+                                            'unmapped', 'probe', 'strand_flipped')])
+colnames(chr_no_recomb)[3] = 'bp_grcm39'
+
+muga_v2 = rbind(chr_recomb, chr_no_recomb)
+```
+
+Read in the GRCm38 (aka mm10) positions from the version 1 MUGA annotation file. This is aligned to GRCm38 (mm10).
+
+```{r read_muga_v1}
+muga_v1 = read.csv(muga_v1_file)
+```
+
+There are `r nrow(muga_v1)` markers on the MUGA.
+
+How many uniquely mapped markers do we have on each chromosome in each genome build?
+
+```{r muga_compare_unique}
+muga_tmp = merge(muga_v1, muga_v2, by = 'marker', all = TRUE, sort = FALSE,
+                 suffixes = c('_38', '_39'))
+```
+
+There were `r format(sum(muga_tmp$unique_38), scientific = FALSE, big.mark = ',')` markers that mapped uniquely in GRCm38 and `r format(sum(muga_tmp$unique_39), scientific = FALSE, big.mark = ',')` in GRCm39.
+
+How many unmapped markers were there in each genome build?
+
+There were `r sum(muga_tmp$unmapped_38)` unmapped markers in GRCm38 and `r sum(muga_tmp$unmapped_39)` in GRCm39. The marker that changed was `r setdiff(subset(muga_tmp, unmapped_38)$marker, subset(muga_tmp, unmapped_39)$marker)`.
+
+There are `r sum(!is.na(muga_v2$chr))` markers with chromosome positions on the MUGA.
+
+There are `r sum(is.na(muga_v2$chr))` markers without chromosome positions on the MUGA.
+
+The sum of these (`r sum(!is.na(muga_v2$chr)) + sum(is.na(muga_v2$chr))`) accounts for all of the markers on the array.
+
+I've chosen to exclude the UNC chromosome and positions and to only retain the GRCm38 and GRCm39 positions. I'll write these out to a version 2 file.
+
+```{r write_muga_v2}
+muga_v1 = muga_v1[,c('marker', 'bp_mm10')]
+muga_v2 = merge(muga_v1, muga_v2, by = 'marker', all = TRUE, sort = FALSE)
+
+muga_v2 = muga_v2[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox', 
+                     'strand', 'snp', 'unique',  'unmapped',  'probe',
+                     'strand_flipped')]
+
+# Reorder markers by Chr & GRCm39 position.
+muga_v2$chr = factor(muga_v2$chr, levels = c(1:19, 'X', 'Y', 'M'))
+muga_v2 = muga_v2[order(muga_v2$chr, muga_v2$bp_grcm39),]
+
+write.table(muga_v2, file = sub('1', '2', muga_v1_file), sep = ',',
+            quote = FALSE, row.names = FALSE, col.names = TRUE)
+```
+
+I'm also creating a dictionary file, modeled after Karl's.
+
+```{r muga_create_dictionary}
+descriptions = c("Name of SNP marker",
+                  "Chromosome",
+                  "Physical position in basepairs for mm10 mouse genome build",
+                  "Physical position in basepairs for GRCm39 mouse genome build",
+                  "Average cM position on Cox et al. map",
+                  "Strand (plus/minus) from which the probe sequence was taken",
+                  "SNP alleles as a two-character string",
+                  "TRUE indicates that the probe sequence appears exactly once in GRCm39 mouse genome build",
+                  "TRUE indicates that the probe sequence has no perfect match in GRCm39 mouse genome build",
+                  "Probe sequence (49 or 50 bases); the SNP occurs immediately after",
+                  "TRUE if the SNP alleles are on the opposite strand from the probe sequence")
+
+muga_dict_file = file.path(base_dir, 'UWisc', 'muga_uwisc_dict_v2.csv')
+output = data.frame(column       = colnames(muga_v2),
+                     description = descriptions,
+                     stringsAsFactors = FALSE)
+write.table(output, muga_dict_file, sep = ",", quote = FALSE,
+            row.names = FALSE, col.names = TRUE)
+```
+
+Perform a final QC check and verify that the markers that we wrote out are the ones that have no mismatches in the BLAST results.
+
+```{r muga_final_qc}
+muga_blast = readRDS("../Blast/results_muga/muga_blastn_results.rds")
+muga_blast = subset(muga_blast, tot_mismatch == 0)
+dupl_mkr   = unique(muga_blast$query[duplicated(muga_blast$query)])
+muga_blast = subset(muga_blast, !query %in% dupl_mkr)
+
+stopifnot(all(muga_blast$query %in% subset(muga_v2, !is.na(chr))$marker))
+
+rm(list = ls(pattern = '^muga'))
+```
+
+
+### Minimuga
+
+I obtained the Minimuga probe sequences from Karl's code. I then used Karl's BLASTn code to blast the sequences against GRCm39. This create a summary of the results in a *.rds file in 'Blast/muga_results'
+
+```{r blast_minimuga_seq,results='hide'}
+source(file.path(base_dir, 'R', 'grab_minimuga2_sequences.R'),    chdir = TRUE)
+source(file.path(base_dir, 'Blast', 'R', 'create_mini2_fasta.R'), chdir = TRUE)
+source(file.path(base_dir, 'Blast', 'R', 'blastn_mini2.R'),       chdir = TRUE)
+```
+
+From here, I copied much of Karl's code from [mini_revisited.Rmd](https://github.com/kbroman/MUGAarrays/blob/master/R/mini_revisited.Rmd).
+
+```{r load_mini_data}
+mini_v1 <- data.table::fread(mini_v1_file, data.table = FALSE)
+unc_url <- "https://gsajournals.figshare.com/ndownloader/files/25117973"
+unc_file <- "../UNC/miniMUGA_tableS2.csv"
+if(!file.exists(unc_file)) download.file(unc_url, unc_file)
+mini_unc <- data.table::fread(unc_file, data.table=FALSE)
+rownames(mini_unc) <- mini_unc$"Marker name"
+# change a few things:
+# Marker name -> marker
+# chromosome -> chr
+# position -> pos
+# MT -> M
+colnames(mini_unc)[1:3] <- c("marker", "chr", "pos")
+mini_unc$chr[mini_unc$chr == "MT"] <- "M"
+# Blast results; keep just the perfect matches(?)
+mini_blast <- readRDS("../Blast/results_mini2/mini2_blastn_results.rds")
+mini_blast <- mini_blast[mini_blast$tot_mismatch == 0,]
+```
+
+```{r mini_summarize_blast}
+# no. blast hits
+mini_tab <- table(mini_blast$query)
+mini_nchr <- mini_nhits <- setNames(rep(0, nrow(mini_unc)), rownames(mini_unc))
+mini_nhits[names(mini_tab)] <- mini_tab
+# chr,pos,strand for the unique ones
+mini_blast_uniq <- mini_blast[mini_blast$query %in% names(mini_nhits)[mini_nhits==1],]
+mini_blast_chr <- mini_blast_pos <- mini_blast_strand <- setNames(rep(NA, nrow(mini_unc)), rownames(mini_unc))
+mini_blast_chr[mini_blast_uniq$query] <- mini_blast_uniq$chr
+mini_blast_pos[mini_blast_uniq$query] <- mini_blast_uniq$snp_pos
+mini_blast_strand[mini_blast_uniq$query] <- mini_blast_uniq$strand
+# probe sequences
+mini_blast_probe <- setNames(mini_unc$seqA, mini_unc$Marker)
+mini_trim <- (mini_unc$seqB != "")
+mini_blast_probe[mini_trim] <- substr(mini_blast_probe[mini_trim], 1, nchar(mini_blast_probe[mini_trim])-1)
+# SNP alleles
+mini_blast_snp <- paste0(mini_unc$"reference allele", mini_unc$"alternate allele")
+# put all of this stuff into a data frame
+mini_v3 <- data.frame(marker=names(mini_nhits),
+                         n_blast_hits=mini_nhits,
+                         unique=(mini_nhits==1),
+                         unmapped=(mini_nhits==0),
+                         chr=mini_blast_chr,
+                         pos=mini_blast_pos,
+                         strand=mini_blast_strand,
+                         snp=mini_blast_snp,
+                         probe=mini_blast_probe,
+                         stringsAsFactors=FALSE)
+rownames(mini_v3) <- mini_v3$marker
+```
+
+I checked the SNP locations by getting the nucleotide at the SNP location from the GRCm39 FASTA file.
+
+```{r mini_check_snp_seq}
+# Only keep the markers with genome locations.
+mini_ss = subset(mini_v3, !is.na(chr))
+
+# Make a GRanges for the sequence query.
+mini_gr = GRanges(seqnames = paste0('chr', mini_ss$chr),
+                  IRanges(start = mini_ss$pos, width = 1),
+                  strand = ifelse(mini_ss$strand == 'plus', '+', '-'))
+names(mini_gr) = mini_ss$marker
+
+snp_seq = getSeq(b39_fa, mini_gr)
+snp_seq = data.frame(marker = names(snp_seq), seq = as.character(snp_seq))
+
+# Verify that the SNP alleles that we just queried are in the set of SNP alleles.
+mini_alleles = data.frame(marker = mini_ss$marker, do.call(rbind, strsplit(mini_ss$snp, '')))
+colnames(mini_alleles) = c('marker', 'allele1', 'allele2')
+mini_alleles = merge(mini_alleles, snp_seq, by = 'marker')
+mini_alleles = merge(mini_alleles, mini_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
+mini_alleles$allele_check = mini_alleles$seq == mini_alleles$allele1 | 
+                            mini_alleles$seq == mini_alleles$allele2
+```
+
+`r mean(mini_alleles$allele_check == TRUE) * 100`% of the alleles match the GRCm39 FASTA sequence. This is close enough to 50% that it could happen by chance. I'm going to recheck the strand assignments.
+
+```{r mini_recheck_strand}
+mini_tmp = mini_blast_uniq
+mini_tmp$strand2 = ifelse(mini_tmp$start_chr < mini_tmp$end_chr, 'plus', 'minus')
+mini_tmp$strand_matches = mini_tmp$strand == mini_tmp$strand2
+```
+
+`r mean(mini_tmp$strand_matches)*100`% of the strand assignments match the BLAST results.
+
+It's possible that the Minimuga file from [Sigmon et al.](https://pubmed.ncbi.nlm.nih.gov/33067325/) uses the plus strand for all SNP alleles. Query the FASTA file with the same SNP positions, but use the plus strand for all SNPs.
+
+```{r mini_recheck_snp_seq}
+# Make a GRanges for the sequence query.
+mini_gr = GRanges(seqnames = paste0('chr', mini_ss$chr),
+                  IRanges(start = mini_ss$pos, width = 1),
+                  strand = '+')
+names(mini_gr) = mini_ss$marker
+
+snp_seq = getSeq(b39_fa, mini_gr)
+snp_seq = data.frame(marker = names(snp_seq), seq = as.character(snp_seq))
+
+# Verify that the SNP alleles that we just queried are in the set of SNP alleles.
+mini_alleles = data.frame(marker = mini_ss$marker, do.call(rbind, strsplit(mini_ss$snp, '')))
+colnames(mini_alleles) = c('marker', 'allele1', 'allele2')
+mini_alleles = merge(mini_alleles, snp_seq, by = 'marker')
+mini_alleles = merge(mini_alleles, mini_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
+mini_alleles$allele_check = mini_alleles$seq == mini_alleles$allele1 | 
+                            mini_alleles$seq == mini_alleles$allele2
+```
+
+Now, `r mean(mini_alleles$allele_check) * 100`% of the SNPs match one of the alleles in the reference file. There are `r sum(mini_alleles$allele_check == FALSE)` markers with SNP/allele mismatches.
+
+```{r mini_allele_mismatch}
+subset(mini_alleles, allele_check == FALSE)
+```
+
+On the Minimuga, the mismatched alleles occur in most of the allele combinations. 
+
+```{r mini_seq_mismatch_2}
+table(mini_ss$snp[mini_ss$marker %in% subset(mini_alleles, allele_check == FALSE)$marker])
+```
+
+Which chromosomes do they occur on?
+
+```{r mini_chr_mismatch}
+table(subset(mini_alleles, allele_check == FALSE)$chr)
+```
+
+I don't have an explanation for the two markers on Chr 11. Chr Y annotation isn't great and may have strand issues. Chr 14 has a large inversion that was corrected in GRCm39. Are most of the Chr 14 mismatches on the proximal end?
+
+```{r mini_chr14_mismatches}
+range(subset(mini_alleles, allele_check == FALSE & chr == 14)$pos)
+```
+
+Yes, the Chr 14 mismatches are on the proximal end of Chr 14, where the inversion occurred. 
+
+I'm going to leave the marker positions as they are for now because Illumina will report the alleles as they are in the reference file. I will add a 'strand_flipped' column to flag these markers.
+
+```{r mini_strand_flipped}
+mini_strand_flipped = subset(mini_alleles, allele_check == FALSE)
+mini_v3$strand_flipped = FALSE
+mini_v3$strand_flipped[mini_v3$marker %in% mini_strand_flipped$marker] = TRUE
+```
+
+At this point, I have the GRCm39 positions from the current BLASTn run. I need to add cM values, GRCm38 positions, and write out the results.
+
+I used Karl's [mmconvert](https://github.com/kbroman/mmconvert/) package to get the [Cox et al.](https://doi.org/10.1534/genetics.109.105486) map cM values for each marker.
+
+```{r mini_get_cm}
+# Separate the chr Y, M and NA chromosomes.
+chr_no_recomb = subset(mini_v3, chr %in% c('M', 'Y') | is.na(chr))
+chr_recomb    = subset(mini_v3, chr %in% c(1:19, 'X'))
+
+# mmconvert needs the input data in a specific format.
+mmcvt_input = data.frame(chr = chr_recomb$chr, 
+                         pos = chr_recomb$pos,
+                         marker = chr_recomb$marker)
+mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = 'bp')
+mmcvt_output = mmcvt_output[,c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
+
+# Merge mmconvert results back with GRCm39 positions.
+chr_recomb = merge(chr_recomb, mmcvt_output, by = 'marker', all = TRUE,
+                   sort = FALSE)
+stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
+rm(mmcvt_input)
+
+# Reorder the columns and rbind the non-recombining chromosomes back in.
+chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave', 
+                           'strand', 'snp', 'unique',    'unmapped', 
+                           'probe', 'strand_flipped')]
+colnames(chr_recomb)[4] = 'cM_cox'
+
+chr_no_recomb = data.frame(chr_no_recomb[,c('marker', 'chr', 'pos')],
+                           cM_cox = NA,
+                           chr_no_recomb[,c('strand',   'snp',   'unique',
+                                            'unmapped', 'probe', 'strand_flipped')])
+colnames(chr_no_recomb)[3] = 'bp_grcm39'
+
+mini_v3 = rbind(chr_recomb, chr_no_recomb)
+mini_v3$chr = factor(mini_v3$chr, levels = c(1:19, 'X', 'Y', 'M'))
+```
+
+Read in the GRCm38 (aka mm10) positions from the version 2 Minimuga annotation file. This is aligned to GRCm38 (mm10).
+
+```{r read_mini_v2}
+mini_v2 = read.csv(mini_v2_file)
+```
+
+There are `r nrow(mini_v2)` markers on the Minimuga in the version 2 file.
+
+How many uniquely mapped markers do we have on each chromosome in each genome build?
+
+```{r mini_compare_unique}
+mini_tmp = merge(mini_v3, mini_v2, by = 'marker', all = TRUE, sort = FALSE,
+                 suffixes = c('_38', '_39'))
+```
+
+There were `r format(sum(mini_tmp$unique_38), scientific = FALSE, big.mark = ',')` markers that mapped uniquely in GRCm38 and `r format(sum(mini_tmp$unique_39), scientific = FALSE, big.mark = ',')` in GRCm39. The marker that changed was `r setdiff(mini_tmp$marker[mini_tmp$unique_39], mini_tmp$marker[mini_tmp$unique_38])`.
+
+How many unmapped markers were there in each genome build?
+
+There were `r sum(mini_tmp$unmapped_38)` unmapped markers in GRCm38 and `r sum(mini_tmp$unmapped_39)` in GRCm39.
+
+There are `r sum(!is.na(mini_v3$chr))` markers with chromosome positions on the Minimuga.
+
+There are `r sum(is.na(mini_v3$chr))` markers without chromosome positions on the Minimuga.
+
+The sum of these (`r sum(!is.na(mini_v3$chr)) + sum(is.na(mini_v3$chr))`) accounts for all of the markers on the array.
+
+I've chosen to exclude the old UNC chromosome and positions and to only retain the GRCm38 and GRCm39 positions. I'll write these out to a version 3 file.
+
+```{r write_mini_v3}
+mini_v2 = mini_v2[,c('marker', 'bp_mm10')]
+mini_v3 = merge(mini_v2, mini_v3, by = 'marker', all = TRUE, sort = FALSE)
+
+mini_v3 = mini_v3[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox', 
+                     'strand', 'snp', 'unique',  'unmapped',  'probe',
+                     'strand_flipped')]
+
+write.table(mini_v3, file = sub('2', '3', mini_v2_file), sep = ',',
+            quote = FALSE, row.names = FALSE, col.names = TRUE)
+```
+
+I'm also creating a dictionary file, modeled after Karl's.
+
+```{r mini_create_dictionary}
+descriptions = c("Name of SNP marker",
+                  "Chromosome",
+                  "Physical position in basepairs for mm10 mouse genome build",
+                  "Physical position in basepairs for GRCm39 mouse genome build",
+                  "Average cM position on Cox et al. map",
+                  "Strand (plus/minus) from which the probe sequence was taken",
+                  "SNP alleles as a two-character string",
+                  "TRUE indicates that the probe sequence appears exactly once in GRCm39 mouse genome build",
+                  "TRUE indicates that the probe sequence has no perfect match in GRCm39 mouse genome build",
+                  "Probe sequence (49 or 50 bases); the SNP occurs immediately after",
+                  "TRUE if the SNP alleles are on the opposite strand from the probe sequence")
+
+mini_dict_file = file.path(base_dir, 'UWisc' ,'mini_uwisc_dict_v3.csv')
+output = data.frame(column      = colnames(mini_v3),
+                    description = descriptions,
+                    stringsAsFactors = FALSE)
+write.table(output, mini_dict_file, sep = ",", quote = FALSE,
+            row.names = FALSE, col.names = TRUE)
+```
+
+Perform a final QC check and verify that the markers that we wrote out are the ones that have no mismatches in the BLAST results.
+
+```{r mini_final_qc}
+mini_blast = readRDS("../Blast/results_mini2/mini2_blastn_results.rds")
+mini_blast = subset(mini_blast, tot_mismatch == 0)
+dupl_mkr   = unique(mini_blast$query[duplicated(mini_blast$query)])
+mini_blast = subset(mini_blast, !query %in% dupl_mkr)
+
+stopifnot(all(mini_blast$query %in% subset(mini_v3, !is.na(chr))$marker))
+
+rm(list = ls(pattern = '^mini'))
+```
+
+### Megamuga
+
+I obtained the Megamuga probe sequences from Excel files provided by Karl from Geneseek. I then used Karl's BLASTn code to blast the sequences against GRCm39. This create a summary of the results in a *.rds file in 'Blast/muga_results'
+
+```{r blast_mega_seq,results='hide'}
+mega_seq = read_xlsx(mega_giga_seqs, sheet = 'MegaMUGA', range = 'A8:S77816')
+write.csv(mega_seq, file = file.path(base_dir, 'GeneSeek', 'megamuga_geneseek.csv'),
+          quote = FALSE, row.names = FALSE)
+# We have to get the Gigamuga sequences now to run the next script.
+giga_seq = read_xlsx(mega_giga_seqs, sheet = 'GigaMUGA', range = 'R8C1:R143454C19')
+write.csv(giga_seq, file = file.path(base_dir, 'GeneSeek', 'gigamuga_geneseek.csv'),
+          quote = FALSE, row.names = FALSE)
+
+source(file.path(base_dir, 'R', 'grab_sequences_grcm39.R'),    chdir = TRUE)
+source(file.path(base_dir, 'Blast', 'R', 'create_mm_fasta.R'), chdir = TRUE)
+if(!file.exists(file.path(base_dir, 'Blast', 'results_mm', 'mm_blastn_results.rds'))) {
+  source(file.path(base_dir, 'Blast', 'R', 'blastn_mm.R'),       chdir = TRUE)
+}
+```
+
+From here, I copied and modified Karl's code from [new_annotations.Rmd](https://github.com/kbroman/MUGAarrays/blob/master/R/new_annotations.Rmd).
+
+```{r load_mega_data}
+# UNC file already loaded above, as mm_unc
+load("../UNC/snps.megamuga.Rdata")
+mm_unc <- snps
+mm_unc$chr <- sub("^chr", "", mm_unc$chr)
+
+# Blast results; keep just the perfect matches(?)
+mm_blast <- readRDS("../Blast/results_mm/mm_blastn_results.rds")
+mm_blast <- mm_blast[mm_blast$tot_mismatch==0,]
+```
+
+```{r mm_summarize_blast}
+# no. blast hits
+mm_tab <- table(mm_blast$query)
+mm_nchr <- mm_nhits <- setNames(rep(0, nrow(mm_unc)), rownames(mm_unc))
+mm_nhits[names(mm_tab)] <- mm_tab
+
+# no. chromosomes hit
+mm_tab_chr <- table(mm_blast$query, mm_blast$chr)
+mm_nchr[rownames(mm_tab_chr)] <- rowSums(mm_tab_chr > 0)
+
+# chr,pos,strand for the unique ones
+mm_blast_uniq <- mm_blast[mm_blast$query %in% names(mm_nhits)[mm_nhits==1],]
+mm_blast_chr <- mm_blast_pos <- mm_blast_strand <- setNames(rep(NA, nrow(mm_unc)), rownames(mm_unc))
+mm_blast_chr[mm_blast_uniq$query] <- mm_blast_uniq$chr
+mm_blast_pos[mm_blast_uniq$query] <- mm_blast_uniq$snp_pos
+mm_blast_strand[mm_blast_uniq$query] <- mm_blast_uniq$strand
+
+# probe sequences
+mm_blast_probe <- setNames(mm_unc$seq.A, mm_unc$Marker)
+
+# SNP alleles
+mm_blast_snp <- paste0(mm_unc$A1, mm_unc$A2)
+
+# put all of this stuff into a data frame
+mm_uwisc <- data.frame(marker       = names(mm_nhits),
+                       n_blast_hits = mm_nhits,
+                       unique       = (mm_nhits == 1),
+                       unmapped     = (mm_nhits==0),
+                       chr          = mm_blast_chr,
+                       pos          = mm_blast_pos,
+                       strand       = mm_blast_strand,
+                       snp          = mm_blast_snp,
+                       probe        = mm_blast_probe,
+                       stringsAsFactors = FALSE)
+rownames(mm_uwisc) <- mm_uwisc$marker
+```
+
+I checked the SNP locations by getting the nucleotide at the SNP location from the GRCm39 FASTA file.
+
+```{r mm_check_snp_seq}
+# Only keep the markers with genome locations.
+mm_ss = subset(mm_uwisc, !is.na(chr))
+
+# Make a GRanges for the sequence query.
+mm_gr = GRanges(seqnames = paste0('chr', mm_ss$chr),
+                IRanges(start = mm_ss$pos, width = 1),
+                strand = ifelse(mm_ss$strand == 'plus', '+', '-'))
+names(mm_gr) = mm_ss$marker
+
+snp_seq = getSeq(b39_fa, mm_gr)
+snp_seq = data.frame(marker = names(snp_seq), seq = as.character(snp_seq))
+
+# Verify that the SNP alleles that we just queried are in the set of SNP alleles.
+mm_alleles = data.frame(marker = mm_ss$marker, do.call(rbind, strsplit(mm_ss$snp, '')))
+colnames(mm_alleles) = c('marker', 'allele1', 'allele2')
+mm_alleles = merge(mm_alleles, snp_seq, by = 'marker')
+mm_alleles = merge(mm_alleles, mm_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
+mm_alleles$allele_check = mm_alleles$seq == mm_alleles$allele1 | 
+                          mm_alleles$seq == mm_alleles$allele2
+```
+
+`r mean(mm_alleles$allele_check == TRUE) * 100`% of the alleles match the GRCm39 FASTA sequence. This is close enough to 50% that it could happen by chance. I'm going to recheck the strand assignments.
+
+```{r mm_recheck_strand}
+mm_tmp = mm_blast_uniq
+mm_tmp$strand2 = ifelse(mm_tmp$start_chr < mm_tmp$end_chr, 'plus', 'minus')
+mm_tmp$strand_matches = mm_tmp$strand == mm_tmp$strand2
+```
+
+`r mean(mm_tmp$strand_matches)*100`% of the strand assignments match the BLAST results.
+
+Which strand are the flipped alleles on?
+
+```{r mm_check_strand}
+table(subset(mm_alleles, allele_check == FALSE)$strand)
+```
+
+Most of them are on the minus strand. Does the Megamuga file report the SNP alleles on the plus strand, regardless of where the probe aligns?
+
+```{r mm_try_plus_strand}
+# Make a GRanges for the sequence query.
+mm_gr = GRanges(seqnames = paste0('chr', mm_ss$chr),
+                IRanges(start = mm_ss$pos, width = 1),
+                strand = '+')
+names(mm_gr) = mm_ss$marker
+
+snp_seq = getSeq(b39_fa, mm_gr)
+snp_seq = data.frame(marker = names(snp_seq), seq = as.character(snp_seq))
+
+# Verify that the SNP alleles that we just queried are in the set of SNP alleles.
+mm_alleles = data.frame(marker = mm_ss$marker, do.call(rbind, strsplit(mm_ss$snp, '')))
+colnames(mm_alleles) = c('marker', 'allele1', 'allele2')
+mm_alleles = merge(mm_alleles, snp_seq, by = 'marker')
+mm_alleles = merge(mm_alleles, mm_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
+mm_alleles$allele_check = mm_alleles$seq == mm_alleles$allele1 | 
+                          mm_alleles$seq == mm_alleles$allele2
+```
+
+When I get the sequence at the SNP position from the plus strand, `r mean(mm_alleles$allele_check)*100`% of the markers return a nucleotide that is in the two listed SNP alleles. So I think that, in general, they are reporting the plus strand alleles.
+
+There are still `r sum(mm_alleles$allele_check == FALSE)` markers that don't have the correct sequence.
+
+Which chromosomes are they on?
+
+```{r mm_wrong_snp_seq}
+table(subset(mm_alleles, allele_check == FALSE)$chr)
+```
+
+The markers are scattered across different chromosomes. Chr 10 and 14 have the largest number of markers and both of these chromosomes had large inversions that were correcting in builds 38 or 39. I'm going to add a 'strand_flipped' column to flag these markers.
+
+```{r mm_strand_flipped}
+mm_strand_flipped = subset(mm_alleles, allele_check == FALSE)
+mm_uwisc$strand_flipped = FALSE
+mm_uwisc$strand_flipped[mm_uwisc$marker %in% mm_strand_flipped$marker] = TRUE
+```
+
+I used Karl's [mmconvert](https://github.com/kbroman/mmconvert/) package to get the [Cox et al.](https://doi.org/10.1534/genetics.109.105486) map cM values for each marker.
+
+```{r mm_get_cm}
+# Separate the chr Y, M and NA chromosomes.
+chr_no_recomb = subset(mm_uwisc, chr %in% c('M', 'Y') | is.na(chr))
+chr_recomb    = subset(mm_uwisc, chr %in% c(1:19, 'X'))
+
+# mmconvert needs the input data in a specific format.
+mmcvt_input = data.frame(chr = chr_recomb$chr, 
+                         pos = chr_recomb$pos,
+                         marker = chr_recomb$marker)
+mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = 'bp')
+mmcvt_output = mmcvt_output[,c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
+
+# Merge mmconvert results back with GRCm39 positions.
+chr_recomb = merge(chr_recomb, mmcvt_output, by = 'marker', all = TRUE,
+                   sort = FALSE)
+stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
+rm(mmcvt_input)
+
+# Reorder the columns and rbind the non-recombining chromosomes back in.
+chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave', 
+                           'strand', 'snp', 'unique',    'unmapped', 
+                           'probe',  'strand_flipped')]
+colnames(chr_recomb)[4] = 'cM_cox'
+
+chr_no_recomb = data.frame(chr_no_recomb[,c('marker', 'chr', 'pos')],
+                           cM_cox = NA,
+                           chr_no_recomb[,c('strand',   'snp',   'unique',
+                                            'unmapped', 'probe', 'strand_flipped')])
+colnames(chr_no_recomb)[3] = 'bp_grcm39'
+
+mm_v2 = rbind(chr_recomb, chr_no_recomb)
+```
+
+Read in the GRCm38 (aka mm10) positions from the version 1 Megamuga annotation file. This is aligned to GRCm38 (mm10).
+
+```{r read_mm_v1}
+mm_v1 = read.csv(mm_v1_file)
+```
+
+There are `r nrow(mm_v1)` markers on the Megamuga.
+
+How many uniquely mapped markers do we have on each chromosome in each genome build?
+
+```{r mm_compare_unique}
+mm_tmp = merge(mm_v1, mm_v2, by = 'marker', all = TRUE, sort = FALSE,
+                 suffixes = c('_38', '_39'))
+```
+
+There were `r format(sum(mm_tmp$unique_38), scientific = FALSE, big.mark = ',')` markers that mapped uniquely in GRCm38 and `r format(sum(mm_tmp$unique_39), scientific = FALSE, big.mark = ',')` in GRCm39.
+
+How many unmapped markers were there in each genome build?
+
+There were `r sum(mm_tmp$unmapped_38)` unmapped markers in GRCm38 and `r sum(mm_tmp$unmapped_39)` in GRCm39. The markers that changed were `r setdiff(subset(mm_tmp, unmapped_38)$marker, subset(mm_tmp, unmapped_39)$marker)`.
+
+There are `r sum(!is.na(mm_v2$chr))` markers with chromosome positions on the Megamuga.
+
+There are `r sum(is.na(mm_v2$chr))` markers without chromosome positions on the Megamuga.
+
+The sum of these (`r sum(!is.na(mm_v2$chr)) + sum(is.na(mm_v2$chr))`) accounts for all of the markers on the array.
+
+I've chosen to exclude the UNC chromosome and positions and to only retain the GRCm38 and GRCm39 positions. I'll write these out to a version 2 file.
+
+```{r write_mm_v2}
+mm_v1 = mm_v1[,c('marker', 'bp_mm10')]
+mm_v2 = merge(mm_v1, mm_v2, by = 'marker', all = TRUE, sort = FALSE)
+
+mm_v2 = mm_v2[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox', 
+                 'strand', 'snp', 'unique',  'unmapped',  'probe',
+                 'strand_flipped')]
+
+# Reorder markers by Chr & GRCm39 position.
+mm_v2$chr = factor(mm_v2$chr, levels = c(1:19, 'X', 'Y', 'M'))
+mm_v2 = mm_v2[order(mm_v2$chr, mm_v2$bp_grcm39),]
+
+write.table(mm_v2, file = sub('1', '2', mm_v1_file), sep = ',',
+            quote = FALSE, row.names = FALSE, col.names = TRUE)
+```
+
+I'm also creating a dictionary file, modeled after Karl's.
+
+```{r mm_create_dictionary}
+descriptions = c("Name of SNP marker",
+                  "Chromosome",
+                  "Physical position in basepairs for mm10 mouse genome build",
+                  "Physical position in basepairs for GRCm39 mouse genome build",
+                  "Average cM position on Cox et al. map",
+                  "Strand (plus/minus) from which the probe sequence was taken",
+                  "SNP alleles as a two-character string",
+                  "TRUE indicates that the probe sequence appears exactly once in GRCm39 mouse genome build",
+                  "TRUE indicates that the probe sequence has no perfect match in GRCm39 mouse genome build",
+                  "Probe sequence (49 or 50 bases); the SNP occurs immediately after",
+                  "TRUE if the SNP alleles are on the opposite strand from the probe sequence")
+
+mm_dict_file = file.path(base_dir, 'UWisc', 'mm_uwisc_dict_v2.csv')
+output = data.frame(column       = colnames(mm_v2),
+                     description = descriptions,
+                     stringsAsFactors = FALSE)
+write.table(output, mm_dict_file, sep = ",", quote = FALSE,
+            row.names = FALSE, col.names = TRUE)
+```
+
+Perform a final QC check and verify that the markers that we wrote out are the ones that have no mismatches in the BLAST results.
+
+```{r mm_final_qc}
+mm_blast = readRDS("../Blast/results_mm/mm_blastn_results.rds")
+mm_blast = subset(mm_blast, tot_mismatch == 0)
+dupl_mkr   = unique(mm_blast$query[duplicated(mm_blast$query)])
+mm_blast = subset(mm_blast, !query %in% dupl_mkr)
+
+stopifnot(all(mm_blast$query %in% subset(mm_v2, !is.na(chr))$marker))
+
+rm(list = ls(pattern = '^mm'))
+```
+
+
+### Gigamuga
+
+I obtained the Gigamuga probe sequences from Excel files provided by Karl from Geneseek. I then used Karl's BLASTn code to blast the sequences against GRCm39. This create a summary of the results in a *.rds file in 'Blast/muga_results'
+
+```{r blast_giga_seq,results='hide'}
+# We have to get the Gigamuga sequences now to run the next script.
+mega_seq = read_xlsx(mega_giga_seqs, sheet = 'MegaMUGA', range = 'A8:S77816')
+write.csv(mega_seq, file = file.path(base_dir, 'GeneSeek', 'megamuga_geneseek.csv'),
+          quote = FALSE, row.names = FALSE)
+
+giga_seq = read_xlsx(mega_giga_seqs, sheet = 'GigaMUGA', range = 'R8C1:R143454C19')
+write.csv(giga_seq, file = file.path(base_dir, 'GeneSeek', 'gigamuga_geneseek.csv'),
+          quote = FALSE, row.names = FALSE)
+
+source(file.path(base_dir, 'R', 'grab_sequences_grcm39.R'),    chdir = TRUE)
+source(file.path(base_dir, 'Blast', 'R', 'create_gm_fasta.R'), chdir = TRUE)
+if(!file.exists(file.path(base_dir, 'Blast', 'results_gm', 'gm_blastn_results.rds'))) {
+  source(file.path(base_dir, 'Blast', 'R', 'blastn_gm.R'),       chdir = TRUE)
+}
+```
+
+From here, I copied and modified Karl's code from [new_annotations.Rmd](https://github.com/kbroman/MUGAarrays/blob/master/R/new_annotations.Rmd).
+
+```{r load_giga_data}
+# UNC file already loaded above, as gm_unc
+load("../UNC/snps.gigamuga.Rdata")
+gm_unc <- snps
+gm_unc$chr <- sub("^chr", "", gm_unc$chr)
+
+# Blast results; keep just the perfect matches(?)
+gm_blast <- readRDS("../Blast/results_gm/gm_blastn_results.rds")
+gm_blast <- gm_blast[gm_blast$tot_mismatch==0,]
+```
+
+```{r gm_summarize_blast}
+# no. blast hits
+gm_tab <- table(gm_blast$query)
+gm_nchr <- gm_nhits <- setNames(rep(0, nrow(gm_unc)), rownames(gm_unc))
+gm_nhits[names(gm_tab)] <- gm_tab
+
+# no. chromosomes hit
+gm_tab_chr <- table(gm_blast$query, gm_blast$chr)
+gm_nchr[rownames(gm_tab_chr)] <- rowSums(gm_tab_chr > 0)
+
+# chr,pos,strand for the unique ones
+gm_blast_uniq <- gm_blast[gm_blast$query %in% names(gm_nhits)[gm_nhits==1],]
+gm_blast_chr <- gm_blast_pos <- gm_blast_strand <- setNames(rep(NA, nrow(gm_unc)), rownames(gm_unc))
+gm_blast_chr[gm_blast_uniq$query] <- gm_blast_uniq$chr
+gm_blast_pos[gm_blast_uniq$query] <- gm_blast_uniq$snp_pos
+gm_blast_strand[gm_blast_uniq$query] <- gm_blast_uniq$strand
+
+# probe sequences
+gm_blast_probe <- setNames(gm_unc$seq.A, gm_unc$Marker)
+
+# SNP alleles
+gm_blast_snp <- paste0(gm_unc$A1, gm_unc$A2)
+
+# put all of this stuff into a data frame
+gm_uwisc <- data.frame(marker       = names(gm_nhits),
+                       n_blast_hits = gm_nhits,
+                       unique       = (gm_nhits == 1),
+                       unmapped     = (gm_nhits==0),
+                       chr          = gm_blast_chr,
+                       pos          = gm_blast_pos,
+                       strand       = gm_blast_strand,
+                       snp          = gm_blast_snp,
+                       probe        = gm_blast_probe,
+                       stringsAsFactors = FALSE)
+rownames(gm_uwisc) <- gm_uwisc$marker
+```
+
+I checked the SNP locations by getting the nucleotide at the SNP location from the GRCm39 FASTA file.
+
+```{r gm_check_snp_seq}
+# Only keep the markers with genome locations.
+gm_ss = subset(gm_uwisc, !is.na(chr))
+
+# Make a GRanges for the sequence query.
+gm_gr = GRanges(seqnames = paste0('chr', gm_ss$chr),
+                IRanges(start = gm_ss$pos, width = 1),
+                strand = ifelse(gm_ss$strand == 'plus', '+', '-'))
+names(gm_gr) = gm_ss$marker
+
+snp_seq = getSeq(b39_fa, gm_gr)
+snp_seq = data.frame(marker = names(snp_seq), seq = as.character(snp_seq))
+
+# Verify that the SNP alleles that we just queried are in the set of SNP alleles.
+gm_alleles = data.frame(marker = gm_ss$marker, do.call(rbind, strsplit(gm_ss$snp, '')))
+colnames(gm_alleles) = c('marker', 'allele1', 'allele2')
+gm_alleles = merge(gm_alleles, snp_seq, by = 'marker')
+gm_alleles = merge(gm_alleles, gm_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
+gm_alleles$allele_check = gm_alleles$seq == gm_alleles$allele1 | 
+                          gm_alleles$seq == gm_alleles$allele2
+```
+
+`r mean(gm_alleles$allele_check == TRUE) * 100`% of the alleles match the GRCm39 FASTA sequence. This is close enough to 50% that it could happen by chance. I'm going to recheck the strand assignments.
+
+```{r gm_recheck_strand}
+gm_tmp = gm_blast_uniq
+gm_tmp$strand2 = ifelse(gm_tmp$start_chr < gm_tmp$end_chr, 'plus', 'minus')
+gm_tmp$strand_matches = gm_tmp$strand == gm_tmp$strand2
+```
+
+`r mean(gm_tmp$strand_matches)*100`% of the strand assignments match the BLAST results.
+
+Which strand are the flipped alleles on?
+
+```{r gm_check_strand}
+table(subset(gm_alleles, allele_check == FALSE)$strand)
+```
+
+Most of them are on the minus strand. Does the Megamuga file report the SNP alleles on the plus strand, regardless of where the probe aligns?
+
+```{r gm_try_plus_strand}
+# Make a GRanges for the sequence query.
+gm_gr = GRanges(seqnames = paste0('chr', gm_ss$chr),
+                IRanges(start = gm_ss$pos, width = 1),
+                strand = '+')
+names(gm_gr) = gm_ss$marker
+
+snp_seq = getSeq(b39_fa, gm_gr)
+snp_seq = data.frame(marker = names(snp_seq), seq = as.character(snp_seq))
+
+# Verify that the SNP alleles that we just queried are in the set of SNP alleles.
+gm_alleles = data.frame(marker = gm_ss$marker, do.call(rbind, strsplit(gm_ss$snp, '')))
+colnames(gm_alleles) = c('marker', 'allele1', 'allele2')
+gm_alleles = merge(gm_alleles, snp_seq, by = 'marker')
+gm_alleles = merge(gm_alleles, gm_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
+gm_alleles$allele_check = gm_alleles$seq == gm_alleles$allele1 | 
+                          gm_alleles$seq == gm_alleles$allele2
+```
+
+When I get the sequence at the SNP position from the plus strand, `r mean(gm_alleles$allele_check)*100`% of the markers return a nucleotide that is in the two listed SNP alleles. So I think that, in general, they are reporting the plus strand alleles.
+
+There are still `r sum(gm_alleles$allele_check == FALSE)` markers that don't have the correct sequence.
+
+Which chromosomes are they on?
+
+```{r gm_wrong_snp_seq}
+table(subset(gm_alleles, allele_check == FALSE)$chr)
+```
+
+The markers are scattered across different chromosomes. Chr 6, 10 and 14 have the largest number of markers. Chr 10 and 14 had large inversions that were correcting in builds 38 or 39. 
+
+Look at the positions of the markers with flipped alleles on Chr 6.
+
+```{r gm_chr6_flipped}
+subset(gm_alleles, chr == 6 & !allele_check)
+```
+
+Most of the markers with flipped alleles con Chr 6 are near 130 Mb. Perhaps there was an inversion there. Many of them are also named as 'crNsnvNNN'. I'm not sure what the significance of those names is.
+
+I'm going to add a 'strand_flipped' column to flag these markers.
+
+```{r gm_strand_flipped}
+gm_strand_flipped = subset(gm_alleles, allele_check == FALSE)
+gm_uwisc$strand_flipped = FALSE
+gm_uwisc$strand_flipped[gm_uwisc$marker %in% gm_strand_flipped$marker] = TRUE
+```
+
+
+I used Karl's [mmconvert](https://github.com/kbroman/mmconvert/) package to get the [Cox et al.](https://doi.org/10.1534/genetics.109.105486) map cM values for each marker.
+
+```{r gm_get_cm}
+# Separate the chr Y, M and NA chromosomes.
+chr_no_recomb = subset(gm_uwisc, chr %in% c('M', 'Y') | is.na(chr))
+chr_recomb    = subset(gm_uwisc, chr %in% c(1:19, 'X'))
+
+# mmconvert needs the input data in a specific format.
+mmcvt_input = data.frame(chr = chr_recomb$chr, 
+                         pos = chr_recomb$pos,
+                         marker = chr_recomb$marker)
+mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = 'bp')
+mmcvt_output = mmcvt_output[,c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
+
+# Merge mmconvert results back with GRCm39 positions.
+chr_recomb = merge(chr_recomb, mmcvt_output, by = 'marker', all = TRUE,
+                   sort = FALSE)
+stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
+rm(mmcvt_input)
+
+# Reorder the columns and rbind the non-recombining chromosomes back in.
+chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave', 
+                           'strand', 'snp', 'unique',    'unmapped', 
+                           'probe',  'strand_flipped')]
+colnames(chr_recomb)[4] = 'cM_cox'
+
+chr_no_recomb = data.frame(chr_no_recomb[,c('marker', 'chr', 'pos')],
+                           cM_cox = NA,
+                           chr_no_recomb[,c('strand',   'snp',   'unique',
+                                            'unmapped', 'probe', 'strand_flipped')])
+colnames(chr_no_recomb)[3] = 'bp_grcm39'
+
+gm_v2 = rbind(chr_recomb, chr_no_recomb)
+```
+
+Read in the GRCm38 (aka mm10) positions from the version 1 Gigamuga annotation file. This is aligned to GRCm38 (mm10).
+
+```{r read_gm_v1}
+gm_v1 = read.csv(gm_v1_file)
+```
+
+There are `r nrow(gm_v1)` markers on the Gigamuga.
+
+How many uniquely mapped markers do we have on each chromosome in each genome build?
+
+```{r gm_compare_unique}
+gm_tmp = merge(gm_v1, gm_v2, by = 'marker', all = TRUE, sort = FALSE,
+               suffixes = c('_38', '_39'))
+```
+
+There were `r format(sum(gm_tmp$unique_38), scientific = FALSE, big.mark = ',')` markers that mapped uniquely in GRCm38 and `r format(sum(gm_tmp$unique_39), scientific = FALSE, big.mark = ',')` in GRCm39.
+
+We lost `r sum(gm_tmp$unique_38 == TRUE & gm_tmp$unique_39 == FALSE)` markers in the move from GRCm38 to GRCm39.
+
+We gained `r sum(gm_tmp$unique_38 == FALSE & gm_tmp$unique_39 == TRUE)` markers in the move from GRCm38 to GRCm39.
+
+The `r sum(gm_tmp$unique_38 != gm_tmp$unique_39)` markers that differed are:
+
+```{r gm_unique_diff}
+subset(gm_tmp, unique_38 != unique_39)
+```
+
+How many unmapped markers were there in each genome build?
+
+There were `r sum(gm_tmp$unmapped_38)` unmapped markers in GRCm38 and `r sum(gm_tmp$unmapped_39)` in GRCm39. The markers which changed were:
+
+```{r gm_b38_b39_diff}
+subset(gm_tmp, unmapped_38 != unmapped_39)
+```
+
+There are `r sum(!is.na(gm_v2$chr))` markers with chromosome positions on the Gigamuga.
+
+There are `r sum(is.na(gm_v2$chr))` markers without chromosome positions on the Gigamuga.
+
+The sum of these (`r sum(!is.na(gm_v2$chr)) + sum(is.na(gm_v2$chr))`) accounts for all of the markers on the array.
+
+I've chosen to exclude the UNC chromosome and positions and to only retain the GRCm38 and GRCm39 positions. I'll write these out to a version 2 file.
+
+```{r write_gm_v2}
+gm_v1 = gm_v1[,c('marker', 'bp_mm10')]
+gm_v2 = merge(gm_v1, gm_v2, by = 'marker', all = TRUE, sort = FALSE)
+
+gm_v2 = gm_v2[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox', 
+                 'strand', 'snp', 'unique',  'unmapped',  'probe',
+                 'strand_flipped')]
+
+# Reorder markers by Chr & GRCm39 position.
+gm_v2$chr = factor(gm_v2$chr, levels = c(1:19, 'X', 'Y', 'M'))
+gm_v2 = gm_v2[order(gm_v2$chr, gm_v2$bp_grcm39),]
+
+write.table(gm_v2, file = sub('1', '2', gm_v1_file), sep = ',',
+            quote = FALSE, row.names = FALSE, col.names = TRUE)
+```
+
+I'm also creating a dictionary file, modeled after Karl's.
+
+```{r gm_create_dictionary}
+descriptions = c("Name of SNP marker",
+                  "Chromosome",
+                  "Physical position in basepairs for mm10 mouse genome build",
+                  "Physical position in basepairs for GRCm39 mouse genome build",
+                  "Average cM position on Cox et al. map",
+                  "Strand (plus/minus) from which the probe sequence was taken",
+                  "SNP alleles as a two-character string",
+                  "TRUE indicates that the probe sequence appears exactly once in GRCm39 mouse genome build",
+                  "TRUE indicates that the probe sequence has no perfect match in GRCm39 mouse genome build",
+                  "Probe sequence (49 or 50 bases); the SNP occurs immediately after",
+                  "TRUE if the SNP alleles are on the opposite strand from the probe sequence")
+
+gm_dict_file = file.path(base_dir, 'UWisc', 'gm_uwisc_dict_v2.csv')
+output = data.frame(column       = colnames(gm_v2),
+                     description = descriptions,
+                     stringsAsFactors = FALSE)
+write.table(output, gm_dict_file, sep = ",", quote = FALSE,
+            row.names = FALSE, col.names = TRUE)
+```
+
+Perform a final QC check and verify that the markers that we wrote out are the ones that have no mismatches in the BLAST results.
+
+```{r gm_final_qc}
+gm_blast = readRDS("../Blast/results_gm/gm_blastn_results.rds")
+gm_blast = subset(gm_blast, tot_mismatch == 0)
+dupl_mkr   = unique(gm_blast$query[duplicated(gm_blast$query)])
+gm_blast = subset(gm_blast, !query %in% dupl_mkr)
+
+stopifnot(all(gm_blast$query %in% subset(gm_v2, !is.na(chr))$marker))
+
+rm(list = ls(pattern = '^gm'))
+```
+
+
+## Session Information
+
+```{r session_info}
+sessionInfo()
+```
