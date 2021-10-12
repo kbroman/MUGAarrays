@@ -1,0 +1,1130 @@
+---
+title:  "New MegaMUGA/GigaMUGA annotations"
+author: "Karl Broman/Belinda Cornes"
+date:   "`r Sys.Date()`"
+output:
+    html_document:
+        code_folding: hide
+        toc: true
+        toc_float: true
+        toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width=11, fig.height=6.5,
+                      message=FALSE, warning=FALSE)
+options(width=110)
+
+setwd("/Users/corneb/Documents/MyJax/CS/Projects/GeDI/muga/sandbox/MUGAarrays/")
+```
+
+
+## Introduction
+
+This document is following the document originally created by Karl Broman that converted the geneseek array co-oridinates to mm39.  
+Here, Dan Gatti and I have taken this work and did the same to convert positions to mm39 build
+
+
+A summary of my findings:
+
+
+
+The final annotation files and all source materials are at
+<https://github.com/kbroman/MUGAarrays> [this needs to change].
+
+
+## Procedures
+
+We followed the same procedures as set out previously [link]. 
+
+We ran
+[blastn](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastSearch)
+to map all array probe sequences to the mouse genome (build mm39) and performed blast allowing no insertions/deletions. 
+In cases where the
+match didn't include the full probe sequence, we took all non-aligned
+bases to be mismatches.
+
+More precisely, install blastn on a linux laptop/computer/machine
+
+    sudo apt install ncbi-blast+
+
+Download the mm39 mouse genome files from
+<http://hgdownload-test.cse.ucsc.edu/goldenPath/mm39/bigZips/>
+
+Create index files with
+
+    makeblastdb -in MouseFasta/chr19.fa -dbtype nuc
+
+Run blastn with a command like this:
+
+    blastn -db MouseFasta/chr19.fa -ungapped -out output_c19.txt -query gigamuga.fa -outfmt 6
+
+As before, there were a small number of duplicate alignments
+(same query, same chromosome, same start and end) in the results; and we omitted all but one of these duplicates.
+
+We also focused on full-length, perfect hits.
+
+
+## Preliminaries
+
+First load some R packages.
+
+```{r load_packages}
+library(data.table)
+library(broman)
+library(devtools)
+```
+
+Now load various data sets: the GeneSeek and UNC annotation
+files, and the blast results. For the blast results, I only keep the
+full length, perfect hits.
+
+```{r load_data}
+# GeneSeek files
+gm_gs <- data.table::fread("../GeneSeek/gigamuga_geneseek.csv",
+                           skip=7, data.table=FALSE)
+wh <- which(gm_gs[,1]=="[Controls]")
+gm_gs <- gm_gs[1:(wh-1),]
+rownames(gm_gs) <- gm_gs$Name
+
+mm_gs <- data.table::fread("../GeneSeek/megamuga_geneseek.csv",
+                           skip=7, data.table=FALSE)
+wh <- which(mm_gs[,1]=="[Controls]")
+mm_gs <- mm_gs[1:(wh-1),]
+rownames(mm_gs) <- mm_gs$Name
+
+# UNC files
+load("../UNC/snps.gigamuga.Rdata")
+gm_unc <- snps
+# omit "chr" from the chromosome IDs
+gm_unc$chr <- sub("chr", "", gm_unc$chr)
+
+load("../UNC/snps.megamuga.Rdata")
+mm_unc <- snps
+# omit "chr" from the chromosome IDs
+mm_unc$chr <- sub("chr", "", mm_unc$chr)
+
+# Blast results; keep just the perfect matches(?)
+mm_blast <- readRDS("../Blast/results_mm_bigzips/mm_blastn_results.rds")
+mm_blast <- mm_blast[mm_blast$tot_mismatch==0,]
+gm_blast <- readRDS("../Blast/results_gm_bigzips/gm_blastn_results.rds")
+gm_blast <- gm_blast[gm_blast$tot_mismatch==0,]
+
+# blast results for untrimmed sequences
+gm_untrimmed_blast <- readRDS("../Blast/results_gm_untrimmed_bigzips/gm_untrimmed_blastn_results.rds")
+gm_untrimmed_blast <- gm_untrimmed_blast[gm_untrimmed_blast$tot_mismatch==0,]
+
+```
+
+For reasons that will become apparent later, for a set of
+`r sum(gm_gs$AlleleB_ProbeSeq!="")` markers, we ran blast with an
+"untrimmed" probe sequence that included the SNP allele at the end.
+
+
+## Summarize blast hits
+
+Below is some code that will summarize the blast hits. For each
+SNP, we want to count the number of perfect blast hits and the number
+of chromosomes hit. For markers with a unique hit, we recorded the
+chromosome, position, and strand. For markers that hit multiple
+locations but all on the same chromosome, we recorded the range of the
+positions hit (in basepairs).
+
+Here's the code for the MegaMUGA array:
+
+```{r mm_summarize_blast}
+# no. blast hits
+mm_tab <- table(mm_blast$query)
+mm_nchr <- mm_nhits <- setNames(rep(0, nrow(mm_gs)), rownames(mm_gs))
+mm_nhits[names(mm_tab)] <- mm_tab
+
+# no. chromosomes hit
+mm_tab_chr <- table(mm_blast$query, mm_blast$chr)
+mm_nchr[rownames(mm_tab_chr)] <- rowSums(mm_tab_chr > 0)
+
+# chr,pos,strand for the unique ones
+mm_blast_uniq <- mm_blast[mm_blast$query %in% names(mm_nhits)[mm_nhits==1],]
+mm_blast_chr <- mm_blast_pos <- mm_blast_strand <- setNames(rep(NA, nrow(mm_gs)), rownames(mm_gs))
+mm_blast_chr[mm_blast_uniq$query] <- mm_blast_uniq$chr
+mm_blast_pos[mm_blast_uniq$query] <- mm_blast_uniq$snp_pos
+mm_blast_strand[mm_blast_uniq$query] <- mm_blast_uniq$strand
+
+# probe sequences
+mm_blast_probe <- setNames(mm_gs$AlleleA_ProbeSeq, mm_gs$Name)
+mm_trim <- (mm_gs$AlleleB_ProbeSeq != "")
+mm_blast_probe[mm_trim] <- substr(mm_blast_probe[mm_trim], 1, nchar(mm_blast_probe[mm_trim])-1)
+
+# SNP alleles
+mm_blast_snp <- setNames(sub("]", "", mm_gs$SNP, fixed=TRUE), mm_gs$Name)
+mm_blast_snp <- sub("[", "", mm_blast_snp, fixed=TRUE)
+mm_blast_snp <- sub("/", "", mm_blast_snp, fixed=TRUE)
+
+# put all of this stuff into a data frame
+mm_uwisc <- data.frame(marker=names(mm_nhits),
+                       n_blast_hits=mm_nhits,
+                       n_blast_chr=mm_nchr,
+                       unique=(mm_nhits==1),
+                       multi=(mm_nhits>1),
+                       unmapped=(mm_nhits==0),
+                       chr=mm_blast_chr,
+                       pos=mm_blast_pos,
+                       strand=mm_blast_strand,
+                       snp=mm_blast_snp[names(mm_nhits)],
+                       probe=mm_blast_probe[names(mm_nhits)],
+                       stringsAsFactors=FALSE)
+rownames(mm_uwisc) <- mm_uwisc$marker
+
+# probes that hit multiply but all to one chromosome
+mm_mult_but1chr <- names(mm_nhits)[mm_nhits > 1 & mm_nchr==1]
+mm_mult_but1chr_range <- sapply(mm_mult_but1chr, function(mar)
+    diff(range(mm_blast$snp_pos[mm_blast$query==mar])))
+
+# probes that hit uniquely on each of X and Y and to no other chromosome
+mm_hitXY <- rownames(mm_tab_chr)[rowSums(mm_tab_chr[,1:20])==0 & mm_tab_chr[,21]>0 & mm_tab_chr[,22]>0]
+```
+
+
+Now we repeat that for the GigaMUGA array:
+
+```{r gm_summarize_blast}
+# no. blast hits
+gm_tab <- table(gm_blast$query)
+gm_nchr <- gm_nhits <- setNames(rep(0, nrow(gm_gs)), rownames(gm_gs))
+gm_nhits[names(gm_tab)] <- gm_tab
+
+# no. chromosomes hit
+gm_tab_chr <- table(gm_blast$query, gm_blast$chr)
+gm_nchr[rownames(gm_tab_chr)] <- rowSums(gm_tab_chr > 0)
+
+# chr,pos,strand for the unique ones
+gm_blast_uniq <- gm_blast[gm_blast$query %in% names(gm_nhits)[gm_nhits==1],]
+gm_blast_chr <- gm_blast_pos <- gm_blast_strand <- setNames(rep(NA, nrow(gm_gs)), rownames(gm_gs))
+gm_blast_chr[gm_blast_uniq$query] <- gm_blast_uniq$chr
+gm_blast_pos[gm_blast_uniq$query] <- gm_blast_uniq$snp_pos
+gm_blast_strand[gm_blast_uniq$query] <- gm_blast_uniq$strand
+
+# probe sequences
+gm_blast_probe <- setNames(gm_gs$AlleleA_ProbeSeq, gm_gs$Name)
+gm_trim <- (gm_gs$AlleleB_ProbeSeq != "")
+gm_blast_probe[gm_trim] <- substr(gm_blast_probe[gm_trim], 1, nchar(gm_blast_probe[mm_trim])-1)
+
+# SNP alleles
+gm_blast_snp <- setNames(sub("]", "", gm_gs$SNP, fixed=TRUE), gm_gs$Name)
+gm_blast_snp <- sub("[", "", gm_blast_snp, fixed=TRUE)
+gm_blast_snp <- sub("/", "", gm_blast_snp, fixed=TRUE)
+
+# put all of this stuff into a data frame
+gm_uwisc <- data.frame(marker=names(gm_nhits),
+                       n_blast_hits=gm_nhits,
+                       n_blast_chr=gm_nchr,
+                       unique=(gm_nhits==1),
+                       multi=(gm_nhits>1),
+                       unmapped=(gm_nhits==0),
+                       chr=gm_blast_chr,
+                       pos=gm_blast_pos,
+                       strand=gm_blast_strand,
+                       snp=gm_blast_snp[names(gm_nhits)],
+                       probe=gm_blast_probe[names(gm_nhits)],
+                       stringsAsFactors=FALSE)
+rownames(gm_uwisc) <- gm_uwisc$marker
+
+# probes that hit multiply but all to one chromosome
+gm_mult_but1chr <- names(gm_nhits)[gm_nhits > 1 & gm_nchr==1]
+gm_mult_but1chr_range <- sapply(gm_mult_but1chr, function(mar)
+    diff(range(gm_blast$snp_pos[gm_blast$query==mar])))
+
+# probes that hit uniquely on each of X and Y and to no other chromosome
+gm_hitXY <- rownames(gm_tab_chr)[rowSums(gm_tab_chr[,1:20])==0 & gm_tab_chr[,21]>0 & gm_tab_chr[,22]>0]
+```
+
+
+## MegaMUGA
+
+The following is a summary of MegaMUGA array - the results found are aligned to what was found previously by Kar Borman [insert link here].
+
+### Basic blast results
+
+Here we focus on the MegaMUGA array, which contains
+`r add_commas(nrow(mm_unc))` markers. In the UNC annotation file,
+`r add_commas(sum(mm_unc$chr %in% (1:19)))` are on autosomes,
+`r add_commas(sum(mm_unc$chr=="X"))` are on the X chromosome,
+`r add_commas(sum(mm_unc$chr=="Y"))` are on the Y chromosome,
+`r add_commas(sum(mm_unc$chr=="M"))` are on the mitochondrial genome,
+and `r add_commas(sum(mm_unc$chr=="P"))` have chromosome `P`, which
+indicates they are transgene-related markers.
+
+In the blast results, we found that `r add_commas(sum(mm_nhits==1))`
+markers have a single, unique hit in the mouse genome (build mm39), while
+`r add_commas(sum(mm_nhits>1))` hit to multiple locations
+(median `r median(mm_nhits[mm_nhits>1])` locations and maximum
+`r add_commas(max(mm_nhits))`), and `r add_commas(sum(mm_nhits==0))`
+have no perfect match in the mm39 build of the mouse genome.
+
+### Unique markers
+
+If we look at the inferred chromosome assignments of the markers with
+a unique hit to the genome, all but
+`r sum(mm_unc[mm_uwisc$marker, "chr"] != mm_uwisc$chr, na.rm=TRUE)`
+match the chromosome in the UNC annotation file. Here are the markers
+with discrepancies in chromosome assignment:
+
+```{r mm_mismatch_chr}
+# reorder mm_unc
+mm_unc <- mm_unc[mm_uwisc$marker,]
+wh <- mm_uwisc$unique & mm_uwisc$chr != mm_unc$chr
+mm_diff_chr <- data.frame(marker=mm_uwisc$marker,
+                          unc_chr=mm_unc$chr,
+                          blast_chr=mm_uwisc$chr,
+                          stringsAsFactors=FALSE)[wh,]
+mm_diff_chr <- mm_diff_chr[order(mm_diff_chr$marker),]
+rownames(mm_diff_chr) <- 1:nrow(mm_diff_chr)
+mm_diff_chr
+```
+
+Four of these were chr `P` (transgene-related) in the UNC annotations
+but map to autosomes, one was mitochondrial (with a name to match)
+but the sequence maps to chr 1, and one (`MiniMuscle001`) was
+assigned to chr 16 but maps to chr 11.
+
+`r Numbers[sum(mm_diff_chr$marker %in% gm_unc$marker)]`
+of these `r numbers[nrow(mm_diff_chr)]`
+markers are found on the GigaMUGA array (all but
+`r mm_diff_chr$marker %wnin% gm_unc$marker`), and
+the chromosome assignments in the UNC annotations of the GigaMUGA
+array all match what we see in these blast results, rather than the
+chromosome in the UNC annotations of the MegaMUGA array.
+
+```{r gm chr diff}
+#gm_unc[mm_diff_chr$marker,]
+```
+
+We won't make any comparisons of basepair positions, as the UNC
+annotation file for the MegaMUGA array uses coordinates from build mm9
+of the mouse genome, rather than build mm39.
+
+### Multiple hits to one chromosome
+
+There are `r length(mm_mult_but1chr)` markers on the MegaMUGA array
+that have multiple perfect hits in the mouse genome, but all on the
+same chromosome. The range in SNP positions, for these
+multiple hits, varied from
+`r min(mm_mult_but1chr_range)` bp to
+`r round(max(mm_mult_but1chr_range)/1e6)` Mbp, with a median of
+`r round(median(mm_mult_but1chr_range)/1000)` kbp.
+
+There are `r sum(mm_mult_but1chr_range < 1000)` markers with multiple
+hits but all on a single chromosome and all within a 1000 bp interval.
+We could maybe keep these, and assign each to the median of the observed
+positions.  But for now we'll leave them with missing genomic
+coordinates.
+
+
+### Chromosome "P"
+
+The UNC annotations for the MegaMUGA array has
+`r sum(mm_unc$chr=="P")` markers with chromosome `P`, which are
+transgene-related markers, for example Cre001 and LacZ001. Only
+`r numbers[sum(mm_uwisc$unique[mm_unc$chr=="P"])]`
+have hits to the mm39 mouse genome build, and these are the
+four mentioned above, that actually map to autosomes. The other
+`r sum(mm_uwisc$unmapped[mm_unc$chr=="P"])` have no perfect hits in the
+blast results.
+
+### Pseudoautosomal markers
+
+There are `r sum(grepl("^PAR[0-9]+$", mm_unc$marker))` markers
+with names like `PAR10`, which I take to mean they're from the
+pseudoautosomal region. All of these were placed on chr X in the UNC
+annotation file. 
+
+In the blast results,
+`r numbers[sum(mm_uwisc$unique[grepl("^PAR[0-9]+$", mm_uwisc$marker)])]`
+of these have unique hits in the mouse genome, all to chromosome X.
+
+The remainder have multiple hits.
+PAR4 has a single hit on each of the X and Y chromosomes.
+PAR6 has a single hit on the X chromosome and two hits on the Y
+chromosome.
+
+The other `r sum(grep("^PAR[0-9]+$", mm_unc$marker, value=TRUE) %in% mm_mult_but1chr)`
+PAR markers have multiple hits but just to the X chromosome.
+
+There are two additional markers with hits to both the X and the Y
+chromosome, but with no hits to autosomes:
+`r vec2string(mm_hitXY[mm_hitXY %nin% c("PAR4", "PAR6")])`.
+UNC31596388 has a single hit on each of the X and Y chromosomes.
+UNC31596457 has a single hit on the X and two hits on the Y.
+So maybe these are also pseudoautosomal markers.
+
+
+### Markers with the same probes (not needed)
+
+## GigaMUGA
+
+Below is the summery of the GigaMUGA array, and do the same stuff plus a bit more. There are several differences found when Karl Broman did this for the mm10 genome build.
+
+### Basic blast results
+
+The GigaMUGA array contains
+`r add_commas(nrow(gm_unc))` markers. In the UNC annotation file,
+`r add_commas(sum(gm_unc$chr %in% (1:19)))` are on autosomes,
+`r add_commas(sum(gm_unc$chr=="X", na.rm=TRUE))` are on the X chromosome,
+`r add_commas(sum(gm_unc$chr=="Y", na.rm=TRUE))` are on the Y chromosome,
+and `r add_commas(sum(gm_unc$chr=="M", na.rm=TRUE))` are on the mitochondrial genome.
+
+In the UNC annotation file, none of the GigaMUGA markers are assigned
+to chromosome `P`, but there are
+`r add_commas(sum(is.na(gm_unc$chr)))` markers where the chromosome ID
+are missing. Of these,
+`r sum(gm_unc$marker[is.na(gm_unc$chr)] %in% mm_unc$marker[(mm_unc$chr=="P")] )`
+were on the MegaMUGA array and assigned to chromosome `P`,
+`r sum(gm_unc$marker[is.na(gm_unc$chr)] %in% mm_unc$marker[(mm_unc$chr!="P")] )`
+were on MegaMUGA array but assigned to chr 18,
+and
+`r sum(!gm_unc$marker[is.na(gm_unc$chr)] %in% mm_unc$marker)`
+were not on the MegaMUGA array.
+
+```{r breakdown numbers unc gs}
+
+#markers that are NA
+#gm_unc$marker[is.na(gm_unc$chr)]
+
+#markers on the megamuga array assigned to chr p
+#intersect(gm_unc$marker[is.na(gm_unc$chr)],mm_unc$marker[(mm_unc$chr=="P")])
+#mm_unc[intersect(gm_unc$marker[is.na(gm_unc$chr)],mm_unc$marker[(mm_unc$chr=="P")]),]
+
+#markers on the megamuga array assigned to any other chromosome
+#intersect(gm_unc$marker[is.na(gm_unc$chr)],mm_unc$marker[(mm_unc$chr!="P")])
+#mm_unc[intersect(gm_unc$marker[is.na(gm_unc$chr)],mm_unc$marker[(mm_unc$chr!="P")]),]
+
+#markers not on megamuga
+#setdiff(gm_unc$marker[is.na(gm_unc$chr)],mm_unc$marker)
+
+```
+
+(Of the `r add_commas(sum(mm_unc$chr=="P"))` markers on the MegaMUGA
+array with chr ID `P`,
+`r sum(!(mm_unc$marker[mm_unc$chr=="P"] %in% gm_unc$marker))`
+are not on the GigaMUGA array,
+`r sum(mm_unc$marker[mm_unc$chr=="P"] %in% gm_unc$marker[is.na(gm_unc$chr)])`
+have missing chr ID in the UNC annotations on the GigaMUGA array,
+`r sum(mm_unc$marker[mm_unc$chr=="P"] %in% gm_unc$marker[!is.na(gm_unc$chr) & gm_unc$chr=="13"])`
+are on chr 13 in the UNC annotation of the GigaMUGA array,
+and `r sum(mm_unc$marker[mm_unc$chr=="P"] %in% gm_unc$marker[!is.na(gm_unc$chr) & gm_unc$chr=="5"])`
+is on chr 5 in the UNC annotation of the GigaMUGA array.)
+
+```{r breakdown numbers gs unc}
+#megamuga chrP markers in gigamuga
+#mm_unc[mm_unc$chr=="P",]
+
+#markers not on gigmuga
+#setdiff(mm_unc$marker[mm_unc$chr=="P"],gm_unc$marker)
+
+#markers that have missing chr ID in the UNC annotations on the GigaMUGA array
+#intersect(mm_unc$marker[mm_unc$chr=="P"],gm_unc$marker[is.na(gm_unc$chr)])
+#gm_unc[intersect(mm_unc$marker[mm_unc$chr=="P"],gm_unc$marker[is.na(gm_unc$chr)]),]
+
+#markers on the megamuga array assigned to chr 13
+#intersect(mm_unc$marker[mm_unc$chr=="P"],gm_unc$marker[!is.na(gm_unc$chr) & gm_unc$chr=="13"])
+#gm_unc[intersect(mm_unc$marker[mm_unc$chr=="P"],gm_unc$marker[!is.na(gm_unc$chr) & gm_unc$chr=="13"]),]
+
+#markers on the megamuga array assigned to chr 5
+#intersect(mm_unc$marker[mm_unc$chr=="P"],gm_unc$marker[!is.na(gm_unc$chr) & gm_unc$chr=="5"])
+#gm_unc[intersect(mm_unc$marker[mm_unc$chr=="P"],gm_unc$marker[!is.na(gm_unc$chr) & gm_unc$chr=="5"]),]
+
+```
+
+As before, we are going to take these `NA` chromosome IDs to be `P`.
+
+```{r gm_na_chr_to_p}
+gm_unc$chr[is.na(gm_unc$chr)] <- "P"
+```
+
+The GeneSeek annotation file for the GigaMUGA array includes
+`r add_commas(nrow(gm_gs))` markers: the
+`r add_commas(sum(gm_gs$Name %in% gm_unc$marker))` markers in the UNC
+annotation file for the array, plus another
+`r add_commas(sum(!(gm_gs$Name %in% gm_unc$marker)))` markers.
+These extra markers all have names like `CTRL-22` and so seem to
+be control probes. None of them have matches in the mouse genome, and so we will
+omit them from further consideration.
+
+```{r gm_omit_ctrl_probes}
+# make sure control probes have no hits to mouse genome
+ctrl <- gm_gs$Name[!(gm_gs$Name %in% gm_unc$marker)]
+#ctrl
+stopifnot( !any(ctrl %in% gm_blast$query) )
+
+# omit these control probes from the annotations
+gm_gs <- gm_gs[gm_gs$Name %in% gm_unc$marker,]
+gm_uwisc <- gm_uwisc[gm_uwisc$marker %in% gm_unc$marker,]
+
+# omit them from other pieces I'm using
+gm_nhits <- gm_nhits[gm_uwisc$marker]
+```
+
+In the blast results, I find that `r add_commas(sum(gm_nhits==1))`
+markers have a single, unique hit in the mouse genome (build mm39), while
+`r add_commas(sum(gm_nhits>1))` hit to multiple locations
+(median `r median(gm_nhits[gm_nhits>1])` locations and maximum
+`r add_commas(max(gm_nhits))`), and `r add_commas(sum(gm_nhits==0))`
+have no perfect match in the mm39 build of the mouse genome.
+
+### Unique markers
+
+If we look at the inferred chromosome assignments of the
+`r add_commas(sum(gm_uwisc$unique))` markers with a unique hit to the
+genome, `r add_commas(sum(gm_unc[gm_uwisc$marker[gm_uwisc$unique], "chr"] == gm_uwisc$chr[gm_uwisc$unique]))` markers match the chromosome in the UNC annotation
+file, `r add_commas(sum(gm_unc[gm_uwisc$marker[gm_uwisc$unique], "chr"] != gm_uwisc$chr[gm_uwisc$unique]))` markers do not. 
+
+```{r gm_mismatch_chr}
+#markers on the gigamuga array that do no have the same chr
+gm_uwisc_unc <- merge(gm_uwisc, gm_unc, by = c("marker"),all=T)
+gm_uwisc_unc <- gm_uwisc_unc[gm_uwisc_unc$unique.x,] #unique on wisc
+#gm_uwisc_unc.y <- gm_uwisc_unc[gm_uwisc_unc$unique.y,] # unique in unc
+
+#which chromsomes are equal for unique hit
+gm_uwisc_unc$match <- ifelse(gm_uwisc_unc$chr.x != gm_uwisc_unc$chr.y, "different", "same")
+#table(gm_uwisc_unc$match)
+
+#gm_uwisc_unc.x[which(is.na(gm_uwisc_unc.x$match)),]
+#gm_uwisc_unc[which(gm_uwisc_unc$match == "different"),]
+
+#which markers are on megamga array and where
+#intersect(mm_unc$marker,gm_uwisc_unc$marker[which(gm_uwisc_unc$match == "different")])
+#mm_unc[intersect(mm_unc$marker,gm_uwisc_unc$marker[which(gm_uwisc_unc$match == "different")]),]
+
+#which markers are not on megamuga
+#setdiff(gm_uwisc_unc$marker[which(gm_uwisc_unc$match == "different")],mm_unc$marker)
+
+#setting megamuga markers to chromosome 18 in gigamuga ????? for the time being (as )
+gm_uwisc[gm_uwisc$marker %in% gm_uwisc_unc$marker[which(gm_uwisc_unc$match == "different")],]$chr <- "P"
+
+# all of the unique ones match
+stopifnot(all(gm_unc[gm_uwisc$marker[gm_uwisc$unique], "chr"] == gm_uwisc$chr[gm_uwisc$unique]) )
+#which(gm_unc[gm_uwisc$marker[gm_uwisc$unique], "chr"] == gm_uwisc$chr[gm_uwisc$unique])
+
+# reorder gm_unc and gm_gs
+gm_unc <- gm_unc[gm_uwisc$marker,]
+```
+
+
+The SNP positions match for
+`r add_commas(sum((gm_unc$pos - gm_uwisc$pos)[gm_uwisc$unique]==0))`
+markers, but are off by more than &plusmn;1 for the other
+`r sum((gm_unc$pos - gm_uwisc$pos)[gm_uwisc$unique]!=0)` markers. 
+
+
+```{r gm_verify_off_by_1}
+# verify the statements above
+#markers that have exactly the same positions:
+#gm_uwisc$marker[(gm_unc$pos - gm_uwisc$pos)[gm_uwisc$unique]==0]
+
+#positions that are off by one if they are in gm_trimmed
+# markers where position is off by one are the cases where AlleleB is provided
+off_by_plus1 <- gm_uwisc$marker[gm_uwisc$pos == gm_unc$pos+1 & gm_uwisc$unique]
+off_by_minus1 <- gm_uwisc$marker[gm_uwisc$pos == gm_unc$pos-1 & gm_uwisc$unique]
+off_by_pm1 <- c(off_by_plus1, off_by_minus1)
+
+#gm_untrimmed_blast[gm_untrimmed_blast$query %in% off_by_pm1,]
+#nrow(gm_untrimmed_blast[gm_untrimmed_blast$query %in% off_by_pm1,])
+
+#markers that are off by more than 1
+#gm_uwisc$marker[(gm_unc$pos - gm_uwisc$pos)[gm_uwisc$unique]!=0]
+#nrow(gm_uwisc[(gm_unc$pos - gm_uwisc$pos)[gm_uwisc$unique]!=0,])
+
+#stopifnot( sort(gm_untrimmed_blast[gm_untrimmed_blast$query %in% off_by_pm1,]$query) == sort(gm_gs[gm_gs$AlleleB_ProbeSeq != "" & gm_uwisc$unique,]$Name[(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != "" & gm_uwisc$unique] %in% off_by_pm1)]) )
+#stopifnot( sort(gm_untrimmed_blast[gm_untrimmed_blast$query %in% off_by_plus1,]$query) == sort(gm_gs[gm_gs$AlleleB_ProbeSeq != "" & gm_uwisc$unique & gm_uwisc$strand=="minus",]$Name[(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != "" & gm_uwisc$unique & gm_uwisc$strand=="minus"] %in% off_by_plus1)]) )
+#stopifnot( sort(gm_untrimmed_blast[gm_untrimmed_blast$query %in% off_by_minus1,]$query) == sort(gm_gs[gm_gs$AlleleB_ProbeSeq != "" & gm_uwisc$unique & gm_uwisc$strand=="plus",]$Name[(gm_gs$Name[gm_gs$AlleleB_ProbeSeq != "" & gm_uwisc$unique & gm_uwisc$strand=="plus"] %in% off_by_minus1)]) )
+```
+
+
+[bkc - THIS MAY BE DIFFERENT NOW !!!! [need help with this]]
+Here's an example of this, for marker B6_rs6284288. I show the
+basepair positions assigned by me and UNC, as well as the two probes
+and the source sequence.
+
+```{r off_by_1_example, echo=FALSE}
+marker <- "B6_rs6284288"
+cbind(chr=gm_uwisc[marker, "chr",drop=FALSE],
+      pos_uwisc=gm_uwisc[marker, "pos"],
+      pos_unc=gm_unc[marker, "pos"])
+sourceseq_w_dots <- paste0(substr(gm_gs[marker,"SourceSeq"], 1, 61), " ...")
+cat("probe A:   ",  gm_gs[marker,"AlleleA_ProbeSeq"], "\n",
+    "probe B:   ",  gm_gs[marker,"AlleleB_ProbeSeq"], "\n",
+    "source:  ",  sourceseq_w_dots, "\n", sep="")
+```
+
+The blast result for the trimmed sequence has it matching to chr
+`r gm_blast[gm_blast$query==marker, "chr"]` from
+`r add_commas(gm_blast[gm_blast$query==marker, "start_chr"])` to
+`r add_commas(gm_blast[gm_blast$query==marker, "end_chr"])`, putting the SNP at
+`r add_commas(gm_blast[gm_blast$query==marker, "snp_pos"])`.
+
+The blast results for the **untrimmed** sequence
+has it matching to chr
+`r gm_untrimmed_blast[gm_untrimmed_blast$query==marker, "chr"]` from
+`r add_commas(gm_untrimmed_blast[gm_untrimmed_blast$query==marker, "start_chr"])` to
+`r add_commas(gm_untrimmed_blast[gm_untrimmed_blast$query==marker, "end_chr"])`,
+but since the probe includes the SNP, that would place the SNP at the
+end position, `r add_commas(gm_untrimmed_blast[gm_untrimmed_blast$query==marker, "snp_pos"])`.
+
+
+### Multiple hits to one chromosome
+
+There are `r add_commas(length(gm_mult_but1chr))` markers on the GigaMUGA array
+that have multiple perfect hits in the mouse genome, but all on the
+same chromosome. The range in SNP positions, for these
+multiple hits, varied from
+`r min(gm_mult_but1chr_range)` bp to
+`r round(max(gm_mult_but1chr_range)/1e6)` Mbp, with a median of
+`r round(median(gm_mult_but1chr_range)/1000)` kbp.
+
+There are `r sum(gm_mult_but1chr_range < 1000)` markers with multiple
+hits but all on a single chromosome and all within a 1000 bp interval.
+We could maybe keep these, and assign each to the median of the observed
+positions.  But for now we'll leave them with missing genomic
+coordinates.
+
+
+### Chromosome "P"
+
+Regarding the chromosome "P" markers: there were
+`r sum(gm_unc$chr=="P")` GigaMUGA markers where the chromosome ID was
+missing in the UNC annotation file, and which we're interpreting here
+as `P` (transgene-related). [None of them have a hit to the mm39 mouse
+genome build.
+
+[bkc - 3 of these were assigned to chromosome 18 but did not have annotations in UNC, so when he says none, does that mean because there were no UNC annotations matching?] 
+
+
+### Pseudoautosomal region
+
+There are `r length(gm_par <- grep("^PAR", gm_unc$marker, value=TRUE))` markers
+with names like `PAR10` or `PARv2S06`. `r sum(gm_uwisc[gm_par, "unique"])`
+of these have unique hits in the mouse genome, all to the X
+chromosome. One PAR marker (`r gm_par[gm_uwisc[gm_par, "unmapped"]]`)
+has no hits to the mouse genome. The other `r sum(gm_uwisc[gm_par, "multi"])`
+have multiple hits
+
+```{r psuedo region gm}
+#verifying above
+#unique mouse hits
+gmp <- gm_uwisc[gm_par,]
+#gmp[gmp$unique,]
+#gm_par[gm_uwisc[gm_par, "unique"],]
+
+#no hits
+#gm_par[gm_uwisc[gm_par, "unmapped"]]
+#gmp[gmp$unmapped,]
+
+#multi hits
+#gmp[gmp$multi,]
+
+```
+
+
+There are `r length(gm_hitXY)` markers that have hits on both the X
+and Y chromosomes and not to any autosomes. These include
+`r sum(gm_hitXY %in% gm_par)` of these PAR markers, but also
+another `r sum(!(gm_hitXY %in% gm_par))` markers with names starting
+JAX or UNC.
+`r Numbers[sum(rowSums(gm_tab_chr[gm_hitXY,c("X","Y")])==2)]`
+of these markers have a single hit on each of the X and Y chromosomes,
+which sounds like what we'd want for a pseudoautosomal marker:
+`r vec2string(gm_hitXY[(rowSums(gm_tab_chr[gm_hitXY,c("X","Y")])==2)])`.
+
+```{r multi hits region gm}
+#verifying above
+#multi hits on X & Y
+gm_tab_chr[gm_hitXY,]
+```
+
+
+### Markers with the same probes
+
+This information has not changed.
+
+
+### "`unique`" column in the GM array
+
+Again, this is similar to what was found previously ?
+
+The `unique` column in the UNC annotations for the GM array is quite
+different from what I'm finding with blast.
+
+The UNC annotation files indicates that `r sum(!gm_unc$unique)`
+of the GigaMUGA markers are non-unique.
+
+[[bkc - not sure whether this makes sense given we are following Karl's second approach - 
+When I first ran blast, I found exactly this many of the GigaMUGA
+markers had multiple hits to the mouse genome. I've since changed my
+analysis slightly, by trimming off the SNP from a set of
+`r sum(gm_gs$AlleleB_ProbeSeq != "")` probes that contained it. As a
+result, I'm now getting `r sum(gm_uwisc$multi)` markers
+with multiple hits, but the difference
+(`r sum(gm_uwisc$multi) - sum(!gm_unc$unique)`) is due to this
+trimming of some of the probe sequences.]]
+
+(I went back and checked, and indeed, of the markers that I'd trimmed,
+there were
+`r (n_trimmed <- sum(table(gm_blast$query[gm_blast$query %in% gm_gs$Name[gm_gs$AlleleB_ProbeSeq != ""]]) > 1))`
+that showed multiple hits with the trimmed sequence, but
+only
+`r (n_untrimmed <- sum(table(gm_untrimmed_blast$query)>1))`
+that showed multiple hits with the untrimmed sequence, and so
+using the untrimmed sequences, I'd get
+`r sum(gm_uwisc$multi)` -
+`r n_trimmed` + `r n_untrimmed` =
+`r sum(gm_uwisc$multi) - n_trimmed + n_untrimmed`
+markers with multiple hits.)
+
+```{r trim summary}
+n_trimmed <- sum(table(gm_blast$query[gm_blast$query %in% gm_gs$Name[gm_gs$AlleleB_ProbeSeq != ""]]) > 1)
+#n_trimmed
+n_untrimmed <- sum(table(gm_untrimmed_blast$query)>1)
+#n_untrimmed
+
+#sum(gm_uwisc$multi) - n_trimmed + n_untrimmed
+
+```
+
+But anyway, the key thing is that these indicators of markers with
+multiple hits in the mouse genome, while not completely independent,
+are quite different.
+The two lists have just
+`r sum(gm_uwisc$multi & !gm_unc$unique)` markers in common.
+There are `r sum(gm_uwisc$multi & gm_unc$unique)` markers that my
+blast results say have multiple hits but that the UNC file says are
+unique in the mouse genome, and there are
+`r sum(!gm_uwisc$multi & !gm_unc$unique)` markers that my
+blast results say have 0 or 1 hits but that the UNC file says are
+non-unique.
+
+
+We can spot check a few of these.
+
+- UNC22328648 is said to be unique by the UNC annotations, but I find
+  it has 36 hits in the mouse genome, on 17 different chromosomes.
+  Here's the probe:
+
+      TGCTGGGATTTGAACTCAGAACCTTCGGAAGAGCAGTCAGTGCTCTTAAC
+
+- UNC7052740 is said to be non-unique by the UNC annotations, but I
+  find it has a single, unique hit on chr 4 at 35,637,450 bp, which is
+  the position given in the UNC annotations.
+  Here's the probe:
+
+      TAATGTGATAGATCCCCAGGTGGGGCAGTCTCTGGATGGTCCATCCTTCC
+
+- UNC15059592 is said to be unique by the UNC annotations, but this is
+  the one that I find has the most hits to the mouse genome: 18,855 on
+  21 chromosomes (all but the mtDNA).
+  Here's the probe:
+
+      GCTTCTGGCTATTATAAATAAGGCTGCTATGAACATAGTGGAGCATGTGT
+
+## Markers on both arrays
+
+There are `r add_commas(sum(gm_unc$marker %in% mm_unc$marker))`
+markers that are in common between the MegaMUGA and GigaMUGA arrays,
+if we just match the names.
+
+If we instead use the probe sequences, we get a larger number of
+markers that are in common:
+`r add_commas(sum(gm_uwisc$probe %in% mm_uwisc$probe))` of the probe
+sequences present in the GigaMUGA array are also found in the MegaMUGA
+array.
+
+But somehow only `r add_commas(sum(mm_uwisc$probe %in% gm_uwisc$probe))` of
+the sequences on the MegaMUGA array are also on the GigaMUGA array.
+This difference is due to the many sequences that are in duplicate on
+each array.
+
+The MegaMUGA array has `r add_commas(length(unique(mm_uwisc$probe)))` unique
+probes across `r add_commas(nrow(mm_uwisc))` markers, and
+`r add_commas(sum(unique(mm_uwisc$probe) %in% gm_uwisc$probe))`
+of them are also on the GigaMUGA array.
+
+The GigaMUGA array has `r add_commas(length(unique(gm_uwisc$probe)))` unique
+probes across `r add_commas(nrow(gm_uwisc))` markers, and again
+`r add_commas(sum(unique(gm_uwisc$probe) %in% mm_uwisc$probe))`
+of them are also on the MegaMUGA array.
+
+Now the GigaMUGA annotation file has a column `is.MM` that presumably
+indicates which markers are also on the MegaMUGA array. It points to
+`r add_commas(sum(gm_unc$is.MM))` markers, which includes the
+`r add_commas(sum(gm_unc$marker %in% mm_unc$marker))` markers with
+matching names, but also includes another
+`r sum(gm_unc$is.MM[!(gm_unc$marker %in% mm_unc$marker)])` markers.
+
+```{r odd_mm_markers}
+# markers where "is.MM" is true but the exact marker name isn't seen on MM array
+odd_mm <- as.character(gm_unc$marker)[gm_unc$is.MM & !(gm_unc$marker %in% mm_unc$marker)]
+odd_mm_no_r <- sub("r$", "", odd_mm)
+
+# the ones that changed probes
+probe_changed <- odd_mm_no_r[gm_uwisc[odd_mm,"probe"] != mm_uwisc[odd_mm_no_r, "probe"]]
+probe_changed_r <- paste0(probe_changed, "r")
+```
+
+These `r length(odd_mm)` markers all have names like "JAX00017210r",
+where "JAX00017210" is a marker on the MegaMUGA array (and
+`r sum(odd_mm_no_r %in% gm_unc$marker)` of the markers
+without the terminal r are also on the GigaMUGA array).
+**Importantly**, this indicates that the `is.MM` column is **as
+intended**. So while I've concluded that the `unique` column is at
+least partially scrambled, there's no evidence for other columns being
+similarly scrambled.
+
+`r sum(mm_uwisc[odd_mm_no_r, "probe"] == gm_uwisc[odd_mm, "probe"])`
+of the probes are unchanged between the MegaMUGA and GigaMUGA arrays,
+despite the "r" that was added to the name.
+
+That leaves another `r length(probe_changed)` markers for which the
+probe was changed. For
+`r numbers[sum(mm_uwisc[probe_changed, "multi"] & gm_uwisc[probe_changed_r,"unmapped"])]`
+of these markers, the probe on the MegaMUGA had multiple hits but the
+probe on the GigaMUGA has no hits.
+For
+`r numbers[sum(mm_uwisc[probe_changed, "multi"] & gm_uwisc[probe_changed_r,"unique"])]`
+others, the probe on the
+MegaMUGA array has multiple genome hits but the probe on the GigaMUGA
+array is unique.
+`r Numbers[sum(mm_uwisc[probe_changed, "unique"] & gm_uwisc[probe_changed_r,"unique"] & mm_uwisc[probe_changed, "pos"]==gm_uwisc[probe_changed_r,"pos"])]`
+of the markers have unique sequences on both arrays, and both are
+for the same SNP position, but with one on the plus strand and one on
+the minus strand. But then there are two markers where the SNP was
+switched from the plus to the minus strand but also shifted somewhat:
+JAX00712617/JAX00712617r and JAX00181213/JAX00181213r. Both pairs are
+on the X chromosome, and the difference in SNP position is
+`r mm_uwisc["JAX00712617","pos"]-gm_uwisc["JAX00712617r","pos"]`
+bp in the first case and
+`r mm_uwisc["JAX00181213","pos"]-gm_uwisc["JAX00181213r","pos"]`
+bp in the second.
+
+I'm coming to decide that maybe we should just focus on SNP positions
+and ignore the marker names themselves: cases with different names but
+really the same probe, cases with names suggesting re-designed probes
+that actually lead to different SNPs being assayed. Moreover, of the
+`r add_commas(length(mar_in_both <- mm_uwisc$marker[mm_uwisc$marker %in% gm_uwisc$marker]))`
+markers that are on both arrays (by matching their names),
+`r length(diff_probes <- mar_in_both[mm_uwisc[mar_in_both,"probe"] != gm_uwisc[mar_in_both,"probe"]])`
+actually have different probes on the two arrays.
+
+```{r both_arrays_same_names_different_probes}
+mar_in_both <- mm_uwisc$marker[mm_uwisc$marker %in% gm_uwisc$marker]
+diff_probes <- mar_in_both[mm_uwisc[mar_in_both,"probe"] != gm_uwisc[mar_in_both,"probe"]]
+diff_probes_pos <- cbind(mm_uwisc[diff_probes, c("chr", "pos", "strand")], gm_uwisc[diff_probes, c("chr", "pos", "strand")])
+```
+
+`r sum(diff_probes_pos[,2] == diff_probes_pos[,5], na.rm=TRUE)` of
+these were a switch from the minus to the plus strand, or vice versa.
+But for `r numbers[sum(gm_uwisc[diff_probes,"unmapped"])]` of these the
+GigaMUGA probe doesn't have a perfect match with the mm39 assembly,
+and for `r numbers[sum(mm_uwisc[diff_probes,"unmapped"])]` of these
+the MegaMUGA probe didn't have a perfect match with the mm39 assembly,
+and then for `r sum(mm_uwisc[diff_probes,"multi"])` the MegaMUGA probe
+has multiple hits to the mouse genome.
+
+So I'm currently thinking we should just go by SNP position, and
+create a file that indicates groups of markers across the two arrays
+that are assaying the same SNP.
+
+```{r snp_positions}
+gm_pos <- apply(gm_uwisc[gm_uwisc$unique,c("chr", "pos")], 1, function(a) gsub(" ", "", paste(a, collapse=":")))
+mm_pos <- apply(mm_uwisc[mm_uwisc$unique,c("chr", "pos")], 1, function(a) gsub(" ", "", paste(a, collapse=":")))
+```
+
+With a focus on SNP positions, the MegaMUGA has
+`r add_commas(length(unique(mm_pos)))` unique SNPs, the GigaMUGA
+has `r add_commas(length(unique(gm_pos)))` unique SNPs, and the two
+arrays have `r add_commas(sum(unique(mm_pos) %in% gm_pos))` SNPs in
+common.
+
+
+## Marker tier information
+
+bkc - tier information - necessary?
+
+
+
+## New annotation files
+
+I now want to save my findings as new annotations files for the
+MegaMUGA and GigaMUGA arrays. I'll also create a metadata file ("data
+dictionary") that explains the columns. Finally, I'll create a file
+that indicates which markers are assaying a common SNP, between and
+within the two arrays.
+
+The final annotation files and all source materials are at
+<https://github.com/kbroman/MUGAarrays>.
+
+
+### Version 0
+
+We'll call this version 0. In the MegaMUGA and GigaMUGA files, I'll
+include marker, chromosome, mm39 bp position, strand, snp, unique, multi,
+unmapped, n_blast_hits, n_blast_chr, and the probe sequence. So just
+what I've already assembled, but with the columns reordered a bit.
+
+```{r write_v0_files}
+# order of columns
+cols <- c("marker", "chr", "pos", "strand", "snp", "unique", "multi",
+          "unmapped", "n_blast_hits", "n_blast_chr", "probe")
+# revised names
+cols_new <- c("marker", "chr", "bp_mm39", "strand", "snp", "unique", "multi",
+              "unmapped", "n_blast_hits", "n_blast_chr", "probe")
+
+# MegaMUGA file
+mm_file <- "../UWisc/mm_uwisc_v0.csv"
+
+# reorder and rename columns
+mm_uwisc <- mm_uwisc[,cols]
+colnames(mm_uwisc) <- cols_new
+
+# reorder rows
+mm_uwisc <- mm_uwisc[order(factor(mm_uwisc$chr, levels=c(1:19,"X","Y","M")),
+                           mm_uwisc$bp_mm39),]
+
+# write to CSV file
+write.table(mm_uwisc, mm_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+
+# GigaMUGA file
+gm_file <- sub("mm", "gm", mm_file)
+
+# reorder and rename columns
+gm_uwisc <- gm_uwisc[,cols]
+colnames(gm_uwisc) <- cols_new
+
+# reorder rows
+gm_uwisc <- gm_uwisc[order(factor(gm_uwisc$chr, levels=c(1:19,"X","Y","M")),
+                           gm_uwisc$bp_mm39),]
+
+# write to CSV file
+write.table(gm_uwisc, gm_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+I'll also create a dictionary for each file, which explains what the
+columns are.
+
+```{r create_dictionaries}
+descriptions <- c("Name of SNP marker",
+                  "Chromosome",
+                  "Physical positions in basepairs for mm39 mouse genome build",
+                  "Strand (plus/minus) from which the probe sequence was taken",
+                  "SNP alleles as a two-character string",
+                  "TRUE indicates that the probe sequence appears exactly once in mm39 mouse genome build",
+                  "TRUE indicates that the probe sequence appears >1 time in mm39 mouse genome build",
+                  "TRUE indicates that the probe sequence has no perfect match in mm39 mouse genome build",
+                  "Number of perfect matches in the mm39 mouse genome build",
+                  "Number of chromosomes (out of 22) with at least one perfect match",
+                  "Probe sequence (49 or 50 bases); the SNP occurs immediately after")
+
+mm_dict_file <- "../UWisc/mm_uwisc_dict_v0.csv"
+output <- data.frame(column=cols_new,
+                     description=descriptions,
+                     stringsAsFactors=FALSE)
+write.table(output, mm_dict_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+gm_dict_file <- sub("mm", "gm", mm_dict_file)
+write.table(output, gm_dict_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+Finally, I want to make a file that indicates the common markers,
+within and between the two arrays, using the SNP positions to
+determine which ones are identical.
+
+```{r write_common_markers_to_file}
+# unique marker positions between the arrays
+mm_pos <- setNames(paste(mm_uwisc$chr, mm_uwisc$bp_mm39, sep=":"), mm_uwisc$marker)[mm_uwisc$unique]
+gm_pos <- setNames(paste(gm_uwisc$chr, gm_uwisc$bp_mm39, sep=":"), gm_uwisc$marker)[gm_uwisc$unique]
+all_pos <- unique(c(mm_pos, gm_pos))
+
+# find the positions that are in duplicate within each array
+tab <- table(mm_pos)
+dup_mm <- names(tab)[tab > 1]
+tab <- table(gm_pos)
+dup_gm <- names(tab)[tab > 1]
+
+# find the positions that are in both arrays
+in_both <- all_pos[all_pos %in% mm_pos & all_pos %in% gm_pos]
+
+# find the markers that have pos in both arrays
+all_pos_mm <- setNames(rep("", length(all_pos)), all_pos)
+all_pos_mm[in_both] <- names(mm_pos)[match(in_both, mm_pos)]
+all_pos_gm <- setNames(rep("", length(all_pos)), all_pos)
+all_pos_gm[in_both] <- names(mm_pos)[match(in_both, mm_pos)]
+
+# find the markers that at the duplicate positions within each array
+dup_mm <- sapply(dup_mm, function(a) paste(names(mm_pos)[mm_pos == a], collapse=";"))
+all_pos_mm[names(dup_mm)] <- dup_mm
+dup_gm <- sapply(dup_gm, function(a) paste(names(gm_pos)[gm_pos == a], collapse=";"))
+all_pos_gm[names(dup_gm)] <- dup_gm
+
+# subset to the positions that are duplicated within or between
+keep <- (all_pos_mm != "" | all_pos_gm != "")
+all_pos <- all_pos[keep]
+all_pos_mm <- all_pos_mm[keep]
+all_pos_gm <- all_pos_gm[keep]
+
+# split the positions back into chr and pos
+all_pos_spl <- strsplit(all_pos, ":")
+
+# create data frame with the results
+common <- data.frame(chr=sapply(all_pos_spl, "[", 1),
+                     bp_mm39=sapply(all_pos_spl, "[", 2),
+                     megamuga=all_pos_mm,
+                     gigamuga=all_pos_gm,
+                     stringsAsFactors=FALSE)
+# reorder by genomic position
+common <- common[order(factor(common$chr, c(1:19,"X","Y","M")), common$bp_mm39),]
+
+# write to a CSV file
+write.table(common, "../UWisc/mm_gm_commonmark_uwisc_v1.csv",
+            sep=",", quote=FALSE, row.names=FALSE, col.names=TRUE)
+
+# data dictionary
+common_cols <- colnames(common)
+common_descriptions <- c("Chromosome ID",
+                         "Physical positions in basepairs for mm39 mouse genome build",
+                         "MegaMUGA markers at that position (separated by semi-colons); blank means no markers",
+                         "GigaMUGA markers at that position (separated by semi-colons); blank means no markers")
+common_dict <- data.frame(column=common_cols,
+                          description=common_descriptions,
+                          stringsAsFactors=FALSE)
+# write to file
+write.table(common_dict, "../UWisc/mm_gm_commonmark_uwisc_dict_v1.csv",
+            sep=",", quote=FALSE, row.names=FALSE, col.names=TRUE)
+```
+
+
+
+```{r write_bp_to_file}
+# write just chr, bp to files, for use with mouse map converter
+# (want to get interpolated cM positions from the Cox and G2F1 maps)
+write.table(mm_uwisc[!is.na(mm_uwisc$chr) & mm_uwisc$chr %in% c(1:19,"X"), c("chr", "bp_mm39")],
+            "../GenMaps/mm_bp.txt", sep=" ", quote=FALSE,
+            row.names=FALSE, col.names=FALSE)
+
+write.table(gm_uwisc[!is.na(gm_uwisc$chr) & gm_uwisc$chr %in% c(1:19,"X"), c("chr", "bp_mm39")],
+            "../GenMaps/gm_bp.txt", sep=" ", quote=FALSE,
+            row.names=FALSE, col.names=FALSE)
+```
+
+### Version 1, with genetic maps
+
+We used the R package [mouse map
+converter](inset link) to convert the mm39
+basepair positions of the autosome and X chromosome markers to
+sex-averaged cM from the [Cox et al.](https://doi.org/10.1534/genetics.109.105486)
+ genetic maps.
+
+```{r mmcovert mini}
+library(mmconvert)
+
+gm_uwisc_conv <-  gm_uwisc[,c("chr","bp_mm39","marker")]
+names(gm_uwisc_conv) <- c("chr","pos","marker")
+gm_cox <- mmconvert(gm_uwisc_conv)
+
+mm_uwisc_conv <-  mm_uwisc[,c("chr","bp_mm39","marker")]
+names(mm_uwisc_conv) <- c("chr","pos","marker")
+mm_cox <- mmconvert(mm_uwisc_conv)
+
+```
+
+
+```{r load_genetic_maps}
+#pruning out NA, M and PAR, Y
+gm_uwisc_pr <- gm_uwisc[gm_uwisc$chr != "Y" & gm_uwisc$chr != "PAR" & gm_uwisc$chr != "M" & !is.na(gm_uwisc$chr),]
+mm_uwisc_pr <- mm_uwisc[mm_uwisc$chr != "Y" & mm_uwisc$chr != "PAR" & mm_uwisc$chr != "M" & !is.na(mm_uwisc$chr),]
+
+#sort by marker
+gm_uwisc_pr <- gm_uwisc_pr[gm_cox$marker,]
+mm_uwisc_pr <- mm_uwisc_pr[mm_cox$marker,]
+
+# verify stuff
+stopifnot( all(gm_cox[,1] == gm_uwisc_pr$marker) )
+stopifnot( all(gm_cox[,2] == gm_uwisc_pr$chr) )
+stopifnot( all(gm_cox[,6] ==  gm_uwisc_pr$bp_mm39) )
+stopifnot( all(mm_cox[,1] == mm_uwisc_pr$marker) )
+stopifnot( all(mm_cox[,2] == mm_uwisc_pr$chr) )
+stopifnot( all(mm_cox[,6] ==  mm_uwisc_pr$bp_mm39) )
+#stopifnot( all(gm_cox[,1] == gm_uwisc$chr[1:nrow(gm_cox)]) )
+#stopifnot( all(gm_cox[,2] == gm_uwisc$bp_mm39[1:nrow(gm_cox)]) )
+#stopifnot( all(gm_g2f1[,1] == gm_uwisc$chr[1:nrow(gm_g2f1)]) )
+#stopifnot( all(gm_g2f1[,2] == gm_uwisc$bp_mm39[1:nrow(gm_g2f1)]) )
+#stopifnot( all(mm_cox[,1] == mm_uwisc$chr[1:nrow(mm_cox)]) )
+#stopifnot( all(mm_cox[,2] == mm_uwisc$bp_mm39[1:nrow(mm_cox)]) )
+#stopifnot( all(mm_g2f1[,1] == mm_uwisc$chr[1:nrow(mm_g2f1)]) )
+#stopifnot( all(mm_g2f1[,2] == mm_uwisc$bp_mm39[1:nrow(mm_g2f1)]) )
+```
+
+
+```{r incorporate_genetic_maps}
+
+ord <- c(1:19, "X" , "Y", "M", "PAR", "NA")
+
+#reorder chrs in mini_wisc to be 1:19, X , Y, M, PAR, NA
+gm_uwisc$chr <- factor(gm_uwisc$chr,levels=ord)
+gm_uwisco <- gm_uwisc[order(gm_uwisc$chr),]
+
+mm_uwisc$chr <- factor(mm_uwisc$chr,levels=ord)
+mm_uwisco <- mm_uwisc[order(mm_uwisc$chr),]
+
+nas <- rep(NA, nrow(gm_uwisc)-nrow(gm_cox))
+gm_uwisc.2 <- cbind(gm_uwisco,
+                cM_cox=c(gm_cox[,5], nas))
+
+
+nas <- rep(NA, nrow(mm_uwisc)-nrow(mm_cox))
+mm_uwisc.2 <- cbind(mm_uwisco,
+                cM_cox=c(mm_cox[,5], nas))
+```
+
+Now we can write the new annotation files.
+
+```{r write_v1_files}
+cols_new.2 <- c(cols_new[1:3], "cM_cox", cols_new[-(1:3)])
+mm_uwisc.3 <- mm_uwisc.2[,cols_new.2]
+gm_uwisc.3 <- gm_uwisc.2[,cols_new.2]
+
+# write MegaMUGA file
+mm_file <- "../UWisc/mm_uwisc_v1.csv"
+write.table(mm_uwisc.3, mm_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+
+# GigaMUGA file
+gm_file <- sub("mm", "gm", mm_file)
+write.table(gm_uwisc.3, gm_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+And finally, the new data dictionary files.
+
+```{r dict_files_v1}
+descriptions.2 <- c(descriptions[1:3],
+                  "Sex-averaged cM positions from Cox et al. https://doi.org/10.1534/genetics.109.105486",
+                  descriptions[-(1:3)])
+
+mm_dict_file <- "../UWisc/mm_uwisc_dict_v1.csv"
+output <- data.frame(column=cols_new.2,
+                     description=descriptions.2,
+                     stringsAsFactors=FALSE)
+write.table(output, mm_dict_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+gm_dict_file <- sub("mm", "gm", mm_dict_file)
+write.table(output, gm_dict_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+## Session info
+
+Here are the versions of R and R packages that we are using.
+
+```{r session_info}
+devtools::session_info()
+```

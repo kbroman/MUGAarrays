@@ -1,0 +1,397 @@
+---
+title:  "Annotations for the original MUGA array"
+author: "Belinda Cornes"
+date:   "`r Sys.Date()`"
+output:
+    html_document:
+        code_folding: hide
+        toc: true
+        toc_float: true
+        toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width=11, fig.height=6.5,
+                      message=FALSE, warning=FALSE)
+options(width=110)
+
+setwd("/Users/corneb/Documents/MyJax/CS/Projects/GeDI/muga/sandbox/MUGAarrays/")
+```
+
+
+## Introduction
+
+[Mandy Chen](https://www.jax.org/people/mandy-chen)
+asked me to repeat [my analysis of the MegaMUGA/GigaMUGA annotation
+files](https://kbroman.org/MUGAarrays/new_annotations.html) with the
+original MUGA array. The probe sequences are in an RData file at the UNC site,
+<http://csbio.unc.edu/MUGA/snps.muga.Rdata>.
+
+This contains information for 7,854 SNPs. All are on
+autosomes 1-19, X, Y, or M. As with the other arrays, there are
+columns for cM, bp, the two alleles, and probe sequence. For the A/C
+and T/G markers (vs the A/G and T/C ones), there's a second probe
+sequence. (There are 1,831 of these.)
+
+The probes are again 50 bp long. Whereas before, in
+cases with a second probe sequence, the probe sequences contained the
+SNP allele, here that doesn't seem to be the case, but I'm not totally
+sure. I spot-checked a handful of them, and in all cases
+the SNP allele was not contained in either probe, and the two probes
+mapped with a one basepair gap. But I probably should blast the second
+sequence in all cases, and verify that they are all okay.
+
+The annotation files we created are at
+<https://github.com/kbroman/MUGAarrays/blob/master/UWisc> (change this).
+
+## Preliminaries
+
+We will first load some R packages.
+
+```{r load_packages}
+library(data.table)
+library(broman)
+library(devtools)
+```
+
+We will now load MUGA annotation file from UNC, and
+the blast results. For the blast results, I only keep the
+full length, perfect hits.
+
+```{r load_data}
+# UNC file already loaded above, as muga_unc
+load("../UNC/snps.muga.Rdata")
+muga_unc <- snps
+muga_unc$chr <- sub("^chr", "", muga_unc$chr)
+
+# Blast results; keep just the perfect matches(?)
+muga_blast <- readRDS("../Blast/results_muga_bigzips/muga_blastn_results.rds")
+muga_blast <- muga_blast[muga_blast$tot_mismatch==0,]
+```
+
+
+## Summarize blast hits
+
+We will start with some code to summarize the blast hits. For each
+SNP, we want to count the number of perfect blast hits.
+For markers with a unique hit, I'll record the
+chromosome, position, and strand.
+
+```{r muga_summarize_blast}
+# no. blast hits
+muga_tab <- table(muga_blast$query)
+muga_nchr <- muga_nhits <- setNames(rep(0, nrow(muga_unc)), rownames(muga_unc))
+muga_nhits[names(muga_tab)] <- muga_tab
+
+# no. chromosomes hit
+muga_tab_chr <- table(muga_blast$query, muga_blast$chr)
+muga_nchr[rownames(muga_tab_chr)] <- rowSums(muga_tab_chr > 0)
+
+# chr,pos,strand for the unique ones
+muga_blast_uniq <- muga_blast[muga_blast$query %in% names(muga_nhits)[muga_nhits==1],]
+muga_blast_chr <- muga_blast_pos <- muga_blast_strand <- setNames(rep(NA, nrow(muga_unc)), rownames(muga_unc))
+muga_blast_chr[muga_blast_uniq$query] <- muga_blast_uniq$chr
+muga_blast_pos[muga_blast_uniq$query] <- muga_blast_uniq$snp_pos
+muga_blast_strand[muga_blast_uniq$query] <- muga_blast_uniq$strand
+
+# probe sequences
+muga_blast_probe <- setNames(muga_unc$seq.A, muga_unc$Marker)
+
+# SNP alleles
+muga_blast_snp <- paste0(muga_unc$A1, muga_unc$A2)
+
+# put all of this stuff into a data frame
+muga_uwisc <- data.frame(marker=names(muga_nhits),
+                         n_blast_hits=muga_nhits,
+                         unique=(muga_nhits==1),
+                         unmapped=(muga_nhits==0),
+                         chr=muga_blast_chr,
+                         pos=muga_blast_pos,
+                         strand=muga_blast_strand,
+                         snp=muga_blast_snp,
+                         probe=muga_blast_probe,
+                         stringsAsFactors=FALSE)
+rownames(muga_uwisc) <- muga_uwisc$marker
+```
+
+
+## Basic blast results
+
+The original MUGA array contains
+`r add_commas(nrow(muga_unc))` markers, of which (according to the
+UNC annotations),
+`r add_commas(sum(muga_unc$chr %in% (1:19)))` are on autosomes,
+`r add_commas(sum(muga_unc$chr=="X"))` are on the X chromosome,
+`r add_commas(sum(muga_unc$chr=="Y"))` are on the Y chromosome, and
+`r add_commas(sum(muga_unc$chr=="M"))` are on the mitochondrial genome.
+
+In the blast results, We find that `r add_commas(sum(muga_nhits==1))`
+markers have a single, unique hit in the mouse genome (build mm39)
+and `r add_commas(sum(muga_nhits==0))` have no perfect hit.
+There are
+`r ifelse(sum(muga_nhits>1)>0, sum(muga_nhits>1), "no")`
+markers with multiple hits.
+
+## Unique markers
+
+If we look at the inferred chromosome assignments of the markers with
+a unique hit to the genome, there are
+`r sum(muga_unc$chr != muga_uwisc$chr, na.rm=TRUE)`
+differences.
+
+There were `r sum(muga_uwisc$unmapped)` markers that didn't have a
+perfect match in the mm39 mouse genome assembly. These markers are on
+all the autosomes and the X chromosome, but not on Y or M.
+
+## Positions
+
+Of the `r add_commas(sum(muga_uwisc$unique))` markers with a unique
+hit to the mouse genome, most show different positions from the UNC
+annotation file, which I presume must be in mm9 coordinates.
+
+## Markers with the same probes
+
+Not all of the probes are distinct.
+
+```{r dup_probes}
+tab_probe <- table(muga_uwisc$probe)
+pairs <- names(tab_probe)[tab_probe=="2"]
+trios <- names(tab_probe)[tab_probe=="3"]
+four <- names(tab_probe)[tab_probe=="4"]
+eight <- names(tab_probe)[tab_probe=="8"]
+
+# names of the markers in the dup pairs
+pair_names <- t(sapply(pairs, function(pr) rownames(muga_uwisc)[muga_uwisc$probe == pr]))
+rownames(pair_names) <- 1:nrow(pair_names)
+pair_chr <- cbind(muga_unc[pair_names[,1],"chr"], muga_unc[pair_names[,2],"chr"])
+
+trio_names <- t(sapply(trios, function(pr) rownames(muga_uwisc)[muga_uwisc$probe == pr]))
+rownames(trio_names) <- 1:nrow(trio_names)
+
+four_names <- rownames(muga_uwisc)[muga_uwisc$probe==four]
+eight_names <- rownames(muga_uwisc)[muga_uwisc$probe==eight]
+```
+
+There are `r length(pairs)` pairs and `r length(trios)` trios of
+markers with identical probe sequences. Further, there's a set of four
+markers with the same probe sequence, and another set of eight markers
+with the same probe sequence.
+
+Four of the pairs of markers with identical probe sequences look to
+be intended duplicates: one has the other's name with "backup"
+prepended. But the other six have unrelated names, and the trios,
+four-some, and eight-some all have unrelated names.
+
+Three of the pairs with identical probe sequences map uniquely to the
+mouse genome. These are all among the cases that look to be intended
+duplicates. The other seven pairs either map multiply
+(`r spell_out(sum(!muga_uwisc[pair_names[,1],"unique"] & !muga_uwisc[pair_names[,1],"unmapped"]))`)
+or have no perfect match.
+(`r spell_out(sum(muga_uwisc[pair_names[,1],"unmapped"]))`).
+
+One of the trios is unmapped and the other maps multiply.
+The four-some maps multiply while the eight-some is unmapped.
+
+
+
+## New annotation file
+
+We now want to save my findings as a new annotation file for the
+original MUGA array. I'll also create a metadata file ("data
+dictionary") that explains the columns.
+
+The final annotation files and all source materials are at
+<https://github.com/kbroman/MUGAarrays>.
+
+
+### Version 0
+
+We'll call this version 0. It'll be like the
+MegaMUGA and GigaMUGA annotation files I made, but without
+`multi`, `n_blast_hits`, or `n_blast_chr`. And we will include columns `chr_unc`
+and `bp_unc`, the chromosome and position in the UNC annotation file.
+
+```{r write_v0_files}
+# order of columns
+cols <- c("marker", "chr", "pos", "strand", "snp", "unique",
+          "unmapped", "probe", "chr_unc", "pos_unc")
+# revised names
+cols_new <- c("marker", "chr", "bp_mm39", "strand", "snp", "unique",
+              "unmapped", "probe", "chr_unc", "bp_unc")
+
+# MegaMUGA file
+muga_file <- "../UWisc/muga_uwisc_v0.csv"
+
+# reorder and rename columns
+muga_uwisc <- cbind(muga_uwisc, chr_unc=muga_unc$chr, pos_unc=muga_unc$pos)
+muga_uwisc <- muga_uwisc[,cols]
+colnames(muga_uwisc) <- cols_new
+
+# reorder rows
+muga_uwisc <- muga_uwisc[order(factor(muga_uwisc$chr, levels=c(1:19,"X","Y","PAR","M")),
+                               muga_uwisc$bp_mm39,
+                               factor(muga_uwisc$chr_unc, levels=c(0:19, "X", "Y", "PAR","M"))),]
+
+# write to CSV file
+write.table(muga_uwisc, muga_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+We will also create a dictionary for the file, which explains what the
+columns are.
+
+```{r create_dictionaries}
+descriptions <- c("Name of SNP marker",
+                  "Chromosome",
+                  "Physical position in basepairs for mm39 mouse genome build",
+                  "Strand (plus/minus) from which the probe sequence was taken",
+                  "SNP alleles as a two-character string",
+                  "TRUE indicates that the probe sequence appears exactly once in mm39 mouse genome build",
+                  "TRUE indicates that the probe sequence has no perfect match in mm39 mouse genome build",
+                  "Probe sequence (49 or 50 bases); the SNP occurs immediately after",
+                  "Chromosome in UNC annotation file",
+                  "Physical positions in basepairs in the UNC annotation file")
+
+muga_dict_file <- "../UWisc/muga_uwisc_dict_v0.csv"
+output <- data.frame(column=cols_new,
+                     description=descriptions,
+                     stringsAsFactors=FALSE)
+write.table(output, muga_dict_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+Finally, we want to make a file that indicates the common markers,
+using the SNP positions to determine which ones are identical.
+There are a bunch of them, and they all have related names, like the
+pairs with identical probe sequences.
+
+```{r write_common_markers_to_file}
+# unique marker positions between the arrays
+muga_pos <- setNames(paste(muga_uwisc$chr, muga_uwisc$bp_mm39, sep=":"), muga_uwisc$marker)[muga_uwisc$unique]
+
+# find the positions that are in duplicate within the array
+tab <- table(muga_pos)
+dup <- names(tab)[tab > 1]
+
+# find the corresponding markers
+dup_names <- t(sapply(dup, function(d) names(muga_pos)[muga_pos==d]))
+
+pos_spl <- strsplit(rownames(dup_names), ":")
+
+# create data frame with the results
+common <- data.frame(chr=sapply(pos_spl, "[", 1),
+                     bp_mm39=sapply(pos_spl, "[", 2),
+                     marker1=dup_names[,1],
+                     marker2=dup_names[,2],
+                     stringsAsFactors=FALSE)
+# reorder by genomic position
+common <- common[order(factor(common$chr, c(1:19,"X","Y","M")), common$bp_mm39),]
+
+# write to a CSV file
+write.table(common, "../UWisc/muga_commonmark_uwisc_v1.csv",
+            sep=",", quote=FALSE, row.names=FALSE, col.names=TRUE)
+
+# data dictionary
+common_cols <- colnames(common)
+common_descriptions <- c("Chromosome ID",
+                         "Physical position in basepairs for mm39 mouse genome build",
+                         "A MUGA marker at that position",
+                         "A second MUGA marker at that position")
+common_dict <- data.frame(column=common_cols,
+                          description=common_descriptions,
+                          stringsAsFactors=FALSE)
+# write to file
+write.table(common_dict, "../UWisc/muga_commonmark_uwisc_dict_v1.csv",
+            sep=",", quote=FALSE, row.names=FALSE, col.names=TRUE)
+```
+
+
+
+```{r write_bp_to_file}
+# write just chr, bp to files, for use with mouse map converter
+# (want to get interpolated cM positions from the Cox and G2F1 maps)
+write.table(muga_uwisc[!is.na(muga_uwisc$chr) & muga_uwisc$chr %in% c(1:19,"X"), c("chr", "bp_mm39")],
+            "../GenMaps/muga_bp.txt", sep=" ", quote=FALSE,
+            row.names=FALSE, col.names=FALSE)
+```
+
+### Version 1, with genetic maps
+
+We used the R package [mouse map
+converter](inset link) to convert the mm39
+basepair positions of the autosome and X chromosome markers to
+sex-averaged cM from the [Cox et al.](https://doi.org/10.1534/genetics.109.105486)
+ genetic maps.
+
+```{r mmcovert muga}
+library(mmconvert)
+
+muga_uwisc_conv <-  muga_uwisc[,c("chr","bp_mm39","marker")]
+names(muga_uwisc_conv) <- c("chr","pos","marker")
+muga_cox <- mmconvert(muga_uwisc_conv)
+
+#pruning out NA, M and PAR, Y
+muga_uwisc_pr <- muga_uwisc[muga_uwisc$chr != "Y" & muga_uwisc$chr != "PAR" & muga_uwisc$chr != "M" & !is.na(muga_uwisc$chr),]
+
+#sort by marker
+muga_uwisc_pr <- muga_uwisc_pr[muga_cox$marker,]
+
+# verify stuff
+stopifnot( all(muga_cox[,1] == muga_uwisc_pr$marker) )
+stopifnot( all(muga_cox[,2] == muga_uwisc_pr$chr) )
+stopifnot( all(muga_cox[,6] ==  muga_uwisc_pr$bp_mm39) )
+#stopifnot( all(muga_g2f1[,1] == muga_uwisc$chr[1:nrow(muga_g2f1)]) )
+#stopifnot( all(muga_g2f1[,2] == muga_uwisc$bp_mm39[1:nrow(muga_g2f1)]) )
+```
+
+
+```{r incorporate_genetic_maps}
+ord <- c(1:19, "X" , "Y", "M", "PAR", "NA")
+
+#reorder chrs in muga_wisc to be 1:19, X , Y, M, PAR, NA
+muga_uwisc$chr <- factor(muga_uwisc$chr,levels=ord)
+muga_uwisco <- muga_uwisc[order(muga_uwisc$chr),]
+
+#redorder chrs in muga_cos to be 1:19, X
+#muga_cox$chr <- factor(muga_cox$chr,levels=ord)
+
+nas <- rep(NA, nrow(muga_uwisc)-nrow(muga_cox))
+muga_uwisc.2 <- cbind(muga_uwisco,
+                  cM_cox=c(muga_cox[,5], nas))
+#                  cM_g2f1=c(muga_g2f1[,5], nas))
+```
+
+Now we can write the new annotation files.
+
+```{r write_v1_files}
+cols_new.2 <- c(cols_new[1:3], "cM_cox", cols_new[-(1:3)])
+muga_uwisc.3 <- muga_uwisc.2[,cols_new.2]
+
+# write mugaMUGA file
+muga_file <- "../UWisc/muga_uwisc_v1.csv"
+write.table(muga_uwisc.3, muga_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+And finally, the new data dictionary files.
+
+```{r dict_files_v1}
+descriptions.2 <- c(descriptions[1:3],
+                  "Sex-averaged cM positions from Cox et al. https://doi.org/10.1534/genetics.109.105486",
+                  descriptions[-(1:3)])
+
+muga_dict_file <- "../UWisc/muga_uwisc_dict_v1.csv"
+output <- data.frame(column=cols_new.2,
+                     description=descriptions.2,
+                     stringsAsFactors=FALSE)
+write.table(output, muga_dict_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+## Session info
+
+Here are the versions of R and R packages that we are using.
+
+```{r session_info}
+devtools::session_info()
+```

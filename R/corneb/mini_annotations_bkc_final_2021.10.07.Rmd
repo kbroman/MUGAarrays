@@ -1,0 +1,433 @@
+---
+title:  "MiniMUGA annotations"
+author: "Belinda Cornes"
+date:   "2021-10-05"
+output:
+    html_document:
+        code_folding: hide
+        toc: true
+        toc_float: true
+        toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width=11, fig.height=6.5,
+                      message=FALSE, warning=FALSE)
+options(width=110)
+```
+
+
+## Introduction (this intro needs changing)
+
+See previous version summary for in depth introduction (insert link here)
+
+The probes are again 50 bp long, and only a portion of them have the
+second probe sequence, and in those cases it seems again (like the
+MegaMUGA and GigaMUGA arrays) that the two
+sequences contain the SNP. So I trimmed the 50th base off of those
+sequences before running blastn.
+
+The annotation files I created are at
+<https://github.com/kbroman/MUGAarrays/blob/master/UWisc>.
+
+**Note**: The [miniMUGA paper](https://doi.org/10.1534/genetics.120.303596) has
+now been published, with some additions to the array.
+Initially [published at bioRxiv](https://doi.org/10.1101/2020.03.12.989400) on 2020-03-14,
+it provides official annotations with the [Supplmental
+material](https://doi.org/10.25386/genetics.11971941.v1), as [Table S2](https://gsajournals.figshare.com/articles/dataset/Supplemental_Material_for_Sigmon_et_al_2020/11971941?file=25117973).
+We have **revised my annotations**; see [this
+report](mini_revisited.html). The original annotations are in files
+labeled `v1`. The annotations of the revised array are in files labeled
+`v2`.
+
+
+## Preliminaries
+
+We first load some R packages.
+
+```{r load_packages}
+library(data.table)
+library(broman)
+library(devtools)
+
+setwd("/Users/corneb/Documents/MyJax/CS/Projects/GeDI/muga/sandbox/MUGAarrays/")
+
+```
+
+We now load miniMUGA annotation file from Fernando via Vivek
+(hereafter, I'll call this the UNC annotation file), and
+the blast results. For the blast results, we only keep the
+full length, perfect hits.
+
+```{r load_data}
+# UNC file
+mini_unc <- data.table::fread("../UNC/miniMUGA-Marker-Annotations.csv",
+                              data.table=FALSE)
+rownames(mini_unc) <- mini_unc$Marker
+
+# change a few things:
+# Marker -> marker
+# Chromosome -> chromosome
+# Position (b38) -> pos
+# MT -> M
+colnames(mini_unc)[1:3] <- c("marker", "chr", "pos")
+mini_unc$chr[mini_unc$chr=="MT"] <- "M"
+
+# Blast results; keep just the perfect matches(?)
+mini_blast <- readRDS("../Blast/results_mini_bigzips/mini_blastn_results.rds")
+mini_blast <- mini_blast[mini_blast$tot_mismatch==0,]
+```
+
+
+## Summarize blast hits
+
+We start with some code to summarize the blast hits. For each
+SNP, we want to count the number of perfect blast hits.
+As it turns out, the probes have either 1 or 0 perfect hits, and so
+we don't have to do what we did with the MegaMUGA and GigaMUGA arrays,
+regarding studying the number of distinct chromosomes hit.
+
+For markers with a unique hit, we will record the
+chromosome, position, and strand.
+
+```{r mini_summarize_blast}
+# no. blast hits
+mini_tab <- table(mini_blast$query)
+mini_nchr <- mini_nhits <- setNames(rep(0, nrow(mini_unc)), rownames(mini_unc))
+mini_nhits[names(mini_tab)] <- mini_tab
+
+# chr,pos,strand for the unique ones
+mini_blast_uniq <- mini_blast[mini_blast$query %in% names(mini_nhits)[mini_nhits==1],]
+mini_blast_chr <- mini_blast_pos <- mini_blast_strand <- setNames(rep(NA, nrow(mini_unc)), rownames(mini_unc))
+mini_blast_chr[mini_blast_uniq$query] <- mini_blast_uniq$chr
+mini_blast_pos[mini_blast_uniq$query] <- mini_blast_uniq$snp_pos
+mini_blast_strand[mini_blast_uniq$query] <- mini_blast_uniq$strand
+
+# probe sequences
+mini_blast_probe <- setNames(mini_unc$seqA, mini_unc$Marker)
+mini_trim <- (mini_unc$seqB != "")
+mini_blast_probe[mini_trim] <- substr(mini_blast_probe[mini_trim], 1, nchar(mini_blast_probe[mini_trim])-1)
+
+# SNP alleles
+mini_blast_snp <- paste0(mini_unc$reference, mini_unc$alternate)
+
+# put all of this stuff into a data frame
+mini_uwisc <- data.frame(marker=names(mini_nhits),
+                         n_blast_hits=mini_nhits,
+                         unique=(mini_nhits==1),
+                         unmapped=(mini_nhits==0),
+                         chr=mini_blast_chr,
+                         pos=mini_blast_pos,
+                         strand=mini_blast_strand,
+                         snp=mini_blast_snp,
+                         probe=mini_blast_probe,
+                         stringsAsFactors=FALSE)
+rownames(mini_uwisc) <- mini_uwisc$marker
+```
+
+
+## Basic blast results
+
+The miniMUGA array contains
+`r add_commas(nrow(mini_unc))` markers, of which (according to the
+UNC annotations),
+`r add_commas(sum(mini_unc$chr %in% (1:19)))` are on autosomes,
+`r add_commas(sum(mini_unc$chr=="X"))` are on the X chromosome,
+`r add_commas(sum(mini_unc$chr=="Y"))` are on the Y chromosome,
+`r add_commas(sum(mini_unc$chr=="M"))` are on the mitochondrial genome,
+`r add_commas(sum(mini_unc$chr=="PAR"))` are in the pseudoautosomal region,
+and
+`r add_commas(sum(mini_unc$chr=="0"))` have chromosome `0` which are
+transgene-related markers
+
+```{r mini bast summary}
+##UNC annotations:
+nrow(mini_unc)
+
+#chromosomes 1:19
+table(mini_unc$chr)
+
+```
+
+In the blast results, we find that `r add_commas(sum(mini_nhits==1))`
+markers have a single, unique hit in the mouse genome (build mm39)
+and `r add_commas(sum(mini_nhits==0))` have no perfect hit.
+There are
+`r ifelse(sum(mini_nhits>1)>0, sum(mini_nhits>1), "no")`
+markers with multiple hits.
+
+## Unique markers
+
+If we look at the inferred chromosome assignments of the markers with
+a unique hit to the genome, there are just
+`r sum(mini_unc$chr != mini_uwisc$chr, na.rm=TRUE)`
+differences, and these are the cases where the
+UNC annotation file says chromosome `PAR` (for pseudoautosomal), while
+the blast results match to the X chromosome.  Weare going to force these
+back to `PAR` in my annotations.
+
+```{r x_to_par}
+mini_uwisc$chr[mini_unc$chr=="PAR"] <- "PAR"
+```
+
+There were `r sum(mini_uwisc$unmapped)` markers that didn't have a
+perfect match in the mm39 mouse genome assembly. This included the
+`r sum(mini_unc$chr=="0")` markers that the UNC annotation file has as
+chromosome `0` (transgene-related markers), and then a smattering of
+markers on all chromosomes except the mitochondria.
+
+## Positions
+
+Of the `r add_commas(sum(mini_uwisc$unique))` markers with a unique
+hit to the mouse genome, only
+`r sum(mini_uwisc$unique & mini_uwisc$pos == mini_unc$pos)`
+have the exact same position as in the UNC annotation file.
+
+The `r sum(mini_uwisc$unique & mini_uwisc$pos != mini_unc$pos)` markers
+where the positions are different,
+`r sum(mini_uwisc$unique & mini_uwisc$pos == mini_unc$pos-1)` are
+off by -1:
+
+```{r off by -1}
+vec2string(mini_uwisc$marker[mini_uwisc$unique & mini_uwisc$pos == mini_unc$pos-1])
+```
+
+while the others vary differed in positions from
+`r min((mini_uwisc$pos - mini_unc$pos)[mini_uwisc$unique & mini_uwisc$pos > mini_unc$pos])` bp to
+`r round(max((mini_uwisc$pos - mini_unc$pos)[mini_uwisc$unique & mini_uwisc$pos > mini_unc$pos])/1e6)` Mbp, with a median of
+`r round(median((mini_uwisc$pos - mini_unc$pos)[mini_uwisc$unique & mini_uwisc$pos > mini_unc$pos])/1000)` kbp.
+
+
+## Markers with the same probes (not needed)
+
+
+## New annotation file
+
+I now want to save my findings as a new annotation file for the
+miniMUGA array. I'll also create a metadata file ("data
+dictionary") that explains the columns.
+
+The final annotation files and all source materials are at
+<https://github.com/kbroman/MUGAarrays>.
+
+
+### Version 0
+
+We'll call this version 0. It'll be like the
+MegaMUGA and GigaMUGA annotation files I made, but without
+`multi`, `n_blast_hits`, or `n_blast_chr`. And I'll include columns `chr_unc`
+and `bp_unc`, the chromosome and position in the UNC annotation file.
+
+```{r write_v0_files}
+# order of columns
+cols <- c("marker", "chr", "pos", "strand", "snp", "unique",
+          "unmapped", "probe", "chr_unc", "pos_unc")
+# revised names
+cols_new <- c("marker", "chr", "bp_mm39", "strand", "snp", "unique",
+              "unmapped", "probe", "chr_unc", "bp_unc")
+
+# mini MUGA file
+mini_file <- "../UWisc/mini_uwisc_v0.csv"
+
+# reorder and rename columns
+mini_uwisc <- cbind(mini_uwisc, chr_unc=mini_unc$chr, pos_unc=mini_unc$pos)
+mini_uwisc <- mini_uwisc[,cols]
+colnames(mini_uwisc) <- cols_new
+
+# reorder rows
+mini_uwisc <- mini_uwisc[order(factor(mini_uwisc$chr, levels=c(1:19,"X","Y","PAR","M")),
+                               mini_uwisc$bp_mm39,
+                               factor(mini_uwisc$chr_unc, levels=c(0:19, "X", "Y", "PAR","M"))),]
+
+# write to CSV file
+write.table(mini_uwisc, mini_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+We'll also create a dictionary for the file, which explains what the
+columns are.
+
+```{r create_dictionaries}
+descriptions <- c("Name of SNP marker",
+                  "Chromosome",
+                  "Physical position in basepairs for mm39 mouse genome build",
+                  "Strand (plus/minus) from which the probe sequence was taken",
+                  "SNP alleles as a two-character string",
+                  "TRUE indicates that the probe sequence appears exactly once in mm39 mouse genome build",
+                  "TRUE indicates that the probe sequence has no perfect match in mm39 mouse genome build",
+                  "Probe sequence (49 or 50 bases); the SNP occurs immediately after",
+                  "Chromosome in UNC annotation file",
+                  "Physical positions in basepairs in the UNC annotation file")
+
+mini_dict_file <- "../UWisc/mini_uwisc_dict_v0.csv"
+output <- data.frame(column=cols_new,
+                     description=descriptions,
+                     stringsAsFactors=FALSE)
+write.table(output, mini_dict_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+Finally, we want to make a file that indicates the common markers,
+using the SNP positions to determine which ones are identical.
+There are a bunch of them, and they all have related names, like the
+pairs with identical probe sequences.
+
+```{r write_common_markers_to_file}
+# unique marker positions between the arrays
+mini_pos <- setNames(paste(mini_uwisc$chr, mini_uwisc$bp_mm39, sep=":"), mini_uwisc$marker)[mini_uwisc$unique]
+
+# find the positions that are in duplicate within the array
+tab <- table(mini_pos)
+#tab
+dup <- names(tab)[tab > 1]
+#dup
+
+# find the corresponding markers
+dup_names <- t(sapply(dup, function(d) names(mini_pos)[mini_pos==d]))
+#dup_names
+
+pos_spl <- strsplit(rownames(dup_names), ":")
+#pos_spl
+
+# create data frame with the results
+common <- data.frame(chr=sapply(pos_spl, "[", 1),
+                     bp_mm39=sapply(pos_spl, "[", 2),
+                     marker1=dup_names[,1],
+                     marker2=dup_names[,2],
+                     stringsAsFactors=FALSE)
+# reorder by genomic position
+common <- common[order(factor(common$chr, c(1:19,"X","Y","M")), common$bp_mm39),]
+#common
+
+# write to a CSV file
+write.table(common, "../UWisc/mini_commonmark_uwisc_v1.csv",
+            sep=",", quote=FALSE, row.names=FALSE, col.names=TRUE)
+
+# data dictionary
+common_cols <- colnames(common)
+common_descriptions <- c("Chromosome ID",
+                         "Physical position in basepairs for mm39 mouse genome build",
+                         "A miniMUGA marker at that position",
+                         "A second miniMUGA marker at that position")
+common_dict <- data.frame(column=common_cols,
+                          description=common_descriptions,
+                          stringsAsFactors=FALSE)
+# write to file
+write.table(common_dict, "../UWisc/mini_commonmark_uwisc_dict_v1.csv",
+            sep=",", quote=FALSE, row.names=FALSE, col.names=TRUE)
+```
+
+
+
+```{r write_bp_to_file}
+# write just chr, bp to files, for use with mouse map converter
+# (want to get interpolated cM positions from the Cox and G2F1 maps)
+write.table(mini_uwisc[!is.na(mini_uwisc$chr) & mini_uwisc$chr %in% c(1:19,"X"), c("chr", "bp_mm39")],
+            "../GenMaps/mini_bp.txt", sep=" ", quote=FALSE,
+            row.names=FALSE, col.names=FALSE)
+```
+
+### Version 1, with genetic maps 
+
+We used the [mouse map
+converter R package] (insert link here) to convert the mm39
+basepair positions of the autosome and X chromosome markers to
+sex-averaged cM from the [Cox et al.](https://doi.org/10.1534/genetics.109.105486) genetic maps.
+
+```{r mmcovert mini}
+library(mmconvert)
+
+mini_uwisc_conv <-  mini_uwisc[,c("chr","bp_mm39","marker")]
+names(mini_uwisc_conv) <- c("chr","pos","marker")
+mini_cox <- mmconvert(mini_uwisc_conv)
+
+##removing NA
+#mini_uwisc_conv_nona <- mini_uwisc_conv[!is.na(mini_uwisc_conv$chr),]
+#mini_cox_nona <- mmconvert(mini_uwisc_conv_nona)
+
+#removing NA/Y/M/PAR
+#mini_cox <- mmconvert(mini_uwisc_conv)
+
+#setdiff(mini_uwisc_conv$marker, mini_cox$marker)
+#setdiff(mini_cox$marker, mini_uwisc_conv$marker)
+
+#mism <- as.data.frame(setdiff(mini_uwisc_conv$marker, mini_cox$marker))
+#names(mism) <- c("marker")
+
+#mini_uwisc[mism$marker,]
+
+```
+
+```{r load_genetic_maps}
+#mini_cox <- data.table::fread("../GenMaps/mini_cox.txt", header=FALSE, data.table=FALSE)
+#mini_cox.1 <- data.table::fread("/Users/corneb/Documents/MyJax/CS/Projects/GeDI/muga/sandbox/CoxMapV3/Build39/cox_build39.csv", header=TRUE, data.table=FALSE)
+#mini_cox.2 <- data.table::fread("/Users/corneb/Documents/MyJax/CS/Projects/GeDI/muga/sandbox/CoxMapV3/cox_v3_map.csv", header=TRUE, data.table=FALSE)
+#mini_g2f1 <- data.table::fread("../GenMaps/mini_g2f1.txt", header=FALSE, data.table=FALSE)
+
+#order chr in mini_wisc
+#mini_uwisc <- mini_uwisc[order(mini_uwisc$chr),]
+
+#pruning out NA, M and PAR, Y
+mini_uwisc_pr <- mini_uwisc[mini_uwisc$chr != "Y" & mini_uwisc$chr != "PAR" & mini_uwisc$chr != "M" & !is.na(mini_uwisc$chr),]
+
+#sort by marker
+mini_uwisc_pr <- mini_uwisc_pr[mini_cox$marker,]
+
+# verify stuff
+stopifnot( all(mini_cox[,1] == mini_uwisc_pr$marker) )
+stopifnot( all(mini_cox[,2] == mini_uwisc_pr$chr) )
+stopifnot( all(mini_cox[,6] ==  mini_uwisc_pr$bp_mm39) )
+#stopifnot( all(mini_g2f1[,1] == mini_uwisc$chr[1:nrow(mini_g2f1)]) )
+#stopifnot( all(mini_g2f1[,2] == mini_uwisc$bp_mm39[1:nrow(mini_g2f1)]) )
+```
+
+```{r incorporate_genetic_maps}
+ord <- c(1:19, "X" , "Y", "M", "PAR", "NA")
+
+#reorder chrs in mini_wisc to be 1:19, X , Y, M, PAR, NA
+mini_uwisc$chr <- factor(mini_uwisc$chr,levels=ord)
+mini_uwisco <- mini_uwisc[order(mini_uwisc$chr),]
+
+#redorder chrs in mini_cos to be 1:19, X
+#mini_cox$chr <- factor(mini_cox$chr,levels=ord)
+
+nas <- rep(NA, nrow(mini_uwisc)-nrow(mini_cox))
+mini_uwisc.2 <- cbind(mini_uwisco,
+                  cM_cox=c(mini_cox[,5], nas))
+#                  cM_g2f1=c(mini_g2f1[,5], nas))
+```
+
+Now we can write the new annotation files.
+
+```{r write_v1_files}
+cols_new.2 <- c(cols_new[1:3], "cM_cox", cols_new[-(1:3)])
+mini_uwisc.3 <- mini_uwisc.2[,cols_new.2]
+
+# write miniMUGA file
+mini_file <- "../UWisc/mini_uwisc_v1.csv"
+write.table(mini_uwisc.3, mini_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+And finally, the new data dictionary files.
+
+```{r dict_files_v1}
+descriptions.2 <- c(descriptions[1:3],
+                  "Sex-averaged cM positions from Cox et al. https://doi.org/10.1534/genetics.109.105486",
+                  descriptions[-(1:3)])
+
+mini_dict_file <- "../UWisc/mini_uwisc_dict_v1.csv"
+output <- data.frame(column=cols_new.2,
+                     description=descriptions.2,
+                     stringsAsFactors=FALSE)
+write.table(output, mini_dict_file, sep=",", quote=FALSE,
+            row.names=FALSE, col.names=TRUE)
+```
+
+## Session info
+
+Here are the versions of R and R packages that we are using.
+
+```{r session_info}
+devtools::session_info()
+```
