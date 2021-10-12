@@ -1,9 +1,8 @@
 ---
 title: "MUGA Platform GRCm39 Coordinates"
-author: "Daniel Gatti"
-author: "Belinda Cornes"
+author: "Daniel Gatti and Belinda Cornes"
 date: "10/5/2021"
-output: 
+output:
     html_document:
         toc: true
         toc_float: true
@@ -48,7 +47,7 @@ mini_v1_file = file.path(uwisc_dir, 'mini_uwisc_v1.csv')
 mini_v2_file = file.path(uwisc_dir, 'mini_uwisc_v2.csv')
 mm_v1_file   = file.path(uwisc_dir, 'mm_uwisc_v1.csv')
 gm_v1_file   = file.path(uwisc_dir, 'gm_uwisc_v1.csv')
- 
+
 # File containing Mega-and Gigamuga sequences.
 mega_giga_seqs = file.path(base_dir, 'GeneSeek', 'Markers_common_to_both_Giga_and_Mega.xlsx')
 
@@ -95,14 +94,14 @@ for(chr in chromosomes) {
 
 # GRCm39
 for(chr in chromosomes) {
-  
+
   fasta_filename = paste0('chr', chr, '.fa')
   db_filename    = file.path(b39_dir, paste0('chr', chr, '.fa.ndb'))
-  
+
   if(!file.exists(db_filename)) {
-    
+
     gunzip(file.path(fasta_dir, paste0(fasta_filename, '.gz')), remove = FALSE)
-    rBLAST::makeblastdb(file = file.path(fasta_dir, fasta_filename), dbtype = 'nucl', 
+    rBLAST::makeblastdb(file = file.path(fasta_dir, fasta_filename), dbtype = 'nucl',
                         args = paste('-parse_seqids'))
     file.remove(file.path(fasta_dir, fasta_filename))
 
@@ -199,7 +198,7 @@ muga_alleles = data.frame(marker = muga_ss$marker, do.call(rbind, strsplit(muga_
 colnames(muga_alleles) = c('marker', 'allele1', 'allele2')
 muga_alleles = merge(muga_alleles, snp_seq, by = 'marker')
 muga_alleles = merge(muga_alleles, muga_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
-muga_alleles$allele_check = muga_alleles$seq == muga_alleles$allele1 | 
+muga_alleles$allele_check = muga_alleles$seq == muga_alleles$allele1 |
                             muga_alleles$seq == muga_alleles$allele2
 ```
 
@@ -221,11 +220,11 @@ I checked the sequences on the Ensembl (Build 104) website and the SNP alleles a
 muga_mismatch = muga_alleles[muga_alleles$allele_check == FALSE,]
 muga_mismatch$allele1 = allele_swap[muga_mismatch$allele1]
 muga_mismatch$allele2 = allele_swap[muga_mismatch$allele2]
-muga_mismatch$allele_check = muga_mismatch$seq == muga_mismatch$allele1 | 
+muga_mismatch$allele_check = muga_mismatch$seq == muga_mismatch$allele1 |
                              muga_mismatch$seq == muga_mismatch$allele2
 ```
 
-Once I swap the alleles, `r mean(muga_mismatch$allele_check) * 100`% of the SNP alleles are in the Illumina allele SNP alleles. 
+Once I swap the alleles, `r mean(muga_mismatch$allele_check) * 100`% of the SNP alleles are in the Illumina allele SNP alleles.
 
 The strand orientations are coming from the BLAST results, so they are correct.
 
@@ -246,10 +245,15 @@ chr_no_recomb = subset(muga_uwisc, chr %in% c('M', 'Y') | is.na(chr))
 chr_recomb    = subset(muga_uwisc, chr %in% c(1:19, 'X'))
 
 # mmconvert needs the input data in a specific format.
-mmcvt_input = data.frame(chr = chr_recomb$chr, 
+mmcvt_input = data.frame(chr = chr_recomb$chr,
                          pos = chr_recomb$pos,
                          marker = chr_recomb$marker)
 mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = 'bp')
+# deal with X chromosome
+if(any(mmcvt_output$chr=="X")) {
+    mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_ave"] <-
+        mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_female"]
+}
 mmcvt_output = mmcvt_output[,c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
 
 # Merge mmconvert results back with GRCm39 positions.
@@ -259,8 +263,8 @@ stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
 rm(mmcvt_input)
 
 # Reorder the columns and rbind the non-recombining chromosomes back in.
-chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave', 
-                           'strand', 'snp', 'unique',    'unmapped', 
+chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave',
+                           'strand', 'snp', 'unique',    'unmapped',
                            'probe',  'strand_flipped')]
 colnames(chr_recomb)[4] = 'cM_cox'
 
@@ -306,7 +310,7 @@ I've chosen to exclude the UNC chromosome and positions and to only retain the G
 muga_v1 = muga_v1[,c('marker', 'bp_mm10')]
 muga_v2 = merge(muga_v1, muga_v2, by = 'marker', all = TRUE, sort = FALSE)
 
-muga_v2 = muga_v2[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox', 
+muga_v2 = muga_v2[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox',
                      'strand', 'snp', 'unique',  'unmapped',  'probe',
                      'strand_flipped')]
 
@@ -325,7 +329,7 @@ descriptions = c("Name of SNP marker",
                   "Chromosome",
                   "Physical position in basepairs for mm10 mouse genome build",
                   "Physical position in basepairs for GRCm39 mouse genome build",
-                  "Average cM position on Cox et al. map",
+                  "Average cM position on Cox et al. map (female position on X chromosome)",
                   "Strand (plus/minus) from which the probe sequence was taken",
                   "SNP alleles as a two-character string",
                   "TRUE indicates that the probe sequence appears exactly once in GRCm39 mouse genome build",
@@ -437,7 +441,7 @@ mini_alleles = data.frame(marker = mini_ss$marker, do.call(rbind, strsplit(mini_
 colnames(mini_alleles) = c('marker', 'allele1', 'allele2')
 mini_alleles = merge(mini_alleles, snp_seq, by = 'marker')
 mini_alleles = merge(mini_alleles, mini_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
-mini_alleles$allele_check = mini_alleles$seq == mini_alleles$allele1 | 
+mini_alleles$allele_check = mini_alleles$seq == mini_alleles$allele1 |
                             mini_alleles$seq == mini_alleles$allele2
 ```
 
@@ -468,7 +472,7 @@ mini_alleles = data.frame(marker = mini_ss$marker, do.call(rbind, strsplit(mini_
 colnames(mini_alleles) = c('marker', 'allele1', 'allele2')
 mini_alleles = merge(mini_alleles, snp_seq, by = 'marker')
 mini_alleles = merge(mini_alleles, mini_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
-mini_alleles$allele_check = mini_alleles$seq == mini_alleles$allele1 | 
+mini_alleles$allele_check = mini_alleles$seq == mini_alleles$allele1 |
                             mini_alleles$seq == mini_alleles$allele2
 ```
 
@@ -478,7 +482,7 @@ Now, `r mean(mini_alleles$allele_check) * 100`% of the SNPs match one of the all
 subset(mini_alleles, allele_check == FALSE)
 ```
 
-On the Minimuga, the mismatched alleles occur in most of the allele combinations. 
+On the Minimuga, the mismatched alleles occur in most of the allele combinations.
 
 ```{r mini_seq_mismatch_2}
 table(mini_ss$snp[mini_ss$marker %in% subset(mini_alleles, allele_check == FALSE)$marker])
@@ -496,7 +500,7 @@ I don't have an explanation for the two markers on Chr 11. Chr Y annotation isn'
 range(subset(mini_alleles, allele_check == FALSE & chr == 14)$pos)
 ```
 
-Yes, the Chr 14 mismatches are on the proximal end of Chr 14, where the inversion occurred. 
+Yes, the Chr 14 mismatches are on the proximal end of Chr 14, where the inversion occurred.
 
 I'm going to leave the marker positions as they are for now because Illumina will report the alleles as they are in the reference file. I will add a 'strand_flipped' column to flag these markers.
 
@@ -516,10 +520,15 @@ chr_no_recomb = subset(mini_v3, chr %in% c('M', 'Y') | is.na(chr))
 chr_recomb    = subset(mini_v3, chr %in% c(1:19, 'X'))
 
 # mmconvert needs the input data in a specific format.
-mmcvt_input = data.frame(chr = chr_recomb$chr, 
+mmcvt_input = data.frame(chr = chr_recomb$chr,
                          pos = chr_recomb$pos,
                          marker = chr_recomb$marker)
 mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = 'bp')
+# deal with X chromosome
+if(any(mmcvt_output$chr=="X")) {
+    mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_ave"] <-
+        mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_female"]
+}
 mmcvt_output = mmcvt_output[,c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
 
 # Merge mmconvert results back with GRCm39 positions.
@@ -529,8 +538,8 @@ stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
 rm(mmcvt_input)
 
 # Reorder the columns and rbind the non-recombining chromosomes back in.
-chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave', 
-                           'strand', 'snp', 'unique',    'unmapped', 
+chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave',
+                           'strand', 'snp', 'unique',    'unmapped',
                            'probe', 'strand_flipped')]
 colnames(chr_recomb)[4] = 'cM_cox'
 
@@ -577,7 +586,7 @@ I've chosen to exclude the old UNC chromosome and positions and to only retain t
 mini_v2 = mini_v2[,c('marker', 'bp_mm10')]
 mini_v3 = merge(mini_v2, mini_v3, by = 'marker', all = TRUE, sort = FALSE)
 
-mini_v3 = mini_v3[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox', 
+mini_v3 = mini_v3[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox',
                      'strand', 'snp', 'unique',  'unmapped',  'probe',
                      'strand_flipped')]
 
@@ -592,7 +601,7 @@ descriptions = c("Name of SNP marker",
                   "Chromosome",
                   "Physical position in basepairs for mm10 mouse genome build",
                   "Physical position in basepairs for GRCm39 mouse genome build",
-                  "Average cM position on Cox et al. map",
+                  "Average cM position on Cox et al. map (female position on X chromosome)",
                   "Strand (plus/minus) from which the probe sequence was taken",
                   "SNP alleles as a two-character string",
                   "TRUE indicates that the probe sequence appears exactly once in GRCm39 mouse genome build",
@@ -711,7 +720,7 @@ mm_alleles = data.frame(marker = mm_ss$marker, do.call(rbind, strsplit(mm_ss$snp
 colnames(mm_alleles) = c('marker', 'allele1', 'allele2')
 mm_alleles = merge(mm_alleles, snp_seq, by = 'marker')
 mm_alleles = merge(mm_alleles, mm_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
-mm_alleles$allele_check = mm_alleles$seq == mm_alleles$allele1 | 
+mm_alleles$allele_check = mm_alleles$seq == mm_alleles$allele1 |
                           mm_alleles$seq == mm_alleles$allele2
 ```
 
@@ -748,7 +757,7 @@ mm_alleles = data.frame(marker = mm_ss$marker, do.call(rbind, strsplit(mm_ss$snp
 colnames(mm_alleles) = c('marker', 'allele1', 'allele2')
 mm_alleles = merge(mm_alleles, snp_seq, by = 'marker')
 mm_alleles = merge(mm_alleles, mm_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
-mm_alleles$allele_check = mm_alleles$seq == mm_alleles$allele1 | 
+mm_alleles$allele_check = mm_alleles$seq == mm_alleles$allele1 |
                           mm_alleles$seq == mm_alleles$allele2
 ```
 
@@ -778,10 +787,15 @@ chr_no_recomb = subset(mm_uwisc, chr %in% c('M', 'Y') | is.na(chr))
 chr_recomb    = subset(mm_uwisc, chr %in% c(1:19, 'X'))
 
 # mmconvert needs the input data in a specific format.
-mmcvt_input = data.frame(chr = chr_recomb$chr, 
+mmcvt_input = data.frame(chr = chr_recomb$chr,
                          pos = chr_recomb$pos,
                          marker = chr_recomb$marker)
 mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = 'bp')
+# deal with X chromosome
+if(any(mmcvt_output$chr=="X")) {
+    mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_ave"] <-
+        mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_female"]
+}
 mmcvt_output = mmcvt_output[,c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
 
 # Merge mmconvert results back with GRCm39 positions.
@@ -791,8 +805,8 @@ stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
 rm(mmcvt_input)
 
 # Reorder the columns and rbind the non-recombining chromosomes back in.
-chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave', 
-                           'strand', 'snp', 'unique',    'unmapped', 
+chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave',
+                           'strand', 'snp', 'unique',    'unmapped',
                            'probe',  'strand_flipped')]
 colnames(chr_recomb)[4] = 'cM_cox'
 
@@ -838,7 +852,7 @@ I've chosen to exclude the UNC chromosome and positions and to only retain the G
 mm_v1 = mm_v1[,c('marker', 'bp_mm10')]
 mm_v2 = merge(mm_v1, mm_v2, by = 'marker', all = TRUE, sort = FALSE)
 
-mm_v2 = mm_v2[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox', 
+mm_v2 = mm_v2[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox',
                  'strand', 'snp', 'unique',  'unmapped',  'probe',
                  'strand_flipped')]
 
@@ -857,7 +871,7 @@ descriptions = c("Name of SNP marker",
                   "Chromosome",
                   "Physical position in basepairs for mm10 mouse genome build",
                   "Physical position in basepairs for GRCm39 mouse genome build",
-                  "Average cM position on Cox et al. map",
+                  "Average cM position on Cox et al. map (female position on X chromosome)",
                   "Strand (plus/minus) from which the probe sequence was taken",
                   "SNP alleles as a two-character string",
                   "TRUE indicates that the probe sequence appears exactly once in GRCm39 mouse genome build",
@@ -978,7 +992,7 @@ gm_alleles = data.frame(marker = gm_ss$marker, do.call(rbind, strsplit(gm_ss$snp
 colnames(gm_alleles) = c('marker', 'allele1', 'allele2')
 gm_alleles = merge(gm_alleles, snp_seq, by = 'marker')
 gm_alleles = merge(gm_alleles, gm_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
-gm_alleles$allele_check = gm_alleles$seq == gm_alleles$allele1 | 
+gm_alleles$allele_check = gm_alleles$seq == gm_alleles$allele1 |
                           gm_alleles$seq == gm_alleles$allele2
 ```
 
@@ -1015,7 +1029,7 @@ gm_alleles = data.frame(marker = gm_ss$marker, do.call(rbind, strsplit(gm_ss$snp
 colnames(gm_alleles) = c('marker', 'allele1', 'allele2')
 gm_alleles = merge(gm_alleles, snp_seq, by = 'marker')
 gm_alleles = merge(gm_alleles, gm_ss[,c('marker', 'chr', 'pos', 'strand', 'snp')], by = 'marker')
-gm_alleles$allele_check = gm_alleles$seq == gm_alleles$allele1 | 
+gm_alleles$allele_check = gm_alleles$seq == gm_alleles$allele1 |
                           gm_alleles$seq == gm_alleles$allele2
 ```
 
@@ -1029,7 +1043,7 @@ Which chromosomes are they on?
 table(subset(gm_alleles, allele_check == FALSE)$chr)
 ```
 
-The markers are scattered across different chromosomes. Chr 6, 10 and 14 have the largest number of markers. Chr 10 and 14 had large inversions that were correcting in builds 38 or 39. 
+The markers are scattered across different chromosomes. Chr 6, 10 and 14 have the largest number of markers. Chr 10 and 14 had large inversions that were correcting in builds 38 or 39.
 
 Look at the positions of the markers with flipped alleles on Chr 6.
 
@@ -1056,10 +1070,15 @@ chr_no_recomb = subset(gm_uwisc, chr %in% c('M', 'Y') | is.na(chr))
 chr_recomb    = subset(gm_uwisc, chr %in% c(1:19, 'X'))
 
 # mmconvert needs the input data in a specific format.
-mmcvt_input = data.frame(chr = chr_recomb$chr, 
+mmcvt_input = data.frame(chr = chr_recomb$chr,
                          pos = chr_recomb$pos,
                          marker = chr_recomb$marker)
 mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = 'bp')
+# deal with X chromosome
+if(any(mmcvt_output$chr=="X")) {
+    mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_ave"] <-
+        mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_female"]
+}
 mmcvt_output = mmcvt_output[,c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
 
 # Merge mmconvert results back with GRCm39 positions.
@@ -1069,8 +1088,8 @@ stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
 rm(mmcvt_input)
 
 # Reorder the columns and rbind the non-recombining chromosomes back in.
-chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave', 
-                           'strand', 'snp', 'unique',    'unmapped', 
+chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave',
+                           'strand', 'snp', 'unique',    'unmapped',
                            'probe',  'strand_flipped')]
 colnames(chr_recomb)[4] = 'cM_cox'
 
@@ -1130,7 +1149,7 @@ I've chosen to exclude the UNC chromosome and positions and to only retain the G
 gm_v1 = gm_v1[,c('marker', 'bp_mm10')]
 gm_v2 = merge(gm_v1, gm_v2, by = 'marker', all = TRUE, sort = FALSE)
 
-gm_v2 = gm_v2[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox', 
+gm_v2 = gm_v2[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox',
                  'strand', 'snp', 'unique',  'unmapped',  'probe',
                  'strand_flipped')]
 
@@ -1149,7 +1168,7 @@ descriptions = c("Name of SNP marker",
                   "Chromosome",
                   "Physical position in basepairs for mm10 mouse genome build",
                   "Physical position in basepairs for GRCm39 mouse genome build",
-                  "Average cM position on Cox et al. map",
+                  "Average cM position on Cox et al. map (female position on X chromosome)",
                   "Strand (plus/minus) from which the probe sequence was taken",
                   "SNP alleles as a two-character string",
                   "TRUE indicates that the probe sequence appears exactly once in GRCm39 mouse genome build",
