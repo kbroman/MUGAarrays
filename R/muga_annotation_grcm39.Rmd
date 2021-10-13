@@ -1,6 +1,6 @@
 ---
 title: "MUGA Platform GRCm39 Coordinates"
-author: "Daniel Gatti and Belinda Cornes"
+author: "Daniel Gatti, Belinda Cornes"
 date: "10/5/2021"
 output:
     html_document:
@@ -249,12 +249,13 @@ mmcvt_input = data.frame(chr = chr_recomb$chr,
                          pos = chr_recomb$pos,
                          marker = chr_recomb$marker)
 mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = 'bp')
-# deal with X chromosome
-if(any(mmcvt_output$chr=="X")) {
-    mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_ave"] <-
-        mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_female"]
-}
-mmcvt_output = mmcvt_output[,c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
+mmcvt_auto = subset(mmcvt_output, chr %in% 1:19)[, c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
+colnames(mmcvt_auto)[3] = 'cM_coxV3'
+# Note: Use female values on Chr X because there is no average cM.
+mmcvt_chrx = subset(mmcvt_output, chr ==   'X')[,  c('marker', 'bp_grcm39', 'cM_coxV3_female')]
+colnames(mmcvt_chrx)[3] = 'cM_coxV3'
+
+mmcvt_output = rbind(mmcvt_auto, mmcvt_chrx)
 
 # Merge mmconvert results back with GRCm39 positions.
 chr_recomb = merge(chr_recomb, mmcvt_output, by = 'marker', all = TRUE,
@@ -263,7 +264,7 @@ stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
 rm(mmcvt_input)
 
 # Reorder the columns and rbind the non-recombining chromosomes back in.
-chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave',
+chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3',
                            'strand', 'snp', 'unique',    'unmapped',
                            'probe',  'strand_flipped')]
 colnames(chr_recomb)[4] = 'cM_cox'
@@ -317,6 +318,9 @@ muga_v2 = muga_v2[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox',
 # Reorder markers by Chr & GRCm39 position.
 muga_v2$chr = factor(muga_v2$chr, levels = c(1:19, 'X', 'Y', 'M'))
 muga_v2 = muga_v2[order(muga_v2$chr, muga_v2$bp_grcm39),]
+
+# Remove old GRCm38 positions.
+muga_v2$bp_mm10[is.na(muga_v2$chr)] = NA
 
 write.table(muga_v2, file = sub('1', '2', muga_v1_file), sep = ',',
             quote = FALSE, row.names = FALSE, col.names = TRUE)
@@ -524,12 +528,13 @@ mmcvt_input = data.frame(chr = chr_recomb$chr,
                          pos = chr_recomb$pos,
                          marker = chr_recomb$marker)
 mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = 'bp')
-# deal with X chromosome
-if(any(mmcvt_output$chr=="X")) {
-    mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_ave"] <-
-        mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_female"]
-}
-mmcvt_output = mmcvt_output[,c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
+mmcvt_auto = subset(mmcvt_output, chr %in% 1:19)[, c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
+colnames(mmcvt_auto)[3] = 'cM_coxV3'
+# Note: Use female values on Chr X because there is no average cM.
+mmcvt_chrx = subset(mmcvt_output, chr ==   'X')[,  c('marker', 'bp_grcm39', 'cM_coxV3_female')]
+colnames(mmcvt_chrx)[3] = 'cM_coxV3'
+
+mmcvt_output = rbind(mmcvt_auto, mmcvt_chrx)
 
 # Merge mmconvert results back with GRCm39 positions.
 chr_recomb = merge(chr_recomb, mmcvt_output, by = 'marker', all = TRUE,
@@ -538,7 +543,7 @@ stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
 rm(mmcvt_input)
 
 # Reorder the columns and rbind the non-recombining chromosomes back in.
-chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave',
+chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3',
                            'strand', 'snp', 'unique',    'unmapped',
                            'probe', 'strand_flipped')]
 colnames(chr_recomb)[4] = 'cM_cox'
@@ -791,12 +796,13 @@ mmcvt_input = data.frame(chr = chr_recomb$chr,
                          pos = chr_recomb$pos,
                          marker = chr_recomb$marker)
 mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = 'bp')
-# deal with X chromosome
-if(any(mmcvt_output$chr=="X")) {
-    mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_ave"] <-
-        mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_female"]
-}
-mmcvt_output = mmcvt_output[,c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
+mmcvt_auto = subset(mmcvt_output, chr %in% 1:19)[, c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
+colnames(mmcvt_auto)[3] = 'cM_coxV3'
+# Note: Use female values on Chr X because there is no average cM.
+mmcvt_chrx = subset(mmcvt_output, chr ==   'X')[,  c('marker', 'bp_grcm39', 'cM_coxV3_female')]
+colnames(mmcvt_chrx)[3] = 'cM_coxV3'
+
+mmcvt_output = rbind(mmcvt_auto, mmcvt_chrx)
 
 # Merge mmconvert results back with GRCm39 positions.
 chr_recomb = merge(chr_recomb, mmcvt_output, by = 'marker', all = TRUE,
@@ -805,7 +811,7 @@ stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
 rm(mmcvt_input)
 
 # Reorder the columns and rbind the non-recombining chromosomes back in.
-chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave',
+chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3',
                            'strand', 'snp', 'unique',    'unmapped',
                            'probe',  'strand_flipped')]
 colnames(chr_recomb)[4] = 'cM_cox'
@@ -860,6 +866,9 @@ mm_v2 = mm_v2[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox',
 mm_v2$chr = factor(mm_v2$chr, levels = c(1:19, 'X', 'Y', 'M'))
 mm_v2 = mm_v2[order(mm_v2$chr, mm_v2$bp_grcm39),]
 
+# Remove old GRCm38 positions.
+mm_v2$bp_mm10[is.na(mm_v2$chr)] = NA
+
 write.table(mm_v2, file = sub('1', '2', mm_v1_file), sep = ',',
             quote = FALSE, row.names = FALSE, col.names = TRUE)
 ```
@@ -883,6 +892,7 @@ mm_dict_file = file.path(base_dir, 'UWisc', 'mm_uwisc_dict_v2.csv')
 output = data.frame(column       = colnames(mm_v2),
                      description = descriptions,
                      stringsAsFactors = FALSE)
+
 write.table(output, mm_dict_file, sep = ",", quote = FALSE,
             row.names = FALSE, col.names = TRUE)
 ```
@@ -1074,12 +1084,13 @@ mmcvt_input = data.frame(chr = chr_recomb$chr,
                          pos = chr_recomb$pos,
                          marker = chr_recomb$marker)
 mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = 'bp')
-# deal with X chromosome
-if(any(mmcvt_output$chr=="X")) {
-    mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_ave"] <-
-        mmcvt_output[mmcvt_output$chr=="X", "cM_coxV3_female"]
-}
-mmcvt_output = mmcvt_output[,c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
+mmcvt_auto = subset(mmcvt_output, chr %in% 1:19)[, c('marker', 'bp_grcm39', 'cM_coxV3_ave')]
+colnames(mmcvt_auto)[3] = 'cM_coxV3'
+# Note: Use female values on Chr X because there is no average cM.
+mmcvt_chrx = subset(mmcvt_output, chr ==   'X')[,  c('marker', 'bp_grcm39', 'cM_coxV3_female')]
+colnames(mmcvt_chrx)[3] = 'cM_coxV3'
+
+mmcvt_output = rbind(mmcvt_auto, mmcvt_chrx)
 
 # Merge mmconvert results back with GRCm39 positions.
 chr_recomb = merge(chr_recomb, mmcvt_output, by = 'marker', all = TRUE,
@@ -1088,7 +1099,7 @@ stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
 rm(mmcvt_input)
 
 # Reorder the columns and rbind the non-recombining chromosomes back in.
-chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3_ave',
+chr_recomb = chr_recomb[,c('marker', 'chr', 'bp_grcm39', 'cM_coxV3',
                            'strand', 'snp', 'unique',    'unmapped',
                            'probe',  'strand_flipped')]
 colnames(chr_recomb)[4] = 'cM_cox'
@@ -1156,6 +1167,9 @@ gm_v2 = gm_v2[,c('marker', 'chr', 'bp_mm10', 'bp_grcm39', 'cM_cox',
 # Reorder markers by Chr & GRCm39 position.
 gm_v2$chr = factor(gm_v2$chr, levels = c(1:19, 'X', 'Y', 'M'))
 gm_v2 = gm_v2[order(gm_v2$chr, gm_v2$bp_grcm39),]
+
+# Remove old GRCm38 positions.
+gm_v2$bp_mm10[is.na(gm_v2$chr)] = NA
 
 write.table(gm_v2, file = sub('1', '2', gm_v1_file), sep = ',',
             quote = FALSE, row.names = FALSE, col.names = TRUE)

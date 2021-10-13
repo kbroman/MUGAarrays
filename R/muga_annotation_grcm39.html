@@ -9,7 +9,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="DMG" />
+<meta name="author" content="Daniel Gatti, Belinda Cornes" />
 
 
 <title>MUGA Platform GRCm39 Coordinates</title>
@@ -253,7 +253,7 @@ div.tocify {
 
 
 <h1 class="title toc-ignore">MUGA Platform GRCm39 Coordinates</h1>
-<h4 class="author">DMG</h4>
+<h4 class="author">Daniel Gatti, Belinda Cornes</h4>
 <h4 class="date">10/5/2021</h4>
 
 </div>
@@ -261,7 +261,7 @@ div.tocify {
 
 <div id="introduction" class="section level2">
 <h2>Introduction</h2>
-<p>We needed to map the marker positions for the MUGA platform over to GRCm39. This will involve using BLASTn to align the marker probes with the new genome, extracting the SNP position, merging with cM values for each markers, and producing an output file with marker positions for GRCm38, GRCm39, and cM.</p>
+<p>We needed to map the marker positions for the MUGA platform over to GRCm39. This will involve using BLASTn to align the marker probes to the new genome, extracting the SNP position, merging with cM values for each markers, and producing an output file with marker positions for GRCm38, GRCm39, and cM.</p>
 <p>There are four arrays:</p>
 <ol style="list-style-type: decimal">
 <li>MUGA</li>
@@ -272,7 +272,7 @@ div.tocify {
 </div>
 <div id="blast-installation-setup-on-windows-10" class="section level2">
 <h2>BLAST Installation &amp; Setup on Windows 10</h2>
-<p>I installed BLAST 2.12.0 from the <a href="https://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/">NCBI FTP site</a> and added the path to the executables to my system PATH (‘C:Files.0+’ on my system).</p>
+<p>I installed BLAST 2.12.0 from the <a href="https://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/">NCBI FTP site</a> and added the path to the executables to my system PATH (<code>C:\Program Files\NCBI\blast-2.12.0+\bin</code> on my system).</p>
 <div id="make-blastn-database" class="section level3">
 <h3>Make BLASTn database</h3>
 <p>I obtained the <strong>unmasked</strong> FASTA file for GRCm39 from <a href="https://hgdownload.soe.ucsc.edu/goldenPath/mm39/chromosomes/">UCSC</a>. Karl used the individual chromosome file, so I did the same. Then, I made the blast database. This block will only run if the database hasn’t been created.</p>
@@ -415,7 +415,13 @@ mmcvt_input = data.frame(chr = chr_recomb$chr,
                          pos = chr_recomb$pos,
                          marker = chr_recomb$marker)
 mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = &#39;bp&#39;)
-mmcvt_output = mmcvt_output[,c(&#39;marker&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_ave&#39;)]
+mmcvt_auto = subset(mmcvt_output, chr %in% 1:19)[, c(&#39;marker&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_ave&#39;)]
+colnames(mmcvt_auto)[3] = &#39;cM_coxV3&#39;
+# Note: Use female values on Chr X because there is no average cM.
+mmcvt_chrx = subset(mmcvt_output, chr ==   &#39;X&#39;)[,  c(&#39;marker&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_female&#39;)]
+colnames(mmcvt_chrx)[3] = &#39;cM_coxV3&#39;
+
+mmcvt_output = rbind(mmcvt_auto, mmcvt_chrx)
 
 # Merge mmconvert results back with GRCm39 positions.
 chr_recomb = merge(chr_recomb, mmcvt_output, by = &#39;marker&#39;, all = TRUE,
@@ -424,7 +430,7 @@ stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
 rm(mmcvt_input)
 
 # Reorder the columns and rbind the non-recombining chromosomes back in.
-chr_recomb = chr_recomb[,c(&#39;marker&#39;, &#39;chr&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_ave&#39;, 
+chr_recomb = chr_recomb[,c(&#39;marker&#39;, &#39;chr&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3&#39;, 
                            &#39;strand&#39;, &#39;snp&#39;, &#39;unique&#39;,    &#39;unmapped&#39;, 
                            &#39;probe&#39;,  &#39;strand_flipped&#39;)]
 colnames(chr_recomb)[4] = &#39;cM_cox&#39;
@@ -459,6 +465,9 @@ muga_v2 = muga_v2[,c(&#39;marker&#39;, &#39;chr&#39;, &#39;bp_mm10&#39;, &#39;bp
 # Reorder markers by Chr &amp; GRCm39 position.
 muga_v2$chr = factor(muga_v2$chr, levels = c(1:19, &#39;X&#39;, &#39;Y&#39;, &#39;M&#39;))
 muga_v2 = muga_v2[order(muga_v2$chr, muga_v2$bp_grcm39),]
+
+# Remove old GRCm38 positions.
+muga_v2$bp_mm10[is.na(muga_v2$chr)] = NA
 
 write.table(muga_v2, file = sub(&#39;1&#39;, &#39;2&#39;, muga_v1_file), sep = &#39;,&#39;,
             quote = FALSE, row.names = FALSE, col.names = TRUE)</code></pre>
@@ -773,7 +782,13 @@ mmcvt_input = data.frame(chr = chr_recomb$chr,
                          pos = chr_recomb$pos,
                          marker = chr_recomb$marker)
 mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = &#39;bp&#39;)
-mmcvt_output = mmcvt_output[,c(&#39;marker&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_ave&#39;)]
+mmcvt_auto = subset(mmcvt_output, chr %in% 1:19)[, c(&#39;marker&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_ave&#39;)]
+colnames(mmcvt_auto)[3] = &#39;cM_coxV3&#39;
+# Note: Use female values on Chr X because there is no average cM.
+mmcvt_chrx = subset(mmcvt_output, chr ==   &#39;X&#39;)[,  c(&#39;marker&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_female&#39;)]
+colnames(mmcvt_chrx)[3] = &#39;cM_coxV3&#39;
+
+mmcvt_output = rbind(mmcvt_auto, mmcvt_chrx)
 
 # Merge mmconvert results back with GRCm39 positions.
 chr_recomb = merge(chr_recomb, mmcvt_output, by = &#39;marker&#39;, all = TRUE,
@@ -782,7 +797,7 @@ stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
 rm(mmcvt_input)
 
 # Reorder the columns and rbind the non-recombining chromosomes back in.
-chr_recomb = chr_recomb[,c(&#39;marker&#39;, &#39;chr&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_ave&#39;, 
+chr_recomb = chr_recomb[,c(&#39;marker&#39;, &#39;chr&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3&#39;, 
                            &#39;strand&#39;, &#39;snp&#39;, &#39;unique&#39;,    &#39;unmapped&#39;, 
                            &#39;probe&#39;, &#39;strand_flipped&#39;)]
 colnames(chr_recomb)[4] = &#39;cM_cox&#39;
@@ -973,7 +988,13 @@ mmcvt_input = data.frame(chr = chr_recomb$chr,
                          pos = chr_recomb$pos,
                          marker = chr_recomb$marker)
 mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = &#39;bp&#39;)
-mmcvt_output = mmcvt_output[,c(&#39;marker&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_ave&#39;)]
+mmcvt_auto = subset(mmcvt_output, chr %in% 1:19)[, c(&#39;marker&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_ave&#39;)]
+colnames(mmcvt_auto)[3] = &#39;cM_coxV3&#39;
+# Note: Use female values on Chr X because there is no average cM.
+mmcvt_chrx = subset(mmcvt_output, chr ==   &#39;X&#39;)[,  c(&#39;marker&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_female&#39;)]
+colnames(mmcvt_chrx)[3] = &#39;cM_coxV3&#39;
+
+mmcvt_output = rbind(mmcvt_auto, mmcvt_chrx)
 
 # Merge mmconvert results back with GRCm39 positions.
 chr_recomb = merge(chr_recomb, mmcvt_output, by = &#39;marker&#39;, all = TRUE,
@@ -982,7 +1003,7 @@ stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
 rm(mmcvt_input)
 
 # Reorder the columns and rbind the non-recombining chromosomes back in.
-chr_recomb = chr_recomb[,c(&#39;marker&#39;, &#39;chr&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_ave&#39;, 
+chr_recomb = chr_recomb[,c(&#39;marker&#39;, &#39;chr&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3&#39;, 
                            &#39;strand&#39;, &#39;snp&#39;, &#39;unique&#39;,    &#39;unmapped&#39;, 
                            &#39;probe&#39;,  &#39;strand_flipped&#39;)]
 colnames(chr_recomb)[4] = &#39;cM_cox&#39;
@@ -1018,6 +1039,9 @@ mm_v2 = mm_v2[,c(&#39;marker&#39;, &#39;chr&#39;, &#39;bp_mm10&#39;, &#39;bp_grc
 mm_v2$chr = factor(mm_v2$chr, levels = c(1:19, &#39;X&#39;, &#39;Y&#39;, &#39;M&#39;))
 mm_v2 = mm_v2[order(mm_v2$chr, mm_v2$bp_grcm39),]
 
+# Remove old GRCm38 positions.
+mm_v2$bp_mm10[is.na(mm_v2$chr)] = NA
+
 write.table(mm_v2, file = sub(&#39;1&#39;, &#39;2&#39;, mm_v1_file), sep = &#39;,&#39;,
             quote = FALSE, row.names = FALSE, col.names = TRUE)</code></pre>
 <p>I’m also creating a dictionary file, modeled after Karl’s.</p>
@@ -1037,6 +1061,7 @@ mm_dict_file = file.path(base_dir, &#39;UWisc&#39;, &#39;mm_uwisc_dict_v2.csv&#3
 output = data.frame(column       = colnames(mm_v2),
                      description = descriptions,
                      stringsAsFactors = FALSE)
+
 write.table(output, mm_dict_file, sep = &quot;,&quot;, quote = FALSE,
             row.names = FALSE, col.names = TRUE)</code></pre>
 <p>Perform a final QC check and verify that the markers that we wrote out are the ones that have no mismatches in the BLAST results.</p>
@@ -1314,7 +1339,13 @@ mmcvt_input = data.frame(chr = chr_recomb$chr,
                          pos = chr_recomb$pos,
                          marker = chr_recomb$marker)
 mmcvt_output = mmconvert::mmconvert(mmcvt_input, input_type = &#39;bp&#39;)
-mmcvt_output = mmcvt_output[,c(&#39;marker&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_ave&#39;)]
+mmcvt_auto = subset(mmcvt_output, chr %in% 1:19)[, c(&#39;marker&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_ave&#39;)]
+colnames(mmcvt_auto)[3] = &#39;cM_coxV3&#39;
+# Note: Use female values on Chr X because there is no average cM.
+mmcvt_chrx = subset(mmcvt_output, chr ==   &#39;X&#39;)[,  c(&#39;marker&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_female&#39;)]
+colnames(mmcvt_chrx)[3] = &#39;cM_coxV3&#39;
+
+mmcvt_output = rbind(mmcvt_auto, mmcvt_chrx)
 
 # Merge mmconvert results back with GRCm39 positions.
 chr_recomb = merge(chr_recomb, mmcvt_output, by = &#39;marker&#39;, all = TRUE,
@@ -1323,7 +1354,7 @@ stopifnot(all(chr_recomb$pos == chr_recomb$bp_grcm39))
 rm(mmcvt_input)
 
 # Reorder the columns and rbind the non-recombining chromosomes back in.
-chr_recomb = chr_recomb[,c(&#39;marker&#39;, &#39;chr&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3_ave&#39;, 
+chr_recomb = chr_recomb[,c(&#39;marker&#39;, &#39;chr&#39;, &#39;bp_grcm39&#39;, &#39;cM_coxV3&#39;, 
                            &#39;strand&#39;, &#39;snp&#39;, &#39;unique&#39;,    &#39;unmapped&#39;, 
                            &#39;probe&#39;,  &#39;strand_flipped&#39;)]
 colnames(chr_recomb)[4] = &#39;cM_cox&#39;
@@ -1588,6 +1619,9 @@ gm_v2 = gm_v2[,c(&#39;marker&#39;, &#39;chr&#39;, &#39;bp_mm10&#39;, &#39;bp_grc
 # Reorder markers by Chr &amp; GRCm39 position.
 gm_v2$chr = factor(gm_v2$chr, levels = c(1:19, &#39;X&#39;, &#39;Y&#39;, &#39;M&#39;))
 gm_v2 = gm_v2[order(gm_v2$chr, gm_v2$bp_grcm39),]
+
+# Remove old GRCm38 positions.
+gm_v2$bp_mm10[is.na(gm_v2$chr)] = NA
 
 write.table(gm_v2, file = sub(&#39;1&#39;, &#39;2&#39;, gm_v1_file), sep = &#39;,&#39;,
             quote = FALSE, row.names = FALSE, col.names = TRUE)</code></pre>
