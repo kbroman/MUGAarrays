@@ -318,7 +318,7 @@ div.tocify {
 <p><a href="https://www.jax.org/people/mandy-chen">Mandy Chen</a> asked me to repeat <a href="https://kbroman.org/MUGAarrays/new_annotations.html">my analysis of the MegaMUGA/GigaMUGA annotation files</a> with the original MUGA array. The probe sequences are in an RData file at the UNC site, <a href="http://csbio.unc.edu/MUGA/snps.muga.Rdata" class="uri">http://csbio.unc.edu/MUGA/snps.muga.Rdata</a>.</p>
 <p>This contains information for 7,854 SNPs. All are on autosomes 1-19, X, Y, or M. As with the other arrays, there are columns for cM, bp, the two alleles, and probe sequence. For the A/C and T/G markers (vs the A/G and T/C ones), there’s a second probe sequence. (There are 1,831 of these.)</p>
 <p>The probes are again 50 bp long. Whereas before, in cases with a second probe sequence, the probe sequences contained the SNP allele, here that doesn’t seem to be the case, but I’m not totally sure. I spot-checked a handful of them, and in all cases the SNP allele was not contained in either probe, and the two probes mapped with a one basepair gap. But I probably should blast the second sequence in all cases, and verify that they are all okay.</p>
-<p>The annotation files I created are at <a href="https://github.com/kbroman/MUGAarrays/blob/master/UWisc" class="uri">https://github.com/kbroman/MUGAarrays/blob/master/UWisc</a>.</p>
+<p>The annotation files I created are at <a href="https://github.com/kbroman/MUGAarrays/blob/main/UWisc" class="uri">https://github.com/kbroman/MUGAarrays/blob/main/UWisc</a>.</p>
 </div>
 <div id="preliminaries" class="section level2">
 <h2>Preliminaries</h2>
@@ -556,19 +556,19 @@ write.table(output, muga_dict_file, sep=&quot;,&quot;, quote=FALSE,
 <p>Here are the versions of R and R packages that I am using.</p>
 <pre class="r"><code>devtools::session_info()</code></pre>
 <pre><code>## ─ Session info ─────────────────────────────────────────────────────────────────────────────────────────────
-##  setting  value                       
+##  setting  value
 ##  version  R version 3.6.0 (2019-04-26)
-##  os       Pop!_OS 18.04 LTS           
-##  system   x86_64, linux-gnu           
-##  ui       X11                         
-##  language en_US:en                    
-##  collate  en_US.UTF-8                 
-##  ctype    en_US.UTF-8                 
-##  tz       America/Chicago             
-##  date     2019-05-10                  
-## 
+##  os       Pop!_OS 18.04 LTS
+##  system   x86_64, linux-gnu
+##  ui       X11
+##  language en_US:en
+##  collate  en_US.UTF-8
+##  ctype    en_US.UTF-8
+##  tz       America/Chicago
+##  date     2019-05-10
+##
 ## ─ Packages ─────────────────────────────────────────────────────────────────────────────────────────────────
-##  package     * version date       lib source        
+##  package     * version date       lib source
 ##  assertthat    0.2.1   2019-03-21 [1] CRAN (R 3.6.0)
 ##  backports     1.1.4   2019-04-10 [1] CRAN (R 3.6.0)
 ##  broman      * 0.69-5  2019-04-11 [1] CRAN (R 3.6.0)
@@ -605,7 +605,7 @@ write.table(output, muga_dict_file, sep=&quot;,&quot;, quote=FALSE,
 ##  withr         2.1.2   2018-03-15 [1] CRAN (R 3.6.0)
 ##  xfun          0.6     2019-04-02 [1] CRAN (R 3.6.0)
 ##  yaml          2.2.0   2018-07-25 [1] CRAN (R 3.6.0)
-## 
+##
 ## [1] /home/kbroman/Rlibs
 ## [2] /usr/local/lib/R/site-library
 ## [3] /usr/lib/R/site-library

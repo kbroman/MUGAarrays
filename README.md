@@ -120,7 +120,7 @@ the two arrays.
 ## MiniMUGA
 
 [Vivek Kumar](https://www.jax.org/research-and-faculty/faculty/vivek-kumar)
-asked me to take a look at the miniMUGA array, using an [annotation file](https://github.com/kbroman/MUGAarrays/blob/master/UNC/miniMUGA-Marker-Annotations.csv)
+asked me to take a look at the miniMUGA array, using an [annotation file](https://github.com/kbroman/MUGAarrays/blob/main/UNC/miniMUGA-Marker-Annotations.csv)
 he got from [Fernando Pardo Manuel de
 Villena](https://www.med.unc.edu/genetics/people/primary-faculty/fernando-pardo-manuel-de-villena-phd).
 

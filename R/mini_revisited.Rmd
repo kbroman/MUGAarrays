@@ -20,7 +20,7 @@ options(width=110)
 ## Introduction
 
 The annotation file I created for the miniMUGA array (2018-11-08) is at
-<https://github.com/kbroman/MUGAarrays/blob/master/UWisc/mini_uwisc_v1.csv>.
+<https://github.com/kbroman/MUGAarrays/blob/main/UWisc/mini_uwisc_v1.csv>.
 We'll call this the UWisc annotation file.
 
 The [miniMUGA paper](https://doi.org/10.1534/genetics.120.303596) has

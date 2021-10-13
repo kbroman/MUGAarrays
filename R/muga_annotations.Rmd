@@ -40,7 +40,7 @@ mapped with a one basepair gap. But I probably should blast the second
 sequence in all cases, and verify that they are all okay.
 
 The annotation files I created are at
-<https://github.com/kbroman/MUGAarrays/blob/master/UWisc>.
+<https://github.com/kbroman/MUGAarrays/blob/main/UWisc>.
 
 ## Preliminaries
 
