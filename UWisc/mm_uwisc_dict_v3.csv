@@ -1,0 +1,12 @@
+column,description
+marker,Name of SNP marker
+chr,Chromosome
+bp_mm10,Physical position in basepairs for mm10 mouse genome build
+bp_grcm39,Physical position in basepairs for GRCm39 mouse genome build
+cM_cox,Average cM position on Cox et al. map (female position on X chromosome)
+strand,Strand (plus/minus) from which the probe sequence was taken
+snp,SNP alleles as a two-character string
+unique,TRUE indicates that the probe sequence appears exactly once in GRCm39 mouse genome build
+unmapped,TRUE indicates that the probe sequence has no perfect match in GRCm39 mouse genome build
+probe,Probe sequence (49 or 50 bases); the SNP occurs immediately after
+strand_flipped,TRUE if the SNP alleles are on the opposite strand from the probe sequence

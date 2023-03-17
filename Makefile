@@ -1,9 +1,10 @@
 R_OPTS=--no-save --no-restore --no-init-file --no-site-file
 .PHONY : all
 
-all: docs/new_annotations.html docs/study_sequences.html docs/mini_annotations.html R/new_annotations.R R/mini_annotations.R docs/muga_annotations.html R/muga_annotations.R docs/mini_revisited.html
+all: docs/new_annotations.html docs/study_sequences.html docs/mini_annotations.html R/new_annotations.R R/mini_annotations.R docs/muga_annotations.html R/muga_annotations.R docs/mini_revisited.html UWisc/gm_uwisc_v3.csv
 
-
+UWisc/gm_uwisc_v3.csv: R/fix_cox_positions.R # docs/mini_revisited.html docs/muga_annotations_grcm39.html
+	cd R;R $(R_OPTS) -e "source('$(<F)')"
 
 docs/mini_revisited.html: R/mini_revisited.Rmd \
 						  docs/mini_annotations.html \
