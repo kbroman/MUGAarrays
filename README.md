@@ -12,15 +12,17 @@ sex-averaged genetic map positions for an updated version of the
 [Cox et al. (2009)](https://doi.org/10.1534/genetics.109.105486) map; see
 [CoxMapV3](https://github.com/kbroman/CoxMapV3). (Note that the CoxMapV3 maps
 were corrected on 2023-03-17 using the [original crimap software](https://github.com/kbroman/CriMap) rather
-than the ["improved" version of crimap](https://www.animalgenome.org/tools/share/crimap/).)
+than the ["improved" version of
+crimap](https://www.animalgenome.org/tools/share/crimap/), and that
+we've further "smoothed" the maps slightly to avoid segments with 0 recombination.)
 
-- GigaMUGA: [`gm_uwisc_v3.csv`](UWisc/gm_uwisc_v3.csv), [`gm_uwisc_dict_v3.csv`](UWisc/gm_uwisc_dict_v3.csv)
+- GigaMUGA: [`gm_uwisc_v4.csv`](UWisc/gm_uwisc_v4.csv), [`gm_uwisc_dict_v4.csv`](UWisc/gm_uwisc_dict_v4.csv)
 
-- MegaMUGA: [`mm_uwisc_v3.csv`](UWisc/mm_uwisc_v3.csv), [`mm_uwisc_dict_v3.csv`](UWisc/mm_uwisc_dict_v3.csv)
+- MegaMUGA: [`mm_uwisc_v4.csv`](UWisc/mm_uwisc_v4.csv), [`mm_uwisc_dict_v4.csv`](UWisc/mm_uwisc_dict_v4.csv)
 
-- MiniMUGA: [`mini_uwisc_v4.csv`](UWisc/mini_uwisc_v4.csv), [`mini_uwisc_dict_v4.csv`](UWisc/mini_uwisc_dict_v4.csv)
+- MiniMUGA: [`mini_uwisc_v5.csv`](UWisc/mini_uwisc_v5.csv), [`mini_uwisc_dict_v5.csv`](UWisc/mini_uwisc_dict_v5.csv)
 
-- Original MUGA: [`muga_uwisc_v3.csv`](UWisc/muga_uwisc_v3.csv), [`muga_uwisc_dict_v3.csv`](UWisc/muga_uwisc_dict_v3.csv)
+- Original MUGA: [`muga_uwisc_v4.csv`](UWisc/muga_uwisc_v4.csv), [`muga_uwisc_dict_v4.csv`](UWisc/muga_uwisc_dict_v4.csv)
 
 ---
 

@@ -6,11 +6,15 @@
 #
 # But we found that the changes in the estimated genetic maps were
 # large and not entirely trustworthy, with long stretches of 0
-# recombination and quite different QTL mapping results in some cases.
+# recombination.
 #
 # And so we went back to the original crimap software, was able to get
 # it to compile and run, and got estimated maps that are now closely
 # matching the originals, but updated for mouse genome build 39.
+#
+# But these still showed stretches of 0 recombination, and so we've
+# "smoothed" the Cox maps slightly, by taking the intervals lengths to
+# be a 1/50 mixture of constant recombination across the chromosome.
 #
 # See https://github.com/kbroman/CoxMapV3
 #     https://github.com/kbroman/CriMap
@@ -18,19 +22,19 @@
 # This script plugs in the new maps in place of the old ones
 
 mini_file <- "../UWisc/mini_uwisc_v3.csv"
-mini_nfile <- sub("v3", "v4", mini_file)
+mini_nfile <- sub("v3", "v5", mini_file)
 mini <- data.table::fread(mini_file, data.table=FALSE) # marker, chr, bp_grcm39, cM_cox
 
 mm_file <- "../UWisc/mm_uwisc_v2.csv"
-mm_nfile <- sub("v2", "v3", mm_file)
+mm_nfile <- sub("v2", "v4", mm_file)
 mm <- data.table::fread(mm_file, data.table=FALSE) # marker, chr, bp_grcm39, cM_cox
 
 muga_file <- "../UWisc/muga_uwisc_v2.csv"
-muga_nfile <- sub("v2", "v3", muga_file)
+muga_nfile <- sub("v2", "v4", muga_file)
 muga <- data.table::fread(muga_file, data.table=FALSE) # marker, chr, bp_grcm39, cM_cox
 
 gm_file <- "../UWisc/gm_uwisc_v2.csv"
-gm_nfile <- sub("v2", "v3", gm_file)
+gm_nfile <- sub("v2", "v4", gm_file)
 gm <- data.table::fread(gm_file, data.table=FALSE) # marker, chr, bp_grcm39, cM_cox
 
 # copy dictionary files to new versions
