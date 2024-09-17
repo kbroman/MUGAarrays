@@ -131,7 +131,7 @@ Villena](https://www.med.unc.edu/genetics/people/primary-faculty/fernando-pardo-
 The [miniMUGA paper](https://doi.org/10.1534/genetics.120.303596) has
 now been published, with some additions to the array.
 Initially [published at bioRxiv](https://doi.org/10.1101/2020.03.12.989400) on 2020-03-14,
-it provides official annotations with the [Supplmental
+it provides official annotations with the [Supplemental
 material](https://doi.org/10.25386/genetics.11971941.v1), as [Table S2](https://gsajournals.figshare.com/articles/dataset/Supplemental_Material_for_Sigmon_et_al_2020/11971941?file=25117973).
 
 My original analysis is at
