@@ -143,6 +143,17 @@ But I've now added a comparison to the new annotations:
 My annotation files are in the [`UWisc`](UWisc) directory, with the
 original ones labeled `v1` and the ones based on the new array `v2`.
 
+**Note** that new miniMUGA annotation information was provided with [Blanchard et
+al. (2024)](https://doi.org/10.1093/g3journal/jkae193). (_For the
+uniquely mapped markers, these new annotations match the positions
+that I provide._) See
+[Supplementary Table 2](https://gsajournals.figshare.com/articles/journal_contribution/Supplemental_Material_for_Blanchard_et_al_2024/26311777?file=47717242),
+whose columns are defined in
+[Supplementary Table 3](https://gsajournals.figshare.com/articles/journal_contribution/Supplemental_Material_for_Blanchard_et_al_2024/26311777?file=47717248).
+Download the Supplementary Table 2 CSV file directly with the link
+<https://gsajournals.figshare.com/ndownloader/files/47717242>
+Note that the positions are in build GRCm38 (mm10).
+
 ---
 
 ## Original MUGA

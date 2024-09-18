@@ -15,3 +15,5 @@ UWisc/muga_uwisc*v0.csv
 UNC/miniMUGA_tableS2.csv
 UWisc/*_pre_v2*
 R/mini_revisited_summary.rds
+R/cf_minimuga_2024.R
+UNC/minimuga2024.csv
